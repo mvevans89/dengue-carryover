@@ -1,0 +1,192 @@
+---
+title: "August Infections"
+author: "Michelle Evans"
+date: "10/3/2016"
+output: html_document
+---
+
+This document is for the analysis of the August 2016 Trial of Infections of the Dengue Microclimate project in Athens, GA.
+
+```{r packages}
+library(dplyr)
+library(xtable)
+library(tidyr)
+```
+
+```{r load and format data}
+august <- read.csv("../data/infections/infectionsAugust.csv")
+#drop body and winglendgth for now
+august <- select(august, -Head,-WingLength)
+#dpi as factor
+august$DPI <- as.factor(august$DPI)
+#drop contaminated individuals
+august <- filter(august, Body != "C")
+august <- filter(august, Saliva != "C")
+#add in class and site
+august$site <- substr(as.character(august$Individual), 1, 2)
+august$class <- NULL
+for (i in 1:nrow(august)){
+  if (substr(august$site[i], 1,1)=="R"){
+  august$class[i] <- "Rural"
+  } else if (substr(august$site[i], 1,1)=="S"){
+  august$class[i] <- "Suburban"
+  } else if (substr(august$site[i], 1,1)=="U"){
+  august$class[i] <- "Urban"
+  }
+}
+august$class <- as.factor(august$class)
+august$site <- as.factor(august$site)
+#convert Y and N to 1 and 0 for statistics
+levels(august$Body) <- c("NA", 0, 1)
+august$Body <- as.numeric(as.character(august$Body))
+levels(august$Saliva) <- c("NA", 0, 1)
+august$Saliva <- as.numeric(as.character(august$Saliva))
+```
+
+First, lets create a table of the percentages for an overview:
+
+```{r summary table}
+augustSumm <- august %>%
+  #drop individual
+  select(-Individual) %>%
+  group_by(DPI, site, class) %>%
+  summarise_each(funs(mean,sd,se=(sd(.)/sqrt(n())))) %>%
+  ungroup()
+#print table
+xtable(augustSumm)
+```
+
+We can also make some plots:
+
+```{r plot:body14dpi, eval=F}
+augustSumm14 <- augustSumm[augustSumm$DPI=="14",]
+  barCenters <- barplot(augustSumm14$Body_mean, 
+          col=c("gray80", "dodgerblue", "maroon")[augustSumm14$class],
+          names.arg=augustSumm14$site,
+          ylim=c(0,0.4),
+          main = "Body Infection (14 dpi)"
+          )
+  #add se bars
+  segments(barCenters, augustSumm14$Body_mean - augustSumm14$Body_se , barCenters,
+         augustSumm14$Body_mean + augustSumm14$Body_se, lwd = 1.5)
+  
+  arrows(barCenters, augustSumm14$Body_mean - augustSumm14$Body_se , barCenters,
+         augustSumm14$Body_mean + augustSumm14$Body_se, lwd = 1.5, 
+         angle = 90,
+       code = 3, length = 0.05)
+```
+
+```{r plot:body21dpi, eval=F}
+augustSumm21 <- augustSumm[augustSumm$DPI=="21",]
+  barCenters <- barplot(augustSumm21$Body_mean, 
+          col=c("gray80", "dodgerblue", "maroon")[augustSumm21$class],
+          names.arg=augustSumm21$site,
+          ylim=c(0,0.8),
+          main = "Body Infection (21 dpi)"
+          )
+  #add se bars
+  segments(barCenters, augustSumm21$Body_mean - augustSumm21$Body_se , barCenters,
+         augustSumm21$Body_mean + augustSumm21$Body_se, lwd = 1.5)
+  
+  arrows(barCenters, augustSumm21$Body_mean - augustSumm21$Body_se , barCenters,
+         augustSumm21$Body_mean + augustSumm21$Body_se, lwd = 1.5, 
+         angle = 90,
+       code = 3, length = 0.05)
+```
+
+```{r plot:14 dpi saliva,eval=F}
+  barCenters <- barplot(augustSumm14$Saliva_mean, 
+          col=c("gray80", "dodgerblue", "maroon")[augustSumm14$class],
+          names.arg=augustSumm14$site,
+          ylim=c(0,0.6),
+          main = "Saliva Infection (14 dpi)"
+          )
+  #add sd bars
+  segments(barCenters, augustSumm14$Saliva_mean - augustSumm14$Saliva_se , barCenters,
+         augustSumm14$Saliva_mean + augustSumm14$Saliva_se, lwd = 1.5)
+  
+  arrows(barCenters, augustSumm14$Saliva_mean - augustSumm14$Saliva_se , barCenters,
+         augustSumm14$Saliva_mean + augustSumm14$Saliva_se, lwd = 1.5, 
+         angle = 90,
+       code = 3, length = 0.05)
+```
+
+```{r plot:21dpi saliva, eval=F}
+  barCenters <- barplot(augustSumm21$Saliva_mean, 
+          col=c("gray80", "dodgerblue", "maroon")[augustSumm21$class],
+          names.arg=augustSumm21$site,
+          ylim=c(0,0.5),
+          main = "Saliva Infection (21 dpi)"
+          )
+  #add se bars
+  segments(barCenters, augustSumm21$Saliva_mean - augustSumm21$Saliva_se , barCenters,
+         augustSumm21$Saliva_mean + augustSumm21$Saliva_se, lwd = 1.5)
+  
+  arrows(barCenters, augustSumm21$Saliva_mean - augustSumm21$Saliva_se , barCenters,
+         augustSumm21$Saliva_mean + augustSumm21$Saliva_se, lwd = 1.5, 
+         angle = 90,
+       code = 3, length = 0.05)
+```
+
+With such small sample numbers, it is kind of hard to see if there is any real trend. I would say, however, that suburban mosquitoes tend to be more infected. What are the implications of this?
+
+I should compare to the emergence curves. Looking at this it seems like emerging too fast or too slow may increase infection.
+
+I think it would be better to plot all bodies on one and all saliva on one.
+
+```{r barplot:besideBody}
+bodyBeside <- as.matrix(cbind(augustSumm$Body_mean[augustSumm$DPI=="14"], augustSumm$Body_mean[augustSumm$DPI=="21"]), ncol=2)
+colnames(bodyBeside) <- c("14dpi", "21dpi")
+rownames(bodyBeside) <- levels(augustSumm$site)
+bodyBeside <- t(bodyBeside)
+barCenters <- barplot(bodyBeside, 
+                      beside=T,
+                      col=c(rep("gray80",6), rep("dodgerblue",6), 
+                            rep("maroon",6)),
+                      density = c(40,NA),
+                      names.arg=colnames(bodyBeside),
+                      ylim=c(0,0.80),
+                      main = "Dengue Body Infections",
+                      ylab = "Percent Infected"
+                      )
+bodyBesideSE <- as.matrix(rbind(augustSumm$Body_se[augustSumm$DPI=="14"], augustSumm$Body_se[augustSumm$DPI=="21"]), nrow=2)
+  #add se bars
+segments(barCenters, bodyBeside - bodyBesideSE , barCenters,
+         bodyBeside + bodyBesideSE, lwd = 1.5)
+  
+arrows(barCenters, bodyBeside - bodyBesideSE , barCenters,
+         bodyBeside + bodyBesideSE,
+         lwd = 1.5, 
+         angle = 90,
+         code = 3, length = 0.03)
+legend("topright", legend=c("14 dpi", "21 dpi"), density = c(40,NA),
+       bty = "n", col = "gray80")
+```
+
+```{r barplot:besideSaliva}
+SalivaBeside <- as.matrix(rbind(augustSumm$Saliva_mean[augustSumm$DPI=="14"], augustSumm$Saliva_mean[augustSumm$DPI=="21"]), nrow=2)
+rownames(SalivaBeside) <- c("14dpi", "21dpi")
+colnames(SalivaBeside) <- levels(augustSumm$site)
+barCenters <- barplot(SalivaBeside, 
+                      beside=T,
+                      col=c(rep("gray80",6), rep("dodgerblue",6), 
+                            rep("maroon",6)),
+                      density = c(40,NA),
+                      names.arg=colnames(SalivaBeside),
+                      ylim=c(0,0.50),
+                      main = "Dengue Saliva Infections",
+                      ylab = "Percent Infected"
+                      )
+SalivaBesideSE <- as.matrix(rbind(augustSumm$Saliva_se[augustSumm$DPI=="14"], augustSumm$Saliva_se[augustSumm$DPI=="21"]), nrow=2)
+  #add se bars
+segments(barCenters, SalivaBeside - SalivaBesideSE , barCenters,
+         SalivaBeside + SalivaBesideSE, lwd = 1.5)
+  
+arrows(barCenters, SalivaBeside - SalivaBesideSE , barCenters,
+         SalivaBeside + SalivaBesideSE,
+         lwd = 1.5, 
+         angle = 90,
+         code = 3, length = 0.03)
+legend("topright", legend=c("14 dpi", "21 dpi"), density = c(40,NA),
+       bty = "n", col = "gray80")
+```
