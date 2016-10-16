@@ -16,7 +16,7 @@ This is a document used to explore the emergence data from the 2016 Athens Albop
 The data is from Google Sheets document named ['Summer Emergence (Infections only)'](https://docs.google.com/spreadsheets/d/1shSdIVyA2Cy2N-PrGKjBSJibssg1Qj-1SCKr7226nVs/edit?usp=sharing)
 
 ```{r load data}
-emergence <- read.csv("../data/infectionsAugust.csv")[,-11]
+emergence <- read.csv("../data/infections/infectionsAugust.csv")[,-11]
 ```
 
 First let's look at how many have emerged out of each tray:
@@ -254,4 +254,154 @@ There are too many to show, so let's look at the ones that have had a mosquito e
 
 ```{r last three days}
 trayLastDay[(as.numeric((format(Sys.Date(), "%d")))-trayLastDay$lastDay)<=3,]
+```
+
+# Emergence Analysis
+
+## Survival Curves
+
+One way to look at emergence is as an inverted survival curve.
+
+```{r load and format data}
+emergence <- read.csv("../data/microclimate/emergenceAugust.csv")
+#expand each row into a row per individual mosquito
+expanded <- emergence[rep(seq.int(1,nrow(emergence)), emergence$Num_Emerge),
+                      c(2,4,5,8,9)]
+#add event to show this is emergence (1)
+expanded$event <- 1
+#check it was done okay
+sum(emergence$Num_Emerge)==nrow(expanded)
+#for now just take out the females
+female <- expanded[expanded$Sex=="F",]
+```
+
+The last day we checked was 9-03-2016 (Exp_Day==34).
+```{r fillIn function}
+#fills in 0 events for those mosquitoes that did not emerge
+fillIn <- function(df, endDay){
+  #this function fills in for those mosquitoes that did not emerge so we do not have data for, it gives them an observation/event of 0 on the last day we found a mosquito emerged
+  #args
+    # - df: the data frame you wish to fill in, in our case by pot
+    # - endDay: the maximum day of emergence
+  toRep <- df[1,]
+  toRep$Exp_Day <- endDay
+  toRep$event <- 0
+  if(nrow(df)<50){
+    toAdd <- toRep[rep(1, (50-nrow(df))),]
+    allTest <- rbind(df, toAdd)
+  } else {
+    toAdd <- NA
+    allTest <- NA
+  }
+  return(allTest)
+}
+```
+
+```{r fillIn the df}
+testlist <- list()
+#run the fillIn function on it
+for (i in 1:length(unique(female$Tray_Code))){ 
+  df <- female[female$Tray_Code==unique(female$Tray_Code)[i],]
+  endDay <- 34
+  testlist[[i]] <- fillIn(df=df, endDay=endDay)
+}
+femaleSurv <- do.call(rbind.data.frame, testlist)
+```
+
+First a preliminary plot:
+
+```{r preliminary survival plot}
+colorvec <- c("dodgerblue", "black", "maroon")
+fit <- with(femaleSurv, survfit(Surv(Exp_Day, event) ~ Class))
+plot(fit, col=colorvec)
+mtext("August Emergence")
+```
+
+It all seems good. Now we can make a fancier model from a cox-ph object.
+
+```{r coxph}
+femaleNaive <- with(femaleSurv, coxph(Surv(Exp_Day, event) ~ Class + cluster(Tray_Code), method="breslow", na.action="na.omit"))
+summary(femaleNaive)
+#test for PH assumption
+cox.zph(femaleNaive)
+plot(residuals(femaleNaive, type="martingale"))
+plot(femaleSurv$Class, residuals(femaleNaive, type="martingale")) #looks fine
+```
+
+```{r plotting fail, include=F}
+femaleFit <- survfit(Surv(Exp_Day, event) ~ Class + cluster(Tray_Code),
+                     data=femaleSurv)
+plot(femaleFit)
+
+#rural
+test <- survfit(femaleNaive, data.frame(Class="rural"), censor=F)
+testspl <- smooth.spline(test$time, test$surv)
+xx <- seq(0,35, length=400)
+#predict over smooth time points
+ruralSmooth <- predict(testspl,xx)
+#fix any strange ones over 1
+ruralSmooth$y[ruralSmooth$y>=1] <- 1
+#flip upside down
+ruralSmooth$y <- (1-ruralSmooth$y) * 100
+
+#suburban
+test <- survfit(femaleNaive, data.frame(Class="suburban"), censor=F)
+testspl <- smooth.spline(test$time, test$surv)
+#predict over smooth time points
+suburbanSmooth <- predict(testspl,xx)
+#fix any strange ones over 1
+suburbanSmooth$y[suburbanSmooth$y>=1] <- 1
+#flip upside down
+suburbanSmooth$y <- (1-suburbanSmooth$y) * 100
+
+#urban
+test <- survfit(femaleNaive, data.frame(Class="urban"), censor=F)
+testspl <- smooth.spline(test$time, test$surv)
+#predict over smooth time points
+urbanSmooth <- predict(testspl,xx)
+#fix any strange ones over 1
+urbanSmooth$y[urbanSmooth$y>=1] <- 1
+#flip upside down
+urbanSmooth$y <- (1-urbanSmooth$y) * 100
+
+#-----Plot-----#
+plot(test, fun="event", lty=1, ylim=c(0,100), ylab="% Emerged", xlab="Day of Experiment", yaxt='n', col=NA)
+lines(ruralSmooth, col="dodgerblue", lwd=2)
+lines(suburbanSmooth, col="gray20", lwd=2)
+lines(urbanSmooth, col="maroon", lwd=2)
+axis(2, yaxp=c(0, 100, 4), las=2)
+
+
+```
+
+I think the best thing to do, since the model finds no difference between them all, is to just fit loess curves to the survival data:
+
+```{r prep loess curves}
+plot(fit)
+summary(fit)
+require(ggfortify) #easy extraction of data from surv object
+res <- fortify(fit) #get stuff into dataframe
+ruralSmooth <- with(res[res$strata=="Class=rural",],
+                    loess(as.vector(surv) ~ as.vector(time))
+)
+suburbanSmooth <- with(res[res$strata=="Class=suburban",],
+                    loess(as.vector(surv) ~ as.vector(time))
+)
+urbanSmooth <- with(res[res$strata=="Class=urban",],
+                    loess(as.vector(surv) ~ as.vector(time))
+)
+xl <-seq(0,35, by=0.1)
+```
+
+```{r emergence loess plot}
+#plot
+pdf("figures/emergence.pdf", height=6, width=8, family="sans")
+par(mar=rep(6,4))
+plot(y=res$surv, x=res$time, xlim=c(10.5,34), ylim=c(0,1), pch=NA, xlab = "Day",
+     ylab = "% Emerged", cex.lab=2, cex.axis=2)
+
+lines(x=xl,y=(1 - predict(ruralSmooth, xl)), col="dodgerblue", lwd=2)
+lines(x=xl,y=(1 - predict(suburbanSmooth, xl)), col="gray20", lwd=2)
+lines(x=xl,y=(1 - predict(urbanSmooth, xl)), col="maroon", lwd=2)
+dev.off()
 ```

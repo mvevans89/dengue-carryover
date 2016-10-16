@@ -7,16 +7,25 @@ output: html_document
 
 This document is for the analysis of the August 2016 Trial of Infections of the Dengue Microclimate project in Athens, GA.
 
-```{r packages}
+```{r packages and setup}
 library(dplyr)
 library(xtable)
 library(tidyr)
+library(ggplot2) #for ggpairs
+library(GGally) #for ggpairs
+library(ROCR) #for prediction and AUC
+library(lme4) #mixed models
 ```
+
+
 
 ```{r load and format data}
 august <- read.csv("../data/infections/infectionsAugust.csv")
-#drop body and winglendgth for now
-august <- select(august, -Head,-WingLength)
+#drop head for now
+august <- select(august, -Head)
+#adjust wingLength
+august$Wing <- august$WingLength*august$conversion..mm.bar.
+august <- select(august, -WingLength, -conversion..mm.bar.)
 #dpi as factor
 august$DPI <- as.factor(august$DPI)
 #drop contaminated individuals
@@ -41,6 +50,17 @@ levels(august$Body) <- c("NA", 0, 1)
 august$Body <- as.numeric(as.character(august$Body))
 levels(august$Saliva) <- c("NA", 0, 1)
 august$Saliva <- as.numeric(as.character(august$Saliva))
+#save with NAs for later
+augustraw <- august
+#omit NA for now
+august <- na.omit(august)
+```
+
+```{r set color scheme}
+colRural <- "dodgerblue"
+colSuburban <- "gray80"
+colUrban <- "maroon"
+
 ```
 
 First, lets create a table of the percentages for an overview:
@@ -139,9 +159,10 @@ bodyBeside <- as.matrix(cbind(augustSumm$Body_mean[augustSumm$DPI=="14"], august
 colnames(bodyBeside) <- c("14dpi", "21dpi")
 rownames(bodyBeside) <- levels(augustSumm$site)
 bodyBeside <- t(bodyBeside)
+pdf(file="figures/augustBody.pdf", width = 8, height=6, family="sans")
 barCenters <- barplot(bodyBeside, 
                       beside=T,
-                      col=c(rep("gray80",6), rep("dodgerblue",6), 
+                      col=c(rep("dodgerblue",6), rep("gray80",6), 
                             rep("maroon",6)),
                       density = c(40,NA),
                       names.arg=colnames(bodyBeside),
@@ -161,15 +182,17 @@ arrows(barCenters, bodyBeside - bodyBesideSE , barCenters,
          code = 3, length = 0.03)
 legend("topright", legend=c("14 dpi", "21 dpi"), density = c(40,NA),
        bty = "n", col = "gray80")
+dev.off()
 ```
 
 ```{r barplot:besideSaliva}
 SalivaBeside <- as.matrix(rbind(augustSumm$Saliva_mean[augustSumm$DPI=="14"], augustSumm$Saliva_mean[augustSumm$DPI=="21"]), nrow=2)
 rownames(SalivaBeside) <- c("14dpi", "21dpi")
 colnames(SalivaBeside) <- levels(augustSumm$site)
+pdf(file="figures/augustSaliva.pdf", width = 8, height=6, family="sans")
 barCenters <- barplot(SalivaBeside, 
                       beside=T,
-                      col=c(rep("gray80",6), rep("dodgerblue",6), 
+                      col=c(rep("dodgerblue",6), rep("gray80",6), 
                             rep("maroon",6)),
                       density = c(40,NA),
                       names.arg=colnames(SalivaBeside),
@@ -189,4 +212,253 @@ arrows(barCenters, SalivaBeside - SalivaBesideSE , barCenters,
          code = 3, length = 0.03)
 legend("topright", legend=c("14 dpi", "21 dpi"), density = c(40,NA),
        bty = "n", col = "gray80")
+dev.off()
+```
+
+## Statistical Analysis
+
+I think that the best way to approach this type of binary data may be a logistic regression. We can approach this using a mixed-effects model, but first lets try it without to see if this is even the way to do it.
+
+For now (as of 10-5-16) we will just look at wing length and land class and how that effects infection status.  In the future, tying microcliate into this would be good
+
+```{r infection logreg: bodies}
+ggpairs(augustraw[,-1])
+#split into training(70) and testing(30)
+set.seed(8675309)
+train <- sample_frac(augustraw, 0.7)
+test <- setdiff(augustraw, train)
+#train a model on training data
+model <- glm(Body~class+Wing+DPI+class*Wing+class*DPI, data=train,
+             family=binomial(link="logit"))
+summary(model)
+#look at deviance using an anova
+anova(model, test="Chisq")
+#predict on test values and look at AUC value
+p <- predict(model, newdata=test, type= "response")
+pr <- prediction(p, test$Body)
+auc <- performance(pr, measure = "auc")@y.values[[1]]
+auc #pretty shitty
+```
+
+A normal old logistic regression gives us an auc of `r auc`, which isn't great but isn't horrible.  The model tells us a couple things about the predictor variables:
+
+- Those mosquitoes sampled at 21 DPI are significantly more infected than those at 14 DPI. This isn't surprising given how slow this strain of dengue is in cells.
+
+- The effect of wing size is slightly significant, with larger mosquitoes less likely to be infected.  The deviance table does not agree with this, however.
+
+- Class had no significant effect on infection. 
+
+I think it would be helpful to now add in some random effects of site.
+
+```{r mixed logreg: bodies}
+mixModel <- glmer(Body~class+ Wing + DPI + (1|site), data=train,
+             family=binomial)
+summary(mixModel)
+#predict on test values and look at AUC value
+p <- predict(mixModel, newdata=test, type= "response")
+pr <- prediction(p, test$Body)
+auc <- performance(pr, measure = "auc")@y.values[[1]]
+auc #does perform better when controlling for random effects
+```
+
+When you add in the random effects of site, the effect of sampling time (dpi) becomes even more significant than before.  Also the model performs slightly better, with an AUC of `r auc`.
+
+For plotting, it may be better to just use the whole dataset, rather than testing and training.
+
+```{r mixed logreg all: body}
+#split by DPI
+mixModel14 <- glmer(Body~class + (1|site), data=augustraw[augustraw$DPI=="14",],
+             family=binomial)
+summary(mixModel14)
+mixModel21 <- glmer(Body~class + (1|site), data=augustraw[augustraw$DPI=="21",],
+             family=binomial)
+summary(mixModel21)
+#extract values to plot
+bodyMix <- as.data.frame(c("Rural", "Suburban","Urban"))
+bodyMix$mean.14 <- c(fixef(mixModel14)[[1]], fixef(mixModel14)[[1]] + fixef(mixModel14)[[2]], fixef(mixModel14)[[1]] + fixef(mixModel14)[[3]])
+bodyMix$se.14 <- sqrt(diag(vcov(mixModel14, useScale = FALSE)))
+bodyMix$mean.21 <- c(fixef(mixModel21)[[1]], fixef(mixModel21)[[1]] + fixef(mixModel21)[[2]], fixef(mixModel21)[[1]] + fixef(mixModel21)[[3]])
+bodyMix$se.21 <- sqrt(diag(vcov(mixModel21, useScale = FALSE)))
+```
+
+This isn't working well for now. So I will just plot the mean and se per class normally for the GMCA conference.
+
+```{r GMCA body inf plot}
+GMCAmeans <- augustraw %>%
+  #drop individual
+  select(-Individual, -site, -Wing) %>%
+  group_by(DPI, class) %>%
+  summarise_each(funs(mean,se=(sd(.)/sqrt(n())))) %>%
+  ungroup()
+
+bodyBeside <- as.matrix(cbind(GMCAmeans$Body_mean[GMCAmeans$DPI=="14"], GMCAmeans$Body_mean[GMCAmeans$DPI=="21"]), ncol=2)
+colnames(bodyBeside) <- c("14dpi", "21dpi")
+rownames(bodyBeside) <- levels(GMCAmeans$class)
+bodyBeside <- t(bodyBeside)
+pdf(file="figures/augustBodyClass.pdf", width = 8, height=6, family="sans")
+par(mar=rep(6,4))
+barCenters <- barplot(bodyBeside, 
+                      beside=T,
+                      col=c(rep(c(colRural, colSuburban, 
+                            colUrban), each=2)),
+                      density = c(20,NA),
+                      names.arg=colnames(bodyBeside),
+                      ylim=c(0,0.65),
+                      main = "Dengue Body Infections",
+                      ylab = "% Infected",
+                      xlab = "Land Class",
+                      las=1,
+                      cex.lab=1.5, cex.axis=1
+                      )
+bodyBesideSE <- as.matrix(rbind(GMCAmeans$Body_se[GMCAmeans$DPI=="14"], GMCAmeans$Body_se[GMCAmeans$DPI=="21"]), nrow=2)
+  #add se bars
+segments(barCenters, bodyBeside - bodyBesideSE , barCenters,
+         bodyBeside + bodyBesideSE, lwd = 1.5)
+  
+arrows(barCenters, bodyBeside - bodyBesideSE , barCenters,
+         bodyBeside + bodyBesideSE,
+         lwd = 1.5, 
+         angle = 90,
+         code = 3, length = 0.03)
+legend("topright", legend=c("14 dpi", "21 dpi"), density = c(40,NA),
+       bty = "n", col = "gray80")
+dev.off()
+```
+
+```{r GMCA plot saliva}
+SalivaBeside <- as.matrix(cbind(GMCAmeans$Saliva_mean[GMCAmeans$DPI=="14"], GMCAmeans$Saliva_mean[GMCAmeans$DPI=="21"]), ncol=2)
+colnames(SalivaBeside) <- c("14dpi", "21dpi")
+rownames(SalivaBeside) <- levels(GMCAmeans$class)
+SalivaBeside <- t(SalivaBeside)
+pdf(file="figures/augustSalivaClass.pdf", width = 8, height=6, family="sans")
+par(mar=rep(6,4))
+barCenters <- barplot(SalivaBeside, 
+                      beside=T,
+                      col=c(rep(c(colRural, colSuburban, 
+                            colUrban), each=2)),
+                      density = c(20,NA),
+                      names.arg=colnames(SalivaBeside),
+                      ylim=c(0,0.3),
+                      main = "Dengue Saliva Infections",
+                      ylab = "% Infected",
+                      las=1,
+                      cex.lab=1.5, cex.axis=1,
+                      xlab = "Land Class"
+                      )
+SalivaBesideSE <- as.matrix(rbind(GMCAmeans$Saliva_se[GMCAmeans$DPI=="14"], GMCAmeans$Saliva_se[GMCAmeans$DPI=="21"]), nrow=2)
+  #add se bars
+segments(barCenters, SalivaBeside - SalivaBesideSE , barCenters,
+         SalivaBeside + SalivaBesideSE, lwd = 1.5)
+  
+arrows(barCenters, SalivaBeside - SalivaBesideSE , barCenters,
+         SalivaBeside + SalivaBesideSE,
+         lwd = 1.5, 
+         angle = 90,
+         code = 3, length = 0.03)
+legend("topright", legend=c("14 dpi", "21 dpi"), density = c(40,NA),
+       bty = "n", col = "gray80")
+dev.off()
+
+
+```
+## Saliva
+
+```{r infection logreg: saliva}
+ggpairs(augustraw[,-1])
+#split into training(70) and testing(30)
+set.seed(8675309)
+train <- sample_frac(augustraw, 0.7)
+test <- setdiff(augustraw, train)
+#train a model on training data
+model <- glm(Saliva~class+Wing+DPI+class*Wing+class*DPI, data=train,
+             family=binomial(link="logit"))
+summary(model)
+#look at deviance using an anova
+anova(model, test="Chisq")
+#predict on test values and look at AUC value
+p <- predict(model, newdata=test, type= "response")
+pr <- prediction(p, test$Body)
+auc <- performance(pr, measure = "auc")@y.values[[1]]
+auc #pretty shitty
+```
+
+
+
+#Wing Length and Infection
+
+```{r linear plot}
+pdf(file="figures/wingLengthInfectionlm.pdf", width = 8, height=6, family="sans")
+plot(y=jitter(august$Body), x=august$Wing, pch=16, 
+     col=c("gray80", "dodgerblue", "maroon")[august$class],
+     ylab="Body Infections",
+     xlab= "Wing Length (mm)",
+     main= "Wing Length and Body Infection by Land Class")
+with(august[august$class=="Rural",],abline(lm(Body~Wing), col="gray80"))
+with(august[august$class=="Suburban",],abline(lm(Body~Wing), col="dodgerblue"))
+with(august[august$class=="Urban",],abline(lm(Body~Wing), col="maroon"))
+dev.off()
+# or plot the opposite way
+plot(x=as.factor(august$Body), y=august$Wing)
+points(x=(as.factor(august$Body)), y=august$Wing,
+       pch=16,
+       col=c("gray80", "dodgerblue", "maroon")[august$class])
+#create summary of mean wing length of those that are and are not infected
+wingMean <- august[august$DPI=="21",] %>%
+  group_by(class, Body) %>%
+  summarise(wingmean=mean(Wing), n=n()) %>%
+  ungroup()
+```
+
+There seems to be a different relationship with size and infection/competence depending on the land use. I suspect this is due to the time to emergence in suburban sites (maybe).
+
+#Add in Climate data
+
+```{r load climate data, eval=F}
+climate <- read.csv("../data/microclimate/augustAdult.csv")[,-1]
+climate <- climate[climate$Temp<75,]
+summary <- climate %>%
+  group_by(Site_ID) %>%
+  summarise(Tmean=mean(Temp))
+boxplot(climate$Temp~climate$Site_ID)
+```
+
+#Wing Length Analyses
+These are kind of just junk wing length analyses for the GMCA conference.
+
+```{r wing length summary stats}
+wings <- augustraw[,5:7]
+#mixed model I guess
+require(lmerTest)
+wingMod <- lmer(Wing~class + (1|site), data=wings)
+summary(wingMod)
+#create a dataframe to plot
+fixef(wingMod)
+Vcov <- vcov(wingMod, useScale=F)
+se <- sqrt(diag(Vcov))
+means <- c(fixef(wingMod)[[1]], (fixef(wingMod)[[1]] + fixef(wingMod)[[2]]), 
+           (fixef(wingMod)[[1]] + fixef(wingMod)[[3]]))
+ModtoPlot <- as.data.frame(cbind(means, se))
+rownames(ModtoPlot) <- c("rural", "suburban", "urban")
+wings <- na.omit(wings)
+wings$classNum <- as.numeric(wings$class)
+require(scales)
+require(vioplot)
+pdf("figures/wingLength2.pdf", height=6, width=6)
+par(mar=rep(6,4))
+plot(x=c(0.5,1.5,2.5,3.5), y=rep(2.5,4), ylim=c(1.8, 3), pch=NA, xlim=c(0.5,3.5),
+     xaxt='n', xlab="Land Class", ylab= "Wing Length (mm)", 
+     cex.lab=1.5, cex.axis=1, las=2)
+#points(wings$Wing~jitter(wings$classNum, factor=0.3), pch=16, 
+       #col=c("dodgerblue", "gray20","maroon")[wings$classNum])
+vioplot(wings$Wing[wings$class=="Rural"], col=alpha("dodgerblue",0.5), at=1,
+        add=T, rectCol=NA, drawRect=F, clip=F)
+points(x=1, y=mean(wings$Wing[wings$class=="Rural"]), pch=16, cex=2)
+vioplot(wings$Wing[wings$class=="Suburban"], col=alpha("gray20",0.5), at=2,
+        add=T, rectCol=NA, drawRect=F, clip=F)
+points(x=2, y=mean(wings$Wing[wings$class=="Suburban"]), pch=16, cex=2)
+vioplot(wings$Wing[wings$class=="Urban"], col=alpha("maroon",0.5), at=3,
+        add=T, rectCol=NA, drawRect=F, clip=F)
+points(x=3, y=mean(wings$Wing[wings$class=="Urban"]), pch=16, cex=2)
+axis(side=1, at=c(1,2,3), labels=c("Rural", "Suburban", "Urban"), tck=0, cex=1.5)
+dev.off()
 ```
