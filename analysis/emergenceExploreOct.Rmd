@@ -9,14 +9,14 @@ output: html_document
 library(dplyr)
 ```
 
-This is a document used to explore the emergence data from the 2016 Athens Albopictus Field Project.
+This is a document used to explore the emergence data from the 2016 Athens Albopictus Field Project, October (Fall) Trial.
 
 #Emergence for Infections
 
-The data is from Google Sheets document named ['Summer Emergence (Infections only)'](https://docs.google.com/spreadsheets/d/1shSdIVyA2Cy2N-PrGKjBSJibssg1Qj-1SCKr7226nVs/edit?usp=sharing)
+The data is from Google Sheets document named ['October Emergence (Infections only)'](https://docs.google.com/spreadsheets/d/1gxVditu8jU5z9wICneYsovoTR_XmrwE3-DTvSWMFK0o/edit?usp=sharing)
 
 ```{r load data}
-emergence <- read.csv("../data/infections/infectionsOct.csv")
+emergence <- read.csv("../data/infections/emergenceOct.csv")
 ```
 
 First let's look at how many have emerged out of each tray:
@@ -76,7 +76,6 @@ legend("topleft", legend=levels(bySiteF$Class), col=c("dodgerblue",
 
 ```
 
-One suburban, urban, and rural site each has a lot of emergence, while the rest have only just started.
 
 I would like at least 100 females from each site to blood feed.  Currently there are **`r nrow(bySiteF[bySiteF$cumulative>100,])`** sites that meet that criteria.
 
@@ -108,10 +107,10 @@ if (females$Month[1]==7){
   }
 } else if (females$Month[1]==10) {
   for (i in 1:nrow(females)){
-    if (females$Site[i] %in% c(4, 7, 8, 6)) {
-    females$age[i] <- as.numeric(format(as.Date("2016-10-15"),
+    if (females$Site[i] %in% c(1, 4, 7, 8, 9)) { #first round of infections
+    females$age[i] <- as.numeric(format(as.Date("2016-10-23"),
                                         "%d"))-females$Day[i]
-    } else females$age[i] <- as.numeric(format(as.Date("2016-10-15"),
+    } else females$age[i] <- as.numeric(format(as.Date("2016-10-25"),
                                                "%d"))-females$Day[i]
   }
 }
@@ -159,15 +158,15 @@ emergencePlots <- function(site){
     siteColor <- "maroon"
   }
   #cumulative plot
-with(curve[curve$Site_Code==site,], plot(y=cumulative, x=Exp_Day, xlim=c(10, 25), ylim=c(0,50), pch=19, col=siteColor, main=paste(site, "Cumulative Emergence")))
+with(curve[curve$Site_Code==site,], plot(y=cumulative, x=Exp_Day, xlim=c(15, 40), ylim=c(0,100), pch=19, col=siteColor, main=paste(site, "Cumulative Emergence")))
 #lines for cumulative
-with(curve[curve$Site_Code==site,], lines(y=cumulative, x=Exp_Day, xlim=c(10, 25), ylim=c(0,50), col=siteColor))
+with(curve[curve$Site_Code==site,], lines(y=cumulative, x=Exp_Day, xlim=c(15, 40), ylim=c(0,100), col=siteColor))
 #mtext
 with(curve[curve$Site_Code==site,], mtext(paste("Cumulative= ", max(cumulative), "/ First Day= ", min(Exp_Day), sep="")))
 #emergence plot
-with(curve[curve$Site_Code==site,], plot(y=emerged, x=Exp_Day, xlim=c(10, 25), ylim=c(0,25), pch=19, col=siteColor, main=paste(site, "emergence by Day")))
+with(curve[curve$Site_Code==site,], plot(y=emerged, x=Exp_Day, xlim=c(15, 40), ylim=c(0,25), pch=19, col=siteColor, main=paste(site, "emergence by Day")))
 #lines
-with(curve[curve$Site_Code==site,], lines(y=emerged, x=Exp_Day, xlim=c(10, 25), ylim=c(0,25), col=siteColor))
+with(curve[curve$Site_Code==site,], lines(y=emerged, x=Exp_Day, xlim=c(15, 40), ylim=c(0,25), col=siteColor))
 #mtext
 with(curve[curve$Site_Code==site,], mtext(paste("Cumulative= ", max(cumulative), "/ First Day= ", min(Exp_Day), sep="")))
 }
@@ -180,64 +179,23 @@ sapply(as.vector(levels(curve$Site_Code)), FUN=emergencePlots)
 
 ```
 
-# All Emergence (ie Not Just Infections)
-
-To get this data, we combine the infection emergence data above with the [other emergence data](https://docs.google.com/spreadsheets/d/1PkFjOs6JgU6n8Xf7wbmAFfdyJRHEHu9V6NQF7N4UVYk/edit?usp=sharing):
-
-```{r all emergence data, eval=F, include=F}
-
-othEmerge <- read.csv("../data/emergenceAugust.csv")[,-11]
-allEmerge <- rbind(emergence, othEmerge)
-```
-
-We can similarly look at the total emergence by tray:
-
-```{r emergence by tray ALL, eval=F, include=F}
-#cumulative emergence
-byTrayAll <- allEmerge %>%
-  group_by(Class, Tray_Code, Sex) %>%
-  summarise(cumulative=sum(Num_Emerge)) %>%
-  ungroup()
-#order by tray
-byTrayAll <- byTrayAll[order(byTrayAll$Tray_Code),]
-#make a little bar graph
-barplot(byTrayAll$cumulative, 
-        names.arg = byTrayAll$Tray_Code, col=c("pink",
-                                            "dodgerblue")[byTrayAll$Sex],
-        ylim=c(0,75),
-        xlab="Tray",
-        ylab="Cumulative Emerged",
-        main="Cumulative Albo Emerged by Tray")
-byTrayAllMF <- allEmerge %>%
-  group_by(Class, Tray_Code) %>%
-  summarise(cumulative=sum(Num_Emerge)) %>%
-  ungroup()
-```
-
-The total emerged per each tray is:
-
-```{r, eval=F, include=F}
-b <- byTrayAllMF[order(byTrayAllMF$cumulative, decreasing=T),]
-b[1:36,]
-```
-
 #The Slow Down
 
-It is also helpful to see when the last mosquito emerged from each tray, to know when the experiment is over. The following is a list of the trays which have not had a mosquito emerge for five days, and the last day of emergence for them:
+It is also helpful to see when the last mosquito emerged from each tray, to know when the experiment is over. The following is a list of the trays which have not had a mosquito emerge for three days, and the last day of emergence for them:
 
-```{r last days, eval=F}
-trayLastDay <- allEmerge %>%
+```{r last days, eval=T}
+trayLastDay <- emergence %>%
   group_by(Tray_Code) %>%
   filter(Num_Emerge>0) %>%
-  summarise(lastDay=max(Day)) %>%
+  summarise(lastDay=max(Exp_Day)) %>%
   ungroup()
 
-a <- trayLastDay[(as.numeric((format(Sys.Date(), "%d")))-trayLastDay$lastDay)>=5,]
+a <- trayLastDay[(42-trayLastDay$lastDay)>3,]
 (a[1:nrow(a),])
 ```
 
 There are too many to show, so let's look at the ones that have had a mosquito emerge in the past three days:
 
-```{r last three days, eval=F}
-trayLastDay[(as.numeric((format(Sys.Date(), "%d")))-trayLastDay$lastDay)<=3,]
+```{r last three days, eval=T}
+trayLastDay[as.numeric(42-trayLastDay$lastDay)<=3,]
 ```

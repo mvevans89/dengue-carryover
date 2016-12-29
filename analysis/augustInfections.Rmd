@@ -222,7 +222,7 @@ I think that the best way to approach this type of binary data may be a logistic
 For now (as of 10-5-16) we will just look at wing length and land class and how that effects infection status.  In the future, tying microcliate into this would be good
 
 ```{r infection logreg: bodies}
-ggpairs(augustraw[,-1])
+#ggpairs(augustraw[,-1]) #takes forever
 #split into training(70) and testing(30)
 set.seed(8675309)
 train <- sample_frac(augustraw, 0.7)
@@ -364,7 +364,7 @@ dev.off()
 ## Saliva
 
 ```{r infection logreg: saliva}
-ggpairs(augustraw[,-1])
+#ggpairs(augustraw[,-1])
 #split into training(70) and testing(30)
 set.seed(8675309)
 train <- sample_frac(augustraw, 0.7)
@@ -461,4 +461,170 @@ vioplot(wings$Wing[wings$class=="Urban"], col=alpha("maroon",0.5), at=3,
 points(x=3, y=mean(wings$Wing[wings$class=="Urban"]), pch=16, cex=2)
 axis(side=1, at=c(1,2,3), labels=c("Rural", "Suburban", "Urban"), tck=0, cex=1.5)
 dev.off()
+```
+
+## Estimating R0
+
+This is just to make a figure of R0 for the TropMed poster:
+
+Parameters in R0:
+
+- m : mosquito density (estimate out of those survived)
+- a (bite rate) :keep constant
+- bc : vector competence : c is mosquitoes, b is humans
+- mu : mosquito mortality : or p ^n where is p is survival, and n is EIP days
+- EIP : extrinsic incubation period
+
+```{r create VC function}
+
+vcEq <- function(m, a, bc, p, n){
+  vc <- (m * a^2 * bc * (p^n))/(-log(p))
+}
+```
+
+I will parameterize this with the stuff from Erin's paper, then add in what effects I measured.
+
+I want to calculate the VC for each tray.
+
+- m : mosquitoes emerged out of original 50 (density)
+- a : estimated from Mordecai et al 2016
+- bc : calculated based on my infectiousness rates
+- p : survival, from Mordecai et al 2016 (pEA)
+- n : EIP, (1/PDR from Mordecai et al 2016) *used 14 becuase Mordecai estimate was 4.8 for 28C, which is just way too low*
+
+To get the parameters for the temperature, we use the equations from Mordecai et al 2016 with the average temperature per tray as the temperature.
+
+Briere equation: aa * T * (T - Tmin) * (Tmax - T)^(1/2)
+
+```{r merge experimental data together by tray}
+#read in dataframe to link trays with loggers
+idMerge <- read.csv("../data/microclimate/trayLoggerID.csv")
+#add climate to idMerge
+climateTray <- merge(idMerge, climate, by="Pot_ID")
+#create dataframe of average temperature by tray
+tempByTray <- climateTray %>%
+  group_by(Tray_ID, Site_ID, Class) %>%
+  summarise(Temp=mean(Temp)) %>%
+  ungroup()
+
+# add in mosquito density per tray
+emergence <- read.csv("../data/microclimate/emergenceAugust.csv")
+byTray <- emergence %>%
+  group_by(Class, Tray_Code, Sex) %>%
+  summarise(cumulative=sum(Num_Emerge)) %>%
+  ungroup()
+byTrayF <- byTray[byTray$Sex=="F",]
+R0params <- merge(tempByTray, byTrayF, by.x="Tray_ID", by.y="Tray_Code")
+#drop extra columns
+R0params <- select(R0params, -Class.y, -Sex)
+R0params$m <- R0params$cumulative/50
+
+#we only have infection by site, but we'll add it to each tray anyways
+bc <- select(augustSumm21, site, Saliva_mean)
+#merge infectiousness into parameter dataframe
+R0params <- merge(R0params, bc, by.x="Site_ID", by.y="site")
+```
+
+
+It may be better to parameterize using rate summation. This involves calculating the parameters throughout a day with varying temperatures.  So I need to:
+
+1. create a plot of the average daily temperature plot by hour for each tray
+2. use these values to calculate the parameter at each of these
+3. take mean value
+
+```{r or use rate summation}
+#### calculate hourly temperatures 
+#split Date into date and hour
+climateTray$Date <- as.POSIXct(climateTray$Date)
+require(lubridate)
+climateTray$Hour <- hour(climateTray$Date)
+#aggregate by Hour
+climateTrayHr <- climateTray %>%
+  group_by(Tray_ID, Class, Site_ID, Hour) %>%
+  summarise(Temp=mean(Temp)) %>%
+  ungroup()
+
+#### merge with other stuff as above
+R0params <- merge(climateTrayHr, byTrayF, by.x="Tray_ID", by.y="Tray_Code")
+#drop extra columns
+R0params <- select(R0params, -Class.y, -Sex)
+R0params$m <- R0params$cumulative/50
+
+#we only have infection by site, but we'll add it to each tray anyways
+bc <- select(augustSumm21, site, Saliva_mean)
+#merge infectiousness into parameter dataframe
+R0params <- merge(R0params, bc, by.x="Site_ID", by.y="site")
+```
+
+
+```{r parameterize based on mordecai et al}
+R0params$a <- 1.93E-04 * R0params$Temp * (R0params$Temp - 10.25) * (38.32 - R0params$Temp)^(1/2)
+
+#egg to adult survival is quadratic
+#solve for equation with known points
+x=c(9.04,29.33,25)
+y=c(0,0,.85)
+pEAMod <- lm(y ~ poly(x,2, raw=T))
+R0params$p <- coef(pEAMod)[[2]] * R0params$Temp + coef(pEAMod)[[3]] * (R0params$Temp^2) + coef(pEAMod)[[1]]
+
+#this is using the 28C from the incubator, but honestly it definitely took longer than that
+R0params$n <- 1/(1.09E-04 * 28 * (28 - 10.39) * (43.05 - 28)^(1/2))
+#let's use 14 for now
+#R0params$n <- 14
+
+#take mean value, this is specifically for rate summation, but should be fine for the other as well
+R0params <- R0params %>%
+  group_by(Tray_ID, Class.x, Site_ID) %>%
+  summarise(m=mean(m), Saliva_mean=mean(Saliva_mean), a=mean(a, na.rm=T), p=mean(p, na.rm=T), n=mean(n, na.rm=T)) %>%
+  ungroup()
+
+
+```
+
+Calculate vector competence
+
+```{r vector competence calc}
+#This is really small and based on only 100 mosquitoes, so let's multiply by 10
+R0params$VC <- vcEq(m=R0params$m, a=R0params$a, bc=R0params$Saliva_mean, p=R0params$p, n=R0params$n) * 10
+```
+
+Now make some sweet bar plots comparing the disease risk:
+
+```{r calculate means + se for bar plots}
+r0Plot <- R0params %>%
+  group_by(Class.x) %>%
+  summarise(mean=mean(VC, na.rm=T), se=(sd(VC, na.rm=T)/sqrt(n()))) %>%
+  ungroup()
+```
+
+```{r barplots}
+pdf(file="figures/R0class.pdf", width = 8, height=6, family="sans")
+par(mar=rep(6,4))
+barCenters <- barplot(r0Plot$mean, 
+                      col=c(colRural, colSuburban, 
+                            colUrban),
+                      names.arg=r0Plot$Class.x,
+                      ylim=c(0,max(r0Plot$mean)+0.02),
+                      #main = "Predicted Disease Risk",
+                      ylab = "Relative Vectorial Capacity", #calculate per 1k initial larvae
+                      las=1,
+                      cex.lab=1.5, cex.axis=1,
+                      xlab = "Land Class"
+                      )
+  #add se bars
+segments(barCenters, r0Plot$mean - r0Plot$se , barCenters,
+         r0Plot$mean + r0Plot$se, lwd = 1.5)
+  
+arrows(barCenters, r0Plot$mean - r0Plot$se , barCenters,
+         r0Plot$mean + r0Plot$se,
+         lwd = 1.5, 
+         angle = 90,
+         code = 3, length = 0.03)
+dev.off()
+```
+
+```{r plot stats}
+require(lmerTest)
+r0stats <- lmerTest::lmer(VC~Class.x + (1|Site_ID), data=R0params)
+summary(r0stats)
 ```

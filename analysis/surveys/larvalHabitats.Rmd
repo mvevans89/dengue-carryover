@@ -1,0 +1,163 @@
+---
+title: "Larval Habitat Surveys: Exploratory Analysis"
+author: "Michelle Evans"
+date: "December 13, 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+```
+
+# Purpose
+
+This document is for the exploratory analysis of larval survey data from the Summer of 2016 in Athens, GA.  
+
+It has two datasets collected from the field:
+
+- `identifications.csv`: This is the identification of adult mosquitoes that emerged from larvae that was brought back to the lab.
+- `larvalHabitat.csv`: This is the quantitative and qualitative data about the larval habitats.
+
+The datasets are connected by their site, Grid No. and Date.
+
+# Load and Format Data
+
+This loads and formats the raw data, which will then be saved as cleaned data.
+
+```{r habitat data, eval=F}
+habitats <- read.csv("../../data/larvalSurveys/raw/larvalHabitat.csv")
+#reformat date
+habitats$Date <- as.Date(as.character(habitats$Date), format="%m/%d/%y")
+#reformat time
+habitats$Time <- as.character((habitats$Time))
+#drop unnecessary columns (radius, type)
+habitats <- select(habitats, -Radius, -Type, -Notes)
+#change Oth. Invert to Binary
+levels(habitats$Oth.Invert)[levels(habitats$Oth.Invert) %in% c("Noe", "None", "ants")] <- 0
+levels(habitats$Oth.Invert)[levels(habitats$Oth.Invert) != 0] <- 1
+levels(habitats$Larvae.Pupae)[levels(habitats$Larvae.Pupae)=="Eggs"] <- "None" 
+write.csv(habitats, "../../data/larvalSurveys/clean/larvalHabitat.csv", row.names = F)
+```
+
+```{r identification data, eval=F}
+ids <- read.csv("../../data/larvalSurveys/raw/identifications.csv")
+#format data
+ids$Date <- as.Date(as.character(ids$Date.collected), format="%m/%d/%y")
+#change site to code
+ids$Site <- ids$Code
+#fix errors in species names
+ids$Species[ids$Species=="Aedes albopictus "] <- "Aedes albopictus"
+ids$Species[ids$Species=="Aedes triseriatus "] <- "Aedes triseriatus" 
+ids$Species[ids$Species=="Anopheles punctipennis "] <- "Anopheles punctipennis"
+ids$Species[ids$Species=="Culex quinquefaciatus"] <- "Culex quinquefasciatus"
+idsClean <- select(ids, Site, Date, Grid=Location..grid., Species, Sex, No.)
+#expand data so each mosquito is individual
+idsCleanX<- idsClean[rep(seq.int(1,nrow(idsClean)), idsClean$No.),]
+idsClean <-  select(idsCleanX, - No.)
+write.csv(idsClean, "../../data/larvalSurveys/clean/Identifications.csv", row.names = F)
+
+```
+
+```{r load cleaned data, eval=T}
+habitats <- read.csv("../../data/larvalSurveys/clean/larvalHabitat.csv")
+habitats$Date <- as.Date(as.character(habitats$Date))
+habitats$Positive <- ifelse(habitats$Larvae.Pupae=="None",0,1)
+habitats <- habitats %>%
+  mutate(class = case_when(
+    .$Site %in% c("R1", "R2", "R3") ~ "rural",
+    .$Site %in% c("S1", "S2", "S3") ~ "suburban",
+    .$Site %in% c("U1", "U2", "U3") ~ "urban"
+  ))
+ids <- read.csv("../../data/larvalSurveys/clean/Identifications.csv")
+```
+
+# Join Habitat data with Larval Positivity and Identification
+
+
+
+# Summary Stats and Basic Viz of Habitat Data
+
+```{r table of summary stats by site}
+require(dplyr)
+habitatSumm <- habitats %>%
+  group_by(Site) %>%
+  select(-Date, -Time, -Grid, -Larvae.Pupae, -Oth.Invert, -Type..factor.) %>%
+  summarise_each(funs(mean(., na.rm=T), min(., na.rm=T), max(., na.rm=T))) %>%
+  ungroup()
+
+print(habitatSumm)  
+```
+
+
+```{r plot habitat by site over time}
+library(ggplot2)  
+temporalHabitat <- habitats %>%
+  group_by(Site,Date, Positive) %>%
+  summarise(habQuantity=n()) %>%
+  ungroup()
+  
+#quick facet plopt
+ggplot(temporalHabitat, aes(x=Date, y=habQuantity)) +
+  geom_point() +
+  geom_line() +
+  facet_grid(Positive ~ Site)
+  
+```
+
+## PCA of positive vs. non-positive
+
+```{r habitat pca}
+library(caret)
+pcaDat <- habitats %>%
+  filter(Site != "U3" & Type..factor.!="pond") %>% #drops big pond at U3
+  select(Positive, type=Type..factor., date=Date, class, area=Surface.Area..cm2., depth=Depth..cm., canCover=Canopy.Cover, turb=Turbidity, temp=Temp) 
+
+#drop large pond at U3 (severe outlier)
+
+
+#check out data
+for (col in 5:ncol(pcaDat)) {
+    hist(pcaDat[,col])
+}
+
+#trasnform and scale data
+pcaDat <- na.omit(pcaDat) #omit NAs
+pcaScale <- scale(pcaDat[,5:ncol(pcaDat)], center=T, scale=T) #center and scale
+
+#summary stats
+cor(pcaScale)
+summary(pcaDat)
+library(PerformanceAnalytics)
+#chart.Correlation(pcaScale, histogram=T)
+
+#PCA
+library("FactoMineR")
+library(lubridate)
+library(factoextra)
+habPCA <- PCA(pcaScale, scale.unit = T, graph=T)
+fviz_screeplot(habPCA, ncp=10)
+#looking at larval positivity
+fviz_pca_ind(habPCA, label="none", habillage=pcaDat$Positive, addEllipses=T, ellipse.level=0.95)
+#habitat type
+#fviz_pca_ind(habPCA, label="none", habillage=pcaDat$type, addEllipses=T, ellipse.level=0.95)
+#date
+fviz_pca_ind(habPCA, label="none", habillage=as.factor(month(pcaDat$date)), addEllipses=T, ellipse.level=0.95)
+#class
+fviz_pca_ind(habPCA, label="none", habillage=pcaDat$class, addEllipses=T, ellipse.level=0.95)
+
+#3D
+library(rgl)
+plot3d(habPCA$ind$coord, col=as.numeric(as.factor((pcaDat$class)))) #need x11 installed
+plot3d(habPCA$ind$coord, col=as.numeric(pcaDat$type))
+
+#looking at it in 3D tells me that there is one outlier that should be dropped (large pond at U3)
+#dim.3 has some cool shit going on
+
+plot(x=habPCA$ind$coord[,2], y=habPCA$ind$coord[,3], pch=20, col=as.numeric(as.factor((pcaDat$class))))
+
+
+
+```
+  
+  

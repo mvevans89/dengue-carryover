@@ -14,7 +14,7 @@ This document is used for the analysis of the larval surveys conducted in the su
 
 ```{r load data}
 
-larvID <- read.csv("../data/larvalSurveys/identifications.csv")
+larvID <- read.csv("../../data/larvalSurveys/raw/identifications.csv")
 
 #check that data is okay
 levels(larvID$Species)
@@ -63,7 +63,16 @@ siteSummStats <- siteSpR %>%
 siteSummStats
 
 #make a plot for each site
-
+with(siteSpR[siteSpR$Code=="U1",], {
+     plot(x=Date.collected, y=SpR, pch=NA, main="Total Species Richness", xlab="Date", ylab="Species Richness")
+     lines(x=Date.collected, y=SpR)
+}
+     )
+with(siteSpR[siteSpR$Code=="S1",], {
+     plot(x=Date.collected, y=SpR, pch=NA, main="Total Species Richness", xlab="Date", ylab="Species Richness")
+     lines(x=Date.collected, y=SpR)
+}
+     )
 ```
 
 
