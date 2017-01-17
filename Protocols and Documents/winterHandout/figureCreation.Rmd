@@ -1,0 +1,93 @@
+---
+title: "Suburban HandOuts"
+author: "Michelle Evans"
+date: "12/31/2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(lubridate)
+library(scales)
+```
+
+This document creates the figures for the handout given to the suburban sites of the Athens Microclimate Project in the winter of 2016. It provided a short bit of information concerning our results from the summer surveys.
+
+# Community Composition
+
+```{r load and format data}
+IDs <- read.csv("Identifications.csv")
+precip <- read.csv("rainfall.csv")
+```
+
+# Overall Community Composition in Suburban Sites
+
+```{r pie chart figure}
+#suburbs only
+suburb <- IDs %>%
+  filter(Site %in% c('S1', 'S2', 'S3'))
+#get number of positive habitats for each species
+subUn <- unique(suburb[, -5])
+
+pies <- subUn %>%
+  group_by(Species) %>%
+  summarise(posHab=n())
+slices <- c(76,2,5,8,2)
+
+pdf("speciesPie.pdf", height=4, width=4)
+pie(x=slices, 
+    labels=c("Ae. albopictus", "Ae. japonicus", "Cx. quinquefasciatus", "Ae. triseritus", "Or. signifera"), 
+    #labels=NA,
+    col=c("skyblue","goldenrod",  wes_palettes$Rushmore[3:5]),
+    border=NA)
+dev.off()
+```
+
+#Seasonal Line Graph
+
+```{r}
+subUn$Date <- as.Date(as.character(subUn$Date))
+
+subDate <- subUn %>%
+  group_by(Date, Site) %>%
+  summarise(hab=n()) %>%
+  ungroup()
+#get weekly means
+y <- tapply(subDate$hab, week(subDate$Date), mean)
+x <- unique(week(subDate$Date))
+xlabels <- seq(min(subDate$Date), max(subDate$Date), by="week")
+
+pdf("mosqRainfall.pdf", height=4, width=6)
+#plot rainfall
+plot(x=precip$Date, y=precip$precip, pch=NA, yaxt="n", xlab="", ylab="", ylim=c(0,5))
+lines(x=precip$Date, y=precip$precip, ylim=c(0,5), xaxt="n", yaxt="n", xlab="", ylab="", col=alpha("blue", 0.5), lwd=2)
+axis(side=4, at=c(0,2,4), labels=c(0,2,4), las=1)
+par(new=T)
+#plot mosquito habitat
+plot(x=xlabels[x-24], y=y, pch=NA, xlab='', ylab="", xaxt="n", las=1)
+loessFit <- loess(y~x)
+lines(x=xlabels[x-24], y=predict(loessFit,x), col="maroon", lwd=2.5)
+dev.off()
+
+```
+
+It would be nice to pair this with rainfall. Code below downloads data from teh UGA weather station, now loaded above this as "rainfall.csv".
+
+```{r rainfall data, eval=F}
+dates <- c(160601:160630, 160701:160731, 160801:160831, 160901:160915)
+precip <- c()
+for (i in 1: length(dates)){
+  date <- dates[i]
+  file <- paste0("http://weather.ggy.uga.edu/data/csv/", date,".csv")
+  df <- read.csv(file, header=F)
+  precip[i] <- sum(as.numeric(as.character((df[4,12]))))
+}
+#get string of dates
+dateRange <- seq(as.Date("2016-06-01"), as.Date("2016-09-15"), by="day")
+#length(dateRange)==length(precip)
+precip <- as.data.frame(precip)
+precip$Date <- dateRange
+write.csv(precip, "rainfall.csv", row.names =F)
+```
+

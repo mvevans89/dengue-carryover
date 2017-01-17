@@ -1,0 +1,407 @@
+---
+title: "Emergence Exploration"
+author: "Michelle Evans"
+date: "August 25, 2016"
+output: html_document
+---
+
+```{r load packages and setup, echo=F, message=F}
+library(dplyr)
+```
+
+This is a document used to explore the emergence data from the 2016 Athens Albopictus Field Project.
+
+#Emergence for Infections
+
+The data is from Google Sheets document named ['Summer Emergence (Infections only)'](https://docs.google.com/spreadsheets/d/1shSdIVyA2Cy2N-PrGKjBSJibssg1Qj-1SCKr7226nVs/edit?usp=sharing)
+
+```{r load data}
+emergence <- read.csv("../data/infections/infectionsAugust.csv")[,-11]
+```
+
+First let's look at how many have emerged out of each tray:
+
+```{r emergence by tray}
+#cumulative emergence
+byTray <- emergence %>%
+  group_by(Class, Tray_Code, Sex) %>%
+  summarise(cumulative=sum(Num_Emerge)) %>%
+  ungroup()
+#order by tray
+byTray <- byTray[order(byTray$Tray_Code),]
+#make a little bar graph
+barplot(byTray$cumulative, 
+        names.arg = byTray$Tray_Code, col=c("pink",
+                                            "dodgerblue")[byTray$Sex],
+        xlab="Tray",
+        ylab="Cumulative Emerged",
+        main="Cumulative Albo Emerged by Tray to Infect")
+#just the women
+byTrayF <- byTray[byTray$Sex=="F",]
+barplot(byTrayF$cumulative, 
+        names.arg = byTrayF$Tray_Code, col=c("dodgerblue",
+                                            "black", "maroon")[byTrayF$Class],
+        xlab="Tray",
+        ylab="Cumulative Emerged",
+        main="Cumulative Female Albo Emerged by Tray (7/11)")
+legend("topleft", legend=levels(byTrayF$Class), col=c("dodgerblue",
+                                            "black", "maroon"), pch=15)
+```
+
+Looks like a pretty good number, now let's go by site.
+
+```{r emergence by site}
+bySite <- emergence %>%
+  group_by(Class, Site_Code, Sex) %>%
+  summarise(cumulative=sum(Num_Emerge)) %>%
+  ungroup()
+#make a little bar graph
+barplot(bySite$cumulative, 
+        names.arg = bySite$Site_Code, col=c("pink",
+                                            "dodgerblue")[bySite$Sex],
+        xlab="Site",
+        ylab="Cumulative Emerged",
+        main="Cumulative Albo Emerged by Site (7/11)")
+bySite
+#just the women
+bySiteF <- bySite[bySite$Sex=="F",]
+barplot(bySiteF$cumulative, 
+        names.arg = bySiteF$Site_Code, col=c("dodgerblue",
+                                            "black", "maroon")[bySiteF$Class],
+        xlab="Site",
+        ylab="Cumulative Emerged",
+        main="Cumulative Female Albo Emerged by Site (7/11)")
+legend("topleft", legend=levels(bySiteF$Class), col=c("dodgerblue",
+                                            "black", "maroon"), pch=15)
+
+```
+
+One suburban, urban, and rural site each has a lot of emergence, while the rest have only just started.
+
+I would like at least 100 females from each site to blood feed.  Currently there are **`r nrow(bySiteF[bySiteF$cumulative>100,])`** sites that meet that criteria.
+
+#Age Distribution of Females
+
+I also need to know the age distribution of the mosquitoes I am feeding, so I can plan the best day to feed on.
+
+```{r current female age distribution}
+females <- emergence[emergence$Sex=="F",]
+#calculate age
+#needs to be calculated for both feed dates
+#feed date 1: 8-16-2016: R1, U1, U2, S3
+#feed date 2: 8-19-2016: R2, R3, U3, S1, S2
+#for July data
+if (females$Month[1]==7){
+  for (i in 1:nrow(females)){
+    if (females$Site[i] %in% c(2, 7, 3, 5)) {
+    females$age[i] <- as.numeric(format(as.Date("2016-07-17"),
+                                        "%d"))-females$Day[i]
+    } else females$age[i] <- as.numeric(format(as.Date("2016-07-20"),
+                                               "%d"))-females$Day[i]
+  }
+} else if (females$Month[1]==8) {
+  for (i in 1:nrow(females)){
+    if (females$Site[i] %in% c(4, 7, 8, 6)) {
+    females$age[i] <- as.numeric(format(as.Date("2016-08-16"),
+                                        "%d"))-females$Day[i]
+    } else females$age[i] <- as.numeric(format(as.Date("2016-08-19"),
+                                               "%d"))-females$Day[i]
+  }
+}
+
+
+#new dataframe listing each individual mosquito by site
+require(dplyr)
+femaleSite <- select(females, Site_Code, Num_Emerge, age)
+#repeat each row based on number of mosquitoes emerged, each mosq gets a row
+femaleSiteExpanded <- femaleSite[rep(seq.int(1,nrow(femaleSite)), femaleSite$Num_Emerge),c(1,3)]
+#can now calculate mean and median age by site
+siteAge <- femaleSiteExpanded %>%
+  group_by(Site_Code) %>%
+  summarise(median(age), mean(age), min(age), max(age)) %>%
+  ungroup()
+```
+So we have the following mean and median ages per site:
+```{r}
+siteAge
+```
+
+All of the sites had a similar mean age when they were infected, of between 4 - 7 days old.
+
+We can also look at plots of emergence over time to have a better idea:
+
+```{r emergence curves}
+curve <- emergence[emergence$Sex=="F",] %>%
+  group_by(Class, Site_Code, Exp_Day) %>%
+  summarise(emerged=sum(Num_Emerge)) %>%
+  mutate(cumulative=cumsum(emerged)) %>%
+  ungroup()
+```
+
+```{r plotting function}
+emergencePlots <- function(site){
+  par(mfrow=c(1,2))
+  #set plot color
+  if (startsWith(site, "R")) {
+    siteColor <- "dodgerblue"
+  } else if (startsWith(site, "S")) {
+    siteColor <- "gray60"
+  } else if (startsWith(site, "U")) {
+    siteColor <- "maroon"
+  }
+  #cumulative plot
+with(curve[curve$Site_Code==site,], plot(y=cumulative, x=Exp_Day, xlim=c(6, 21), ylim=c(0,(max(cumulative)+10)), pch=19, col=siteColor, main=paste(site, "cumulative Emergence")))
+#lines for cumulative
+with(curve[curve$Site_Code==site,], lines(y=cumulative, x=Exp_Day, xlim=c(6, 21), ylim=c(0,(max(cumulative)+10)), col=siteColor))
+#mtext
+with(curve[curve$Site_Code==site,], mtext(paste("Cumulative= ", max(cumulative), "/ First Day= ", min(Exp_Day), sep="")))
+#emergence plot
+with(curve[curve$Site_Code==site,], plot(y=emerged, x=Exp_Day, xlim=c(6, 21), ylim=c(0,(max(emerged)+10)), pch=19, col=siteColor, main=paste(site, "emergence by Day")))
+#lines
+with(curve[curve$Site_Code==site,], lines(y=emerged, x=Exp_Day, xlim=c(6, 21), ylim=c(0,25), col=siteColor))
+#mtext
+with(curve[curve$Site_Code==site,], mtext(paste("Cumulative= ", max(cumulative), "/ First Day= ", min(Exp_Day), sep="")))
+}
+```
+
+Now that I have a sweet function written, I can apply it over all of the sites. To interpret these plots, the cumulative emergence is plotted on the left, with emergence per day on the right.  This allows us to see the rate of emergence on the left, and the peak emergence on the right.  Using this, we can see when emergence is slowing down and plan infections accordingly.
+
+```{r plot them ALL, echo=F}
+sapply(as.vector(levels(emergence$Site_Code)), FUN=emergencePlots)
+
+```
+
+
+
+```{r age histograms, eval=F, echo=F, include=F}
+par(mfrow=c(3,3))
+hist(femaleSiteExpanded$age[femaleSiteExpanded$Site_Code=="R1"], xlab="Age", main="Age Distribution of R1", col= "dodgerblue")
+
+hist(femaleSiteExpanded$age[femaleSiteExpanded$Site_Code=="R2"], xlab="Age", main="Age Distribution of R2", col= "dodgerblue")
+
+hist(femaleSiteExpanded$age[femaleSiteExpanded$Site_Code=="R3"], xlab="Age", main="Age Distribution of R3", col= "dodgerblue")
+
+hist(femaleSiteExpanded$age[femaleSiteExpanded$Site_Code=="S1"], xlab="Age", main="Age Distribution of S1", col= "gray60")
+
+hist(femaleSiteExpanded$age[femaleSiteExpanded$Site_Code=="S2"], xlab="Age", main="Age Distribution of S2", col= "gray60")
+
+hist(femaleSiteExpanded$age[femaleSiteExpanded$Site_Code=="S3"], xlab="Age", main="Age Distribution of S3", col= "gray60")
+
+hist(femaleSiteExpanded$age[femaleSiteExpanded$Site_Code=="U1"], xlab="Age", main="Age Distribution of U1", col= "maroon")
+
+hist(femaleSiteExpanded$age[femaleSiteExpanded$Site_Code=="U2"], xlab="Age", main="Age Distribution of U2", col= "maroon")
+
+hist(femaleSiteExpanded$age[femaleSiteExpanded$Site_Code=="U3"], xlab="Age", main="Age Distribution of U3", col= "maroon")
+```
+
+# All Emergence (ie Not Just Infections)
+
+To get this data, we combine the infection emergence data above with the [other emergence data](https://docs.google.com/spreadsheets/d/1PkFjOs6JgU6n8Xf7wbmAFfdyJRHEHu9V6NQF7N4UVYk/edit?usp=sharing):
+
+```{r all emergence data, eval=T}
+
+othEmerge <- read.csv("../data/emergenceAugust.csv")[,-11]
+allEmerge <- rbind(emergence, othEmerge)
+```
+
+We can similarly look at the total emergence by tray:
+
+```{r emergence by tray ALL, eval=T}
+#cumulative emergence
+byTrayAll <- allEmerge %>%
+  group_by(Class, Tray_Code, Sex) %>%
+  summarise(cumulative=sum(Num_Emerge)) %>%
+  ungroup()
+#order by tray
+byTrayAll <- byTrayAll[order(byTrayAll$Tray_Code),]
+#make a little bar graph
+barplot(byTrayAll$cumulative, 
+        names.arg = byTrayAll$Tray_Code, col=c("pink",
+                                            "dodgerblue")[byTrayAll$Sex],
+        ylim=c(0,75),
+        xlab="Tray",
+        ylab="Cumulative Emerged",
+        main="Cumulative Albo Emerged by Tray")
+byTrayAllMF <- allEmerge %>%
+  group_by(Class, Tray_Code) %>%
+  summarise(cumulative=sum(Num_Emerge)) %>%
+  ungroup()
+```
+
+The total emerged per each tray is:
+
+```{r, eval=T}
+b <- byTrayAllMF[order(byTrayAllMF$cumulative, decreasing=T),]
+b[1:36,]
+```
+
+#The Slow Down
+
+It is also helpful to see when the last mosquito emerged from each tray, to know when the experiment is over. The following is a list of the trays which have not had a mosquito emerge for five days, and the last day of emergence for them:
+
+```{r last days, eval=T}
+trayLastDay <- allEmerge %>%
+  group_by(Tray_Code) %>%
+  filter(Num_Emerge>0) %>%
+  summarise(lastDay=max(Day)) %>%
+  ungroup()
+
+a <- trayLastDay[(as.numeric((format(Sys.Date(), "%d")))-trayLastDay$lastDay)>=5,]
+(a[1:nrow(a),])
+```
+
+There are too many to show, so let's look at the ones that have had a mosquito emerge in the past three days:
+
+```{r last three days}
+trayLastDay[(as.numeric((format(Sys.Date(), "%d")))-trayLastDay$lastDay)<=3,]
+```
+
+# Emergence Analysis
+
+## Survival Curves
+
+One way to look at emergence is as an inverted survival curve.
+
+```{r load and format data}
+emergence <- read.csv("../data/microclimate/emergenceAugust.csv")
+#expand each row into a row per individual mosquito
+expanded <- emergence[rep(seq.int(1,nrow(emergence)), emergence$Num_Emerge),
+                      c(2,4,5,8,9)]
+#add event to show this is emergence (1)
+expanded$event <- 1
+#check it was done okay
+sum(emergence$Num_Emerge)==nrow(expanded)
+#for now just take out the females
+female <- expanded[expanded$Sex=="F",]
+```
+
+The last day we checked was 9-03-2016 (Exp_Day==34).
+```{r fillIn function}
+#fills in 0 events for those mosquitoes that did not emerge
+fillIn <- function(df, endDay){
+  #this function fills in for those mosquitoes that did not emerge so we do not have data for, it gives them an observation/event of 0 on the last day we found a mosquito emerged
+  #args
+    # - df: the data frame you wish to fill in, in our case by pot
+    # - endDay: the maximum day of emergence
+  toRep <- df[1,]
+  toRep$Exp_Day <- endDay
+  toRep$event <- 0
+  if(nrow(df)<50){
+    toAdd <- toRep[rep(1, (50-nrow(df))),]
+    allTest <- rbind(df, toAdd)
+  } else {
+    toAdd <- NA
+    allTest <- NA
+  }
+  return(allTest)
+}
+```
+
+```{r fillIn the df}
+testlist <- list()
+#run the fillIn function on it
+for (i in 1:length(unique(female$Tray_Code))){ 
+  df <- female[female$Tray_Code==unique(female$Tray_Code)[i],]
+  endDay <- 34
+  testlist[[i]] <- fillIn(df=df, endDay=endDay)
+}
+femaleSurv <- do.call(rbind.data.frame, testlist)
+```
+
+First a preliminary plot:
+
+```{r preliminary survival plot}
+colorvec <- c("dodgerblue", "black", "maroon")
+fit <- with(femaleSurv, survfit(Surv(Exp_Day, event) ~ Class))
+plot(fit, col=colorvec)
+mtext("August Emergence")
+```
+
+It all seems good. Now we can make a fancier model from a cox-ph object.
+
+```{r coxph}
+femaleNaive <- with(femaleSurv, coxph(Surv(Exp_Day, event) ~ Class + cluster(Tray_Code), method="breslow", na.action="na.omit"))
+summary(femaleNaive)
+#test for PH assumption
+cox.zph(femaleNaive)
+plot(residuals(femaleNaive, type="martingale"))
+plot(femaleSurv$Class, residuals(femaleNaive, type="martingale")) #looks fine
+```
+
+```{r plotting fail, include=F}
+femaleFit <- survfit(Surv(Exp_Day, event) ~ Class + cluster(Tray_Code),
+                     data=femaleSurv)
+plot(femaleFit)
+
+#rural
+test <- survfit(femaleNaive, data.frame(Class="rural"), censor=F)
+testspl <- smooth.spline(test$time, test$surv)
+xx <- seq(0,35, length=400)
+#predict over smooth time points
+ruralSmooth <- predict(testspl,xx)
+#fix any strange ones over 1
+ruralSmooth$y[ruralSmooth$y>=1] <- 1
+#flip upside down
+ruralSmooth$y <- (1-ruralSmooth$y) * 100
+
+#suburban
+test <- survfit(femaleNaive, data.frame(Class="suburban"), censor=F)
+testspl <- smooth.spline(test$time, test$surv)
+#predict over smooth time points
+suburbanSmooth <- predict(testspl,xx)
+#fix any strange ones over 1
+suburbanSmooth$y[suburbanSmooth$y>=1] <- 1
+#flip upside down
+suburbanSmooth$y <- (1-suburbanSmooth$y) * 100
+
+#urban
+test <- survfit(femaleNaive, data.frame(Class="urban"), censor=F)
+testspl <- smooth.spline(test$time, test$surv)
+#predict over smooth time points
+urbanSmooth <- predict(testspl,xx)
+#fix any strange ones over 1
+urbanSmooth$y[urbanSmooth$y>=1] <- 1
+#flip upside down
+urbanSmooth$y <- (1-urbanSmooth$y) * 100
+
+#-----Plot-----#
+plot(test, fun="event", lty=1, ylim=c(0,100), ylab="% Emerged", xlab="Day of Experiment", yaxt='n', col=NA)
+lines(ruralSmooth, col="dodgerblue", lwd=2)
+lines(suburbanSmooth, col="gray20", lwd=2)
+lines(urbanSmooth, col="maroon", lwd=2)
+axis(2, yaxp=c(0, 100, 4), las=2)
+
+
+```
+
+I think the best thing to do, since the model finds no difference between them all, is to just fit loess curves to the survival data:
+
+```{r prep loess curves}
+plot(fit)
+summary(fit)
+require(ggfortify) #easy extraction of data from surv object
+res <- fortify(fit) #get stuff into dataframe
+ruralSmooth <- with(res[res$strata=="Class=rural",],
+                    loess(as.vector(surv) ~ as.vector(time))
+)
+suburbanSmooth <- with(res[res$strata=="Class=suburban",],
+                    loess(as.vector(surv) ~ as.vector(time))
+)
+urbanSmooth <- with(res[res$strata=="Class=urban",],
+                    loess(as.vector(surv) ~ as.vector(time))
+)
+xl <-seq(0,35, by=0.1)
+```
+
+```{r emergence loess plot}
+#plot
+pdf("figures/emergence.pdf", height=6, width=8, family="sans")
+par(mar=rep(6,4))
+plot(y=res$surv, x=res$time, xlim=c(10.5,34), ylim=c(0,1), pch=NA, xlab = "Day",
+     ylab = "% Emerged", cex.lab=2, cex.axis=2)
+
+lines(x=xl,y=(1 - predict(ruralSmooth, xl)), col="dodgerblue", lwd=2)
+lines(x=xl,y=(1 - predict(suburbanSmooth, xl)), col="gray20", lwd=2)
+lines(x=xl,y=(1 - predict(urbanSmooth, xl)), col="maroon", lwd=2)
+dev.off()
+```
