@@ -1,0 +1,78 @@
+---
+title: "Larval Surveys - Identification"
+author: "Michelle Evans"
+date: "September 14, 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+```
+
+This document is used for the analysis of the larval surveys conducted in the summer and fall of 2016 in Athens, GA. Larvae were collected from habitats and brought back to the lab, where they were reared to adulthood and identified.
+
+```{r load data}
+
+larvID <- read.csv("../../data/larvalSurveys/raw/identifications.csv")
+
+#check that data is okay
+levels(larvID$Species)
+levels(larvID$Sex)
+
+#reformat date
+larvID$Date.collected <- as.Date(larvID$Date.collected, format="%m/%d/%y")
+
+#add in class
+larvID$Class <- NA
+larvID$Class[larvID$Site %in% c(1,4,7)] <- "urban"
+larvID$Class[larvID$Site %in% c(3,5,8)] <- "suburban"
+larvID$Class[larvID$Site %in% c(2,6,9)] <- "rural"
+larvID$Class <- as.factor(larvID$Class)
+```
+
+Okay, now let's look at some basic analyses.
+
+#Species Richness
+
+We can look at basic species richness (ie number of species) by site and date. This will let us look at differences across season and across sites.
+
+```{r seasonal richness}
+
+seasonalSpR <- larvID %>%
+  group_by(Date.collected) %>%
+  summarise(SpR=n_distinct(Species)) %>%
+  ungroup()
+
+#plot over time
+plot(x=seasonalSpR$Date.collected, y=seasonalSpR$SpR, pch=16, main="Total Species Richness", xlab="Date", ylab="Species Richness")
+```
+
+All grouped together, it is hard to see a seasonal trend in richness, so I'll make plots by site:
+
+```{r richness by site}
+
+siteSpR <- larvID %>%
+  group_by(Date.collected, Code) %>%
+  summarise(SpR=n_distinct(Species)) %>%
+  ungroup()
+
+siteSummStats <- siteSpR %>%
+  group_by(Code) %>%
+  summarise(maxSpR=max(SpR), minSpR=min(SpR), meanSpR=mean(SpR))
+siteSummStats
+
+#make a plot for each site
+with(siteSpR[siteSpR$Code=="U1",], {
+     plot(x=Date.collected, y=SpR, pch=NA, main="Total Species Richness", xlab="Date", ylab="Species Richness")
+     lines(x=Date.collected, y=SpR)
+}
+     )
+with(siteSpR[siteSpR$Code=="S1",], {
+     plot(x=Date.collected, y=SpR, pch=NA, main="Total Species Richness", xlab="Date", ylab="Species Richness")
+     lines(x=Date.collected, y=SpR)
+}
+     )
+```
+
+

@@ -1,0 +1,560 @@
+---
+title: "Survival Analyses"
+author: "Michelle Evans"
+date: "January 21, 2017"
+output: html_document
+---
+
+This is the document exploring larval survival for the 2016 Athens Field Project (both seasons).
+
+```{r setup, echo=F}
+library(tidyr)
+library(xtable)
+library(dplyr)
+```
+
+
+#Basic Survival Analyses
+
+```{r data load and sort}
+emergAug <- read.csv("../../data/emergence/raw/AugustEmergence.csv")
+emergAug$block <- "summer"
+emergOct <- read.csv("../../data/emergence/raw/SeptemberEmergence.csv")
+emergOct$block <- "fall"
+
+emergAll <- rbind(emergOct, emergAug)
+#expand so each mosquito gets one row
+emergExp <- emergAll[rep(seq.int(1,nrow(emergAll)), emergAll$Num_Emerge),
+                      c(11, 2,4,5,6:9)]
+sum(emergAll$Num_Emerge)==nrow(emergExp) #quick check this worked
+
+```
+
+For now, we just kind of want an average survival by class and block.
+
+```{r format}
+survSumm <- emergExp %>%
+  group_by(block, Tray_Code) %>%
+  mutate(percSurv=n()/100) %>%
+  ungroup() %>%
+  group_by(Class, block) %>%
+  mutate(SurvMean = mean(percSurv)) %>%
+  mutate(Survse = (sd(percSurv)/sqrt(12))) %>%
+  ungroup()
+survSumm <- survSumm[,c('block','Class',"SurvMean", "Survse")]
+survSumm <- unique(survSumm)
+
+#or read in mixed model results from below
+survSumm <- read.csv("../../data/emergence/clean/survivalMixedModel.csv")
+```
+
+```{r plot}
+
+survMean <- survSumm[,-4]
+survMean <- survMean %>%
+  spread(block, SurvMean)
+rownames(survMean) <- survMean$Class
+survMean <- survMean[,-1]
+survMean <- survMean[,c(2,1)]
+survMean <- t(survMean)
+
+  colvec <- c(rep("dodgerblue",2), rep("gray80",2), 
+                            rep("maroon",2))
+pdf(file="../figures/survivalMx.pdf", width = 8, height=6, family="sans")
+barCenters <- barplot(as.matrix(survMean),
+                      beside=T,
+                      col=colvec,
+                      density = c(20,NA),
+                      names.arg=c("Rural", "Suburban", "Urban"),
+                      ylim=c(0,0.90),
+                      las=1
+                      )
+
+#error bars
+survSE <- survSumm[,-3] %>%
+  spread(block, Survse)
+rownames(survSE) <- survSE$Class
+survSE <- survSE[,-1]
+survSE <- survSE[,c(2,1)]
+survSE <- t(survSE)
+
+segments(barCenters, survMean - survSE , barCenters,
+         survMean + survSE, lwd = 1.5)
+  
+  arrows(barCenters, survMean - survSE , barCenters,
+         survMean + survSE,
+         lwd = 1.5, 
+         angle = 90,
+         code = 3, length = 0.03)
+  dev.off()
+
+
+```
+
+```{r stats}
+survStats <- emergExp %>%
+  group_by(block, Tray_Code, Site_Code, Class) %>%
+  summarise(percSurv=n()/100) %>%
+  ungroup()
+ids <- unique(emergExp[,1:4])
+survStats <- full_join(ids, survStats, by=c("Tray_Code", "block", "Site_Code", "Class"))
+
+modelMean <- lmerTest::lmer(percSurv~Class + block + Class*block + (1|Site_Code),
+                            data=survStats)
+summary(modelMean)
+
+```
+
+## Survival and Mean Temp
+
+```{r load climate by tray}
+climate <- read.csv('../../data/microclimate/clean/2016TrialsAdult.csv')[,-1]
+#toss out ridiculous levels
+climate <- climate[climate$Temp<60,]
+#format date
+climate$Date <- strptime(climate$Date, format="%Y-%m-%d %H:%M:%S")
+#draw out day
+climate$Day <- as.Date(climate$Date)
+
+#match with trayID
+trayID <- read.csv("../../data/microclimate/trayLoggerID.csv") #read in IDs
+
+climate <- merge(climate, trayID, by="Pot_ID")
+
+#subset for replicates
+climateAug <- climate %>%
+  select(-Date) %>%
+  filter(Day <= "2016-09-03") %>%
+  mutate(block="summer")
+
+climateOct <- climate %>%
+  select(-Date) %>%
+  filter(Day >= "2016-09-26" & Day <= "2016-11-08") %>%
+  mutate(block="fall")
+
+climateRep <- rbind(climateAug, climateOct)
+climateRep$block <- as.factor(climateRep$block)
+
+climateTray <- climateRep %>%
+  group_by(Tray_ID, Class, Site_ID, block) %>%
+  select(-Pot_ID, - Day) %>%
+  summarise_each(funs(mean, se=)) %>%
+  rename(Site_Code=Site_ID, Tray_Code=Tray_ID) %>%
+  ungroup()
+
+levels(climateTray$Class) <- c("rural", "suburban", "urban")
+
+```
+
+```{r stats}
+survClim <- full_join(survStats, climateTray, by=c("block", "Site_Code", "Tray_Code", "Class"))
+
+#drop U1T4 in fall because rat ate it
+
+survClim <- survClim[-which(survClim$Tray_Code=="U1T4" & survClim$block=="fall"),]
+survClim$percSurv[is.na(survClim$percSurv)] <- 0
+
+#also drop U3 in fall because of ants
+survClim <- survClim[-which(survClim$Tray_Code=="U3T4" & survClim$block=="fall"),]
+
+colRural <- "dodgerblue"
+colSuburban <- "gray80"
+colUrban <- "maroon"
+
+pdf(file="../figures/survxtemp.pdf", width = 8, height=6, family="sans")
+plot(x=survClim$Temp_mean, y=survClim$percSurv,
+     pch=c(16,17)[as.factor(survClim$block)], 
+     col=c(colRural, colSuburban, colUrban)[survClim$Class], 
+     cex=2, 
+     xlab="", 
+     ylab="Survival %", 
+     las=1, 
+     ylim=c(0,1))
+#abline(lm(survClim$percSurv[survClim$block=="summer"]~survClim$Temp_mean[survClim$block=="summer"]), lty=2)
+#abline(lm(survClim$percSurv[survClim$block=="fall"]~survClim$Temp_mean[survClim$block=="fall"]), lty=2)
+dev.off()
+
+model <- lm(percSurv~Temp_mean, data=survClim)
+
+```
+
+#Deprecated
+
+We fill in days for those that did not emerge, so that they are left-censored.
+```{r fillIn function}
+#' this function fills in for those mosquitoes that did not emerge so we do not have data for, it gives them an observation/event of 0 on the last day we found a mosquito emerged
+#' @param df the data frame you wish to fill in, in our case by tray
+#' @param endDay the maximum day of emergence in the experiment
+fillIn <- function(df, endDay){
+  toRep <- df[1,]
+  toRep$Exp_Day <- endDay
+  toRep$event <- 0
+  if(nrow(df)<30){
+    toAdd <- toRep[rep(1, (30-nrow(df))),]
+    allTest <- rbind(df, toAdd)
+  } else {
+    toAdd <- NA
+    allTest <- NA
+  }
+  return(allTest)
+}
+
+```
+
+```{r fill in dates, eval=T}
+
+#create a list to fill
+summerlist <- list()
+#run the fillIn function on it
+for (i in 1:length(unique(summerExpanded$Pot_ID))){ 
+  df <- summerExpanded[summerExpanded$Pot_ID==unique(summerExpanded$Pot_ID)[i],]
+  endDay <- max(summer$Exp_Day)
+  summerlist[[i]] <- fillIn(df=df, endDay=endDay)
+}
+summerSurv <- do.call(rbind.data.frame, summerlist)
+
+####----- do the same for fall
+
+falllist <- list()
+
+#run the fillIn function on it
+for (i in 1:length(unique(fallExpanded$Pot_ID))){ 
+  df <- fallExpanded[fallExpanded$Pot_ID==unique(fallExpanded$Pot_ID)[i],]
+  endDay <- max(fall$Exp_Day)
+  falllist[[i]] <- fillIn(df=df, endDay=endDay)
+}
+fallSurv <- do.call(rbind.data.frame, falllist)
+#remove random NA rows
+fallSurv <- fallSurv[!is.na(fallSurv$Pot_ID),]
+
+```
+
+```{r summer survival, warnings=F}
+#create color vector based on pot IDs and Class
+#colors <- aggregate(summer, list(summer$Pot_ID, summer$Class), mean)[,1:2]
+#rural, suburban, urban
+colorvec <- c("dodgerblue", "black", "maroon")
+# summerFit <- with(summerExpanded, survfit(Surv(Exp_Day, event) ~ Class))
+# plot(summerFit, col=colorvec)
+# mtext("Summer Emergence (Not Filled)")
+
+summerFit2 <- with(summerSurv, survfit(Surv(Exp_Day, event) ~ Class))
+plot(summerFit2, col=colorvec)
+mtext("Summer Emergence (Filled In)")
+
+```
+
+This is definitely a viable option. Try for fall...
+
+```{r fall survival}
+# fallFit <- with(fallExpanded, survfit(Surv(Exp_Day, event) ~ Class))
+# plot(fallFit, col=colorvec)
+# mtext("Fall Emergence (Not Filled)")
+
+fallFit2 <- with(fallSurv, survfit(Surv(Exp_Day, event) ~ Class))
+plot(fallFit2, col=colorvec)
+mtext("Fall Emergence (Filled In)")
+```
+
+I think it is better to fill in for those that do not emerge (`fallSurv`, `summerSurv`), otherwise we can't get an asymptote becuase we do not know the number that *should* emerge.
+
+# Cox PH Model
+
+We can use [Cox proportional hazard](https://rpubs.com/daspringate/survival) to see if the rate of emergence differs by land use class.  In this equation, we use PotID & SiteID as a cluster because cluster is a type of indicator for correlated observations. 
+
+The benefit of using the Cox P-H model is that we can include covariates.
+
+To do this, I kind of follow the method laid out [here](https://stat.ethz.ch/education/semesters/ss2011/seminar/contents/handout_7.pdf). I'll do it for fall, then summer. 
+
+## Fall Survival with Covariates
+
+First we fit a naive model to the data:
+
+```{r add DTR}
+#calculate DTR
+fallSurv$DTR <- fallSurv$Tmax- fallSurv$Tmin
+summerSurv$DTR <- summerSurv$Tmax - summerSurv$Tmin
+#drop NAs because cox will anyways
+fallSurv <- na.omit(fallSurv)
+summerSurv <- na.omit(summerSurv)
+```
+
+```{r fallNaive}
+
+fallNaive <- with(fallSurv, coxph(Surv(Exp_Day, event) ~ Class + Temp + Tmin + Tmax  + RH.av + RHmin +RHmax + cluster(Pot_ID),
+                                method="breslow", na.action="na.omit"))
+```
+
+In the above model, Class-Urban and Tmax come out as significant. DTR throws an error becuase it is a perfect classification, which means a row that has a certain Tmax value will also have the same DTR, so we drop DTR in the analysis
+
+We use stepwise selection to drop some variables:
+
+```{r fallcov:stepselection, warnings=F}
+fall1 <- stepAIC(fallNaive,direction="both")
+```
+The stepwise selection doesn't deal with the clustered variable, so I add that back in.
+
+```{r fallcov:step2, warnings=F}
+fall2 <- coxph(Surv(Exp_Day, event) ~ Class + Temp + Tmin + Tmax + RHmax + cluster(Site_ID) + cluster(Pot_ID), data=fallSurv, method="breslow")
+fall2
+
+```
+
+Now we check for the PH assumption:
+
+```{r fallcov:phAssumption}
+cox.zph(fall2)
+par(mfrow=c(2,3))
+plot(cox.zph(fall2))
+```
+
+Class violates the proportaional hazards assumption, but I think that is because I "filled-in" the dataset at the end of the time period for those that hadn't emerged. This makes me think that it is not actually violated. One way is to look at it using the not filled in data:
+
+```{r fallcov: phAssump2}
+expandedtest <- cox.zph(coxph(Surv(Exp_Day, event) ~ Class + Temp + Tmin + Tmax + RHmax + cluster(Pot_ID), data=fallExpanded,
+                                method="breslow", na.action="na.omit"))
+plot((expandedtest))
+
+```
+
+Oddly enough, the violation is even worse with this data.  I think this "violation" is okay becuase there is no interaction between Class and time, becuase Class does not change with time.
+
+We can also explore any nonlinearity in the data:
+
+```{r fallcov: nonlinearity}
+res <- residuals(fall2, type="martingale")
+plot(res)
+plot(fallSurv$Class, res, xlab="Class", ylab="Martingale residuals")
+abline(h=0, col="red")
+plot(fallSurv$Tmax, res, xlab="Tmax", ylab="Martingale residuals")
+abline(h=0, col="red")
+plot(fallSurv$RHmax, res, xlab="RHmax", ylab="Martingale residuals")
+abline(h=0, col="red")
+
+```
+Looking at these residuals, it really seems like RHmax should be dropped becuase nearly all of the values are 100%.
+
+```{r fall3}
+fall3 <- coxph(Surv(Exp_Day, event) ~ Class + Temp + Tmin + Tmax + RHmax + cluster(Pot_ID), data=fallSurv, method="breslow")
+fall3
+
+fallfit <- survfit(Surv(Exp_Day, event) ~ Class + Temp + Tmin + Tmax + cluster(Pot_ID), data=fallSurv)
+
+#can do color based on matching strata
+colorInds <- c(rep(NULL, length(fallfit$strata)))
+urbanInds <- grep("=urban", as.character(names(fallfit$strata))) 
+ruralInds <- grep("=rural", as.character(names(fallfit$strata))) 
+subInds <- grep("=suburban", as.character(names(fallfit$strata)))
+colorInds[urbanInds] <- 3
+colorInds[ruralInds] <- 1
+colorInds[subInds] <- 2
+
+#adjust alpha so you can see through lines
+colorvec.alpha <- adjustcolor(colorvec, alpha=0.40)  
+
+plot(fallfit, col= colorvec.alpha[colorInds], main= "Fall Survival", fun="event")
+
+```
+
+To summarize the fall data:
+
+* No difference between suburban and rural
+
+* Urban sites have a 0.54 PH rate (p=0.0057) : urban mosquitoes are 50% less likely to emerge
+
+* Tmax has a 1.29 PH rate (p=0.0243) : each increase in maximum T by 1C leads to a 1.29 (29%) increase in probability of emerging
+
+* RHmax has a 0.8134 PH rate (p=0.0034): each increase in RHmax by 1% leads to a decrease in emergence by 20%
+
+###Summer Survival Curve with Covariates
+
+```{r summcov:naive}
+summNaive <-coxph(Surv(Exp_Day, event) ~ Class + Temp + Tmin + Tmax  + RH.av + RHmin +RHmax + DTR + cluster(Pot_ID), data= summerSurv,
+                                method="breslow", na.action="na.omit")
+summNaive
+```
+
+Drop variables with stepwise:
+
+```{r summcov: step}
+summ1 <- stepAIC(summNaive,direction="both")
+summ1
+```
+
+```{r summcov: add potID in}
+summ2 <- coxph(Surv(Exp_Day, event) ~ Class + Tmin + RH.av + RHmin + cluster(Pot_ID), data=summerSurv, method="breslow")
+summ2
+
+```
+
+```{r summcov:phAssumption}
+cox.zph(summ2)
+par(mfrow=c(2,3))
+plot(cox.zph(summ2))
+```
+
+```{r summcov: nonlinearity}
+res <- residuals(summ2, type="martingale")
+plot(res)
+plot(summerSurv$Class, res, xlab="Class", ylab="Martingale residuals")
+abline(h=0, col="red")
+plot(summerSurv$Tmax, res, xlab="Tmax", ylab="Martingale residuals")
+abline(h=0, col="red")
+plot(summerSurv$RHmax, res, xlab="RHmax", ylab="Martingale residuals")
+abline(h=0, col="red")
+
+
+```
+
+```{r plotsummcov}
+summfit <- survfit(Surv(Exp_Day, event) ~ Class + Tmin + RH.av + RHmin + cluster(Pot_ID), data=summerSurv)
+
+#can do color based on matching strata
+colorInds <- c(rep(NULL, length(summfit$strata)))
+urbanInds <- grep("=urban", as.character(names(summfit$strata))) 
+ruralInds <- grep("=rural", as.character(names(summfit$strata))) 
+subInds <- grep("=suburban", as.character(names(summfit$strata)))
+colorInds[urbanInds] <- 3
+colorInds[ruralInds] <- 1
+colorInds[subInds] <- 2
+
+#adjust alpha so you can see through lines
+colorvec.alpha <- adjustcolor(colorvec, alpha=0.40)  
+
+plot(summfit, main= "Summer Survival", fun="event")
+```
+
+
+# Emergence Plots
+
+These are emergence plots based on the models we use, using the means for the covariates and changing the class:
+
+```{r summer plot}
+summerRural <- summerSurv[summerSurv$Class=="rural",]
+#rural line
+test2 <- survfit(summ2, data.frame(Class="rural", Tmin=mean(summerRural$Tmin), RH.av = mean(summerRural$RH.av), RHmin=mean(summerRural$RHmin, na.rm=T)), censor=F)
+testspl <- smooth.spline(test2$time, test2$surv)
+survSE <- smooth.spline(test2$time, test2$std.err)
+xx <- seq(0,35, length=400)
+#create prediction
+ruralSumm <- predict((testspl),xx)
+ruralSumm$y[ruralSumm$y>=1] <- 1
+ruralSumm$y <- (1-ruralSumm$y) *100
+#ruralSumm$SE <- abs(predict((survSE),xx)$y)
+
+#suburb line
+summerSuburb <- summerSurv[summerSurv$Class=="suburban",]
+test2 <- survfit(summ2, data.frame(Class="suburban", Tmin=mean(summerSuburb$Tmin), RH.av = mean(summerSuburb$RH.av), RHmin=mean(summerSuburb$RHmin, na.rm=T)), censor=F)
+testspl <- smooth.spline(test2$time, test2$surv)
+survSE <- smooth.spline(test2$time, test2$std.err)
+xx <- seq(0,35, length=400)
+#create prediction
+SuburbSumm <- predict((testspl),xx)
+SuburbSumm$y[SuburbSumm$y>=1] <- 1
+SuburbSumm$y <- (1-SuburbSumm$y) * 100
+#SuburbSumm$SE <- abs(predict((survSE),xx)$y)
+
+#urban line
+summerUrban <- summerSurv[summerSurv$Class=="urban",]
+test2 <- survfit(summ2, data.frame(Class="urban", Tmin=mean(summerUrban$Tmin), RH.av = mean(summerUrban$RH.av), RHmin=mean(summerUrban$RHmin, na.rm=T)), censor=F)
+testspl <- smooth.spline(test2$time, test2$surv)
+survSE <- smooth.spline(test2$time, test2$std.err)
+xx <- seq(0,35, length=400)
+#create prediction
+UrbanSumm <- predict((testspl),xx)
+UrbanSumm$y[UrbanSumm$y>=1] <- 1
+UrbanSumm$y <- (1-UrbanSumm$y)*100
+#UrbanSumm$SE <- abs(predict((survSE),xx)$y)
+
+#pdf("figures/summerEmergenceSurvModel.pdf", height=6, width=6)
+plot(test2, fun="event", lty=1, ylim=c(0,100), ylab="% Emerged", xlab="Day of Experiment", yaxt='n', col=NA)
+lines(ruralSumm, col="dodgerblue", lwd=2)
+lines(SuburbSumm, col="gray20", lwd=2)
+lines(UrbanSumm, col="maroon", lwd=2)
+axis(2, yaxp=c(0, 100, 4), las=2)
+# legend("topleft", legend=c("Rural", "Suburban", "Urban"), lty=c(1,1,1), lwd=2, col=c("dodgerblue", "gray20", "maroon"), cex=0.8)
+#dev.off()
+```
+
+
+```{r fall plot}
+fallRural <- fallSurv[fallSurv$Class=="rural",]
+#rural line
+test2 <- survfit(fall3, data.frame(Class="rural", Temp=mean(fallRural$Temp), Tmin=mean(fallRural$Tmin), Tmax=mean(fallRural$Tmax), RHmax=mean(fallRural$RHmax, na.rm=T)), censor=F)
+testspl <- smooth.spline(test2$time, test2$surv)
+survSE <- smooth.spline(test2$time, test2$std.err)
+xx <- seq(0,35, length=400)
+#create prediction
+ruralFall <- predict((testspl),xx)
+ruralFall$y[ruralFall$y>=1] <- 1
+ruralFall$y <- (1-ruralFall$y) *100
+ruralFall$y[1:123]<- 0
+#ruralFall$SE <- abs(predict((survSE),xx)$y)
+
+#suburb line
+fallSuburb <- fallSurv[fallSurv$Class=="suburban",]
+test2 <- survfit(fall3, data.frame(Class="suburban", Temp=mean(fallSuburb$Temp), Tmin=mean(fallSuburb$Tmin), Tmax=mean(fallSuburb$Tmax), RHmax=mean(fallSuburb$RHmax, na.rm=T)), censor=F)
+testspl <- smooth.spline(test2$time, test2$surv)
+survSE <- smooth.spline(test2$time, test2$std.err)
+xx <- seq(0,35, length=400)
+#create prediction
+SuburbFall <- predict((testspl),xx)
+SuburbFall$y[SuburbFall$y>=1] <- 1
+SuburbFall$y <- (1-SuburbFall$y) * 100
+#fixes weird thing
+SuburbFall$y[1:123]<- 0
+#SuburbFall$SE <- abs(predict((survSE),xx)$y)
+
+#urban line
+fallUrban <- fallSurv[fallSurv$Class=="urban",]
+test2 <- survfit(fall3, data.frame(Class="urban", Temp=mean(fallUrban$Temp), Tmin=mean(fallUrban$Tmin), Tmax=mean(fallUrban$Tmax), RHmax=mean(fallUrban$RHmax, na.rm=T)), censor=F)
+testspl <- smooth.spline(test2$time, test2$surv)
+survSE <- smooth.spline(test2$time, test2$std.err)
+xx <- seq(0,35, length=400)
+#create prediction
+UrbanFall <- predict((testspl),xx)
+UrbanFall$y[UrbanFall$y>=1] <- 1
+UrbanFall$y <- (1-UrbanFall$y)*100
+UrbanFall$y[1:123]<- 0
+#UrbanFall$SE <- abs(predict((survSE),xx)$y*100)
+
+#create CI polygons
+# polygon.x <- c(UrbanFall$x, rev(UrbanFall$x))
+# urbanFall.y <- c((UrbanFall$y-UrbanFall$SE), rev(UrbanFall$y-UrbanFall$SE))
+# SuburbFall.y <- c((SuburbFall$y-SuburbFall$SE), rev(SuburbFall$y-SuburbFall$SE))
+# ruralFall.y <- c((ruralFall$y-ruralFall$SE), rev(ruralFall$y-ruralFall$SE))
+
+
+#pdf("figures/fallEmergenceSurvModel.pdf", height=6, width=6)
+plot(test2, fun="event", lty=1, ylim=c(0,100), ylab="% Emerged", xlab="Day of Experiment", yaxt="n", col=NA)
+lines(ruralFall, col="dodgerblue", lwd=2)
+lines(SuburbFall, col="gray20", lwd=2)
+lines(UrbanFall, col="maroon", lwd=2)
+# polygon(x=polygon.x, y=ruralFall.y, col=adjustcolor("dodgerblue", alpha.f = 0.2), border=NA)
+# polygon(x=polygon.x, y=SuburbFall.y, col=adjustcolor("gray20", alpha.f = 0.2), border=NA)
+# polygon(x=polygon.x, y=urbanFall.y, col=adjustcolor("maroon", alpha.f = 0.6), border=NA) #can't get polygons to work
+axis(2, yaxp=c(0, 100, 4), las=2)
+# legend("topleft", legend=c("Rural", "Suburban", "Urban"), lty=c(1,1,1), lwd=2, col=c("dodgerblue", "gray20", "maroon"), cex=0.8)
+#dev.off()
+```
+
+```{r all on one plot}
+tiff("figures/MSemergencePlot.tiff", height=3200, width=3200, units="px",
+     res=800)
+#pdf("figures/MSemergencePlot.pdf", height=4, width=4)
+par(mar=c(5,5,3,2), family="serif")
+plot(test2, fun="event", col=NA, ylim=c(0,100), ylab="% Emerged", xlab="Day of Experiment", yaxt="n", xlim=c(0,25), cex.lab=1, cex.axis=1, main="Female Emergence")
+lines(ruralFall, col="black", lwd=2, lty=2)
+lines(SuburbFall, col="#6699CC", lwd=2, lty=2)
+lines(UrbanFall, col="#990000", lwd=2, lty=2)
+lines(ruralSumm, col="black", lwd=2)
+lines(SuburbSumm, col="#6699CC", lwd=2)
+lines(UrbanSumm, col="#990000", lwd=2)
+axis(2, yaxp=c(0, 100, 4), las=2, cex.axis=1)
+text(x=14, y=75, "Fall Replicate", cex=0.8)
+text(x=5, y=35, "Summer Replicate", cex=0.8)
+legend("topleft",c("Rural", "Suburban", "Urban"), col = c("black", "#6699CC", "#990000"), lty=1, bty="n",cex=0.8)
+dev.off()
+```
+
+

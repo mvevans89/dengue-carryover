@@ -1,0 +1,96 @@
+---
+title: "climateAugust"
+author: "Michelle Evans"
+date: "10/6/2016"
+output: html_document
+---
+
+```{r packages, message=F}
+library(dplyr)
+library(lme4)
+library(lmerTest)
+```
+
+This document plots climate data from the August trial of the Athens Field Project in 2016.
+
+
+```{r load and format data}
+climate <- read.csv('../data/microclimate/augustAdult.csv')[,-1]
+#toss out ridiculous levels
+climate <- climate[climate$Temp<60,]
+#format date
+climate$Date <- strptime(climate$Date, format="%Y-%m-%d %H:%M:%S")
+#draw out day
+climate$Day <- as.Date(climate$Date)
+```
+
+```{r group by class and date}
+#first take the daily mean, min and max for each tray
+climatePot <- climate %>%
+  select(-Date) %>%
+  group_by(Day,Pot_ID, Class, Site_ID) %>%
+  summarise_each(funs(max,min,mean)) %>%
+  ungroup()
+
+#then take the mean of this, keeping an overall weird max from sticking out and getting the average max temperature, rather than overall maximum
+climateDay <- climatePot %>%
+  select(-Pot_ID, -Site_ID) %>%
+  group_by(Day, Class) %>%
+  summarise_each(funs(mean)) %>%
+  ungroup()
+
+```
+
+```{r plot}
+pdf("figures/augustTempseries.pdf", width=10, height=6, family="sans")
+par(mar=rep(6,4))
+#create blank plot
+with(climateDay[climateDay$Class=="Rural",],
+     plot(x=Day, y=Temp_mean, pch=NA, ylim=c(18,38),
+          xlab="Date", ylab="Temperature (C)", main = "Average Temperatures",
+          cex.lab=2, cex.axis=2)
+     )
+
+#plot rural
+with(climateDay[climateDay$Class=="Rural",],
+     lines(x=Day, y=Temp_mean, col="dodgerblue", lty=1, lwd=2)) #mean
+with(climateDay[climateDay$Class=="Rural",],
+     lines(x=Day, y=Temp_max, col="dodgerblue", lty=3, lwd=2)) #max
+with(climateDay[climateDay$Class=="Rural",],
+     lines(x=Day, y=Temp_min, col="dodgerblue", lty=3, lwd=2)) #min
+
+#plot Suburban
+with(climateDay[climateDay$Class=="Suburban",],
+     lines(x=Day, y=Temp_mean, col="gray20", lty=1, lwd=2)) #mean
+with(climateDay[climateDay$Class=="Suburban",],
+     lines(x=Day, y=Temp_max, col="gray20", lty=3, lwd=2)) #max
+with(climateDay[climateDay$Class=="Suburban",],
+     lines(x=Day, y=Temp_min, col="gray20", lty=3, lwd=2)) #min
+
+#plot Urban
+with(climateDay[climateDay$Class=="Urban",],
+     lines(x=Day, y=Temp_mean, col="maroon", lty=1, lwd=2)) #mean
+with(climateDay[climateDay$Class=="Urban",],
+     lines(x=Day, y=Temp_max, col="maroon", lty=3, lwd=2)) #max
+with(climateDay[climateDay$Class=="Urban",],
+     lines(x=Day, y=Temp_min, col="maroon", lty=3, lwd=2)) #min
+dev.off()
+```
+
+For stats we are going to look at the mean min and max daily temperatures for each class with Pot and Day as a random factor.
+
+```{r stats for the climate data}
+modelMean <- lmerTest::lmer(Temp_mean~Class + (1|Site_ID) + (1|Day),
+                            data=climatePot)
+summary(modelMean)
+
+modelMin <- lmerTest::lmer(Temp_min~Class + (1|Site_ID) + (1|Day),
+                            data=climatePot)
+summary(modelMin)
+
+modelMax <- lmerTest::lmer(Temp_max~Class + (1|Site_ID) + (1|Day),
+                            data=climatePot)
+summary(modelMax)
+```
+
+For the mean and minimum temperature, urban and rural are significantly different from other land classes and suburban kind of falls between it all. For maximum temperature, only rural is significantly different.
