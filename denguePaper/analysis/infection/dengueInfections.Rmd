@@ -1,13 +1,20 @@
 ---
 title: "Dengue Infections 2016"
 author: "Michelle Evans"
-date: "1/17/2016"
-output: html_document
+date: '`r format(Sys.Date())`'
+output:
+  html_document: 
+    theme: flatly
+    keep_md: true
+  
 ---
 
 This document is for the analysis of both the August and October Trials of Infections of the Dengue Microclimate project in Athens, GA in 2016.
 
 ```{r packages and setup}
+library(knitr)
+knitr::opts_chunk$set(cache=TRUE, message=F)
+
 library(xtable)
 library(tidyr)
 library(ggplot2) 
@@ -19,6 +26,9 @@ library(gridExtra) #for facet grids later
 library(gbm)
 library(caret)
 library(pROC)
+library(corrplot)
+library(glmnet)
+library(GGally)
 ```
 
 ```{r set color scheme}
@@ -29,7 +39,7 @@ colU <- colUrban <- "maroon"
 
 # Load and Format
 
-```{r load and format data}
+```{r}
 formatData <- function(month){
   #' format infection data
   #' @params month (ie. "august")
@@ -94,12 +104,16 @@ augustSumm <- august %>%
   summarise_each(funs(mean(.,na.rm=T),sd(.,na.rm=T),se=(sd(., na.rm=T)/sqrt(n())))) %>%
   ungroup()
 
+print(xtable(augustSumm), type="html")
+
 octSumm <- oct %>%
   #drop individual
   select(-Individual) %>%
   group_by(DPI, site, class) %>%
   summarise_each(funs(mean(.,na.rm=T),sd(.,na.rm=T),se=(sd(., na.rm=T)/sqrt(n())))) %>%
   ungroup()
+
+print(xtable(octSumm), type="html")
 ```
 
 # Exploratory Visualizations
@@ -130,20 +144,23 @@ colnames(temp)[4:6] <- c("mean", "sd", "se")
 ```
 
 ```{r plot:body, eval=F}
-
+par(mfrow=c(2,2))
 sitePlot(summTable=augustSumm, dpi="9", bodyPart = "Body")
 sitePlot(summTable=augustSumm, dpi="14", bodyPart = "Body")
 sitePlot(summTable=augustSumm, dpi="21", bodyPart = "Body")
 
 sitePlot(summTable=octSumm, dpi="21", bodyPart="Body")
+mtext("October")
 ```
 
 ```{r plot:head, eval=F}
+par(mfrow=c(2,2))
 sitePlot(summTable=augustSumm, dpi="9", bodyPart = "Head")
 sitePlot(summTable=augustSumm, dpi="14", bodyPart = "Head")
 sitePlot(summTable=augustSumm, dpi="21", bodyPart = "Head")
 
 sitePlot(summTable=octSumm, dpi="21", bodyPart="Head")
+mtext("October")
 ```
 
 ```{r plot:saliva,eval=F}
@@ -152,6 +169,7 @@ sitePlot(summTable=augustSumm, dpi="14", bodyPart = "Saliva")
 sitePlot(summTable=augustSumm, dpi="21", bodyPart = "Saliva")
 
 sitePlot(summTable=octSumm, dpi="21", bodyPart="Saliva")
+mtext("October")
 ```
 
 ## Plotting them beside each other
@@ -220,25 +238,29 @@ besidePlot <- function(summTable, bodyPart, byclass=F){
 }
 ```
 
-```{r barplot:besideBody, eval=F}
-pdf(file="../figures/augustBody.pdf", width = 8, height=6, family="sans")
+## August Plots by DPI
+
+Note there are none of these for October becuase we only did 21 dpi.
+
+```{r barplot:besideBody, eval=T}
+#pdf(file="../figures/augustBody.pdf", width = 8, height=6, family="sans")
 besidePlot(summTable=augustSumm, bodyPart="Body")
-dev.off()
+#dev.off()
 ```
 
-```{r barplot:besideSaliva, eval=F}
-pdf(file="../figures/augustSaliva.pdf", width = 8, height=6, family="sans")
+```{r barplot:besideSaliva, eval=T}
+#pdf(file="../figures/augustSaliva.pdf", width = 8, height=6, family="sans")
 besidePlot(summTable=augustSumm, bodyPart="Saliva")
-dev.off()
+#dev.off()
 ```
 
-```{r barplot:besideSaliva, eval=F}
-pdf(file="../figures/augustHead.pdf", width = 8, height=6, family="sans")
+```{r barplot:besideHead aug, eval=T}
+#pdf(file="../figures/augustHead.pdf", width = 8, height=6, family="sans")
 besidePlot(summTable=augustSumm, bodyPart="Head")
-dev.off()
+#dev.off()
 ```
 
-##Plots by Class
+## Plots by Class
 
 ```{r beside barplot for october}
 besidePlotOct <- function(summTable, bodyPart, byclass=F){
@@ -311,37 +333,41 @@ augustclassSumm <- august%>%
   summarise_each(funs(mean(.,na.rm=T),sd(.,na.rm=T),se=(sd(., na.rm=T)/sqrt(n())))) %>%
   ungroup()
 
+print(xtable(augustclassSumm), type="html")
+
 octclassSumm <- oct %>%
   select(-Individual, -site) %>%
   group_by(DPI, class) %>%
   summarise_each(funs(mean(.,na.rm=T),sd(.,na.rm=T),se=(sd(., na.rm=T)/sqrt(n())))) %>%
   ungroup()
+
+print(xtable(octclassSumm), type="html")
 ```
 
 ```{r plot by class, eval=F}
-pdf(file="../figures/augustHeadClass.pdf", width = 8, height=6, family="sans")
+#pdf(file="../figures/augustHeadClass.pdf", width = 8, height=6, family="sans")
 besidePlot(summTable=augustclassSumm, bodyPart="Head", byclass=T)
-dev.off()
+#dev.off()
 
-pdf(file="../figures/augustBodyClass.pdf", width = 8, height=6, family="sans")
+#pdf(file="../figures/augustBodyClass.pdf", width = 8, height=6, family="sans")
 besidePlot(summTable=augustclassSumm, bodyPart="Body", byclass=T)
-dev.off()
+#dev.off()
 
-pdf(file="../figures/augustSalivaClass.pdf", width = 8, height=6, family="sans")
+#pdf(file="../figures/augustSalivaClass.pdf", width = 8, height=6, family="sans")
 besidePlot(summTable=augustclassSumm, bodyPart="Saliva", byclass=T)
-dev.off()
+#dev.off()
 
-pdf(file="../figures/octoberHeadClass.pdf", width = 8, height=6, family="sans")
+#pdf(file="../figures/octoberHeadClass.pdf", width = 8, height=6, family="sans")
 besidePlotOct(summTable=octclassSumm, bodyPart="Head", byclass=T)
-dev.off()
+#dev.off()
 
-pdf(file="../figures/octoberBodyClass.pdf", width = 8, height=6, family="sans")
+#pdf(file="../figures/octoberBodyClass.pdf", width = 8, height=6, family="sans")
 besidePlotOct(summTable=octclassSumm, bodyPart="Body", byclass=T)
-dev.off()
+#dev.off()
 
-pdf(file="../figures/octoberSalivaClass.pdf", width = 8, height=6, family="sans")
+#pdf(file="../figures/octoberSalivaClass.pdf", width = 8, height=6, family="sans")
 besidePlotOct(summTable=octclassSumm, bodyPart="Saliva", byclass=T)
-dev.off()
+#dev.off()
 
 ```
 
@@ -418,24 +444,28 @@ seasonPlot <- function(bodyPart, summTable=seasonSumm){
 }
 ```
 
-```{r seasonal plots, eval=F}
-pdf(file="../figures/seasonSaliva.pdf", width = 8, height=4, family="sans")
+```{r seasonal plots, eval=T}
+par(mfrow=c(1,3))
+#pdf(file="../figures/seasonSaliva.pdf", width = 8, height=4, family="sans")
 seasonPlot(bodyPart="Saliva")
-dev.off()
+mtext("Saliva")
+#dev.off()
 
-pdf(file="../figures/seasonHead.pdf", width = 8, height=4, family="sans")
+#pdf(file="../figures/seasonHead.pdf", width = 8, height=4, family="sans")
 seasonPlot(bodyPart="Head")
-dev.off()
+mtext("Head")
+#dev.off()
 
-pdf(file="../figures/seasonBody.pdf", width = 8, height=4, family="sans")
+#pdf(file="../figures/seasonBody.pdf", width = 8, height=4, family="sans")
 seasonPlot(bodyPart="Body")
-dev.off()
+mtext("Body")
+#dev.off()
 
 ```
 
 ## Plots of Efficiency by Season
 
-```{r efficiency plot function}
+```{r efficiency plot function, eval=F}
 effPlot <- function(rawTable){
   #format data
   tempLarge <- rawTable %>%
@@ -495,7 +525,7 @@ effPlot <- function(rawTable){
 }
 ```
 
-```{r plot effiency}
+```{r plot effiency, eval=F}
 pdf(file="../figures/augEff.pdf", width = 8, height=4, family="sans")
 effPlot(rawTable=august)
 dev.off()
@@ -516,9 +546,11 @@ Predictor Variables:
 **Test 1**: Season & Land-Use
 
 Based on the results of this, I want to know if this is in fact driven by microclimate:
+
 **Test 2**: Microclimate (Temp and RH Variables)
 
 Out of curiousity, also 
+
 **Test 3**: Wing Length
 
 And for a supplement, if we wanted to look at EIP rates:
@@ -532,6 +564,8 @@ I want to explore if season and land-use significantly influence infection dynam
 Using a Mixed-Effects Model with site as a random factor:
 
 This [thread](https://stats.stackexchange.com/questions/134630/assessing-fit-of-binomial-glmer-in-r-with-only-categorical-predictors) has good info on how to assess accuracy of `glmer`.
+
+So many examples (including some based on Bolker et al. 2009): http://glmm.wikidot.com/examples
 
 ```{r overdispersion function}
 #this function is from https://ase.tufts.edu/gsc/gradresources/guidetomixedmodelsinr/mixed%20model%20guide.html
@@ -560,8 +594,9 @@ I could make a function to do all this, but it is better to look at each individ
 
 ```{r, august 9 dpi Body infection}
 #check out data 
-ggplot(data=august[august$DPI=="9",], aes(factor(class))) +
-  geom_bar(stat="identity",aes(y=Body))
+# ggplot(data=august[august$DPI=="9",], aes(factor(class))) +
+#   geom_bar(stat="identity",aes(y=Body)) +
+#   ggtitle("August 9 dpi Body")
 #pdf? We know is binomial becuase it is binary
 #nbinom <- fitdistr(august$Body[august$DPI=="9"], "Negative Binomial")
 #qqp(august$Body[august$DPI=="9"], "nbinom", size=nbinom$estimate[[1]], mu = nbinom$estimate[[2]])
@@ -574,13 +609,15 @@ summary(mixModelAugBody9)
 Anova(mixModelAugBody9) 
 #check overdispersion
 overdisp_fun(mixModelAugBody9) #it's okay!
+plot(mixModelAugBody9)
 
 ```
 
 ```{r, august 9 dpi head infection}
 #explore data
-ggplot(data=august[august$DPI=="9",], aes(factor(class))) +
-  geom_bar(stat="identity",aes(y=Head))
+# ggplot(data=august[august$DPI=="9",], aes(factor(class))) +
+#   geom_bar(stat="identity",aes(y=Head)) +
+#   ggtitle("August 9 dpi Head")
 #model
 mixModelAugHead9 <- lme4::glmer(Head~class + (1|site), 
                           data=august[august$DPI=="9",],
@@ -595,14 +632,15 @@ overdisp_fun(mixModelAugHead9)
 
 There was no saliva infections at 9 dpi, so not even running a test on that.
 
-The above code runs a mixed model on body and headinfection in August at 9 dpi with site as a random factor. There is **no significant effect of class on body or head infection in August trial 9 dpi**.
+The above code runs a mixed model on body and head infection in August at 9 dpi with site as a random factor. There is **no significant effect of class on body or head infection in August trial 9 dpi**.
 
 ### August 14 DPI
 
 ```{r, august 14 dpi Body infection}
 #explore data
-ggplot(data=august[august$DPI=="14",], aes(factor(class))) +
-  geom_bar(stat="identity",aes(y=Body))
+# ggplot(data=august[august$DPI=="14",], aes(factor(class))) +
+#   geom_bar(stat="identity",aes(y=Body)) +
+#   ggtitle("August 14 dpi Body")
 #model
 mixModelAugBody14 <- lme4::glmer(Body~class + (1|site), 
                           data=august[august$DPI=="14",],
@@ -615,12 +653,13 @@ Anova(mixModelAugBody14)
 overdisp_fun(mixModelAugBody14) 
 ```
 
-This is approaching signficance, with Urban mosquitoes more likely to be infected (0.888, p=0.553).
+This is approaching signficance, with Urban mosquitoes more likely to be infected (0.888, p=0.0553).
 
 ```{r, august 14 dpi Head infection}
 #explore data
-ggplot(data=august[august$DPI=="14",], aes(factor(class))) +
-  geom_bar(stat="identity",aes(y=Head))
+# ggplot(data=august[august$DPI=="14",], aes(factor(class))) +
+#   geom_bar(stat="identity",aes(y=Head)) +
+#   ggtitle("August 14 dpi Head")
 #model
 mixModelAugHead14 <- lme4::glmer(Head~class + (1|site), 
                           data=august[august$DPI=="14",],
@@ -637,8 +676,9 @@ As above, head infection is close to significance, with urban more likely than r
 
 ```{r, august 14 dpi Saliva infection}
 #explore data
-ggplot(data=august[august$DPI=="14",], aes(factor(class))) +
-  geom_bar(stat="identity",aes(y=Saliva))
+# ggplot(data=august[august$DPI=="14",], aes(factor(class))) +
+#   geom_bar(stat="identity",aes(y=Saliva)) + 
+#   ggtitle("August 14 dpi Saliva")
 #model
 mixModelAugSaliva14 <- lme4::glmer(Saliva~class + (1|site), 
                           data=august[august$DPI=="14",],
@@ -657,27 +697,75 @@ No difference in Saliva.
 
 ### Season x Class 21 DPI
 
-```{r, seasonal 21 dpi Body infection}
+```{r seasonal 21 dpi Body infection}
 #explore data
 ggplot(data=seasons[seasons$DPI=="21",], aes(factor(class))) +
   geom_bar(stat="identity",aes(y=Body)) +
-  facet_wrap(~block)
+  facet_wrap(~block) + 
+  ggtitle("21 dpi Body across Seasons")
 #model
 mixModelseasonsBody21 <- lme4::glmer(Body~class + block + block*class + (1|site), 
                           data=seasons[seasons$DPI=="21",],
-                          family=binomial)
+                          family=binomial(link="logit"))
 #get a summary
 summary(mixModelseasonsBody21)
 #check significance
 Anova(mixModelseasonsBody21) 
 #check overdispersion
 overdisp_fun(mixModelseasonsBody21) 
+plot(mixModelseasonsBody21)
+
+#Predict onto real data and compare
+# test21 <- predict(mixModelseasonsBody21, data=seasons[seasons$DPI=="21",])
+# plot(y=seasons[as.numeric(names(test21)), 'Body'], x=test21, 
+#      col=c(colR,colS, colU)[as.numeric(seasons[as.numeric(names(test21)), 'class'])],
+#      pch=c(15,17)[as.numeric(seasons[as.numeric(names(test21)), 'block'])],
+#      xlab="Model Predictions",
+#      ylab="Observed Values")
 ```
 
 We find that class and block have a significant effect on Body infection at 21 days, but there is no interaction between the two.
 
-*TO DO*: use this fitted model to predict on our real data and see how accurate it is, this is a further test of significance and recommended by Ben Bolker
 
+```{r seasonal 21 dpi Head infection}
+#explore data
+ggplot(data=seasons[seasons$DPI=="21",], aes(factor(class))) +
+  geom_bar(stat="identity",aes(y=Head)) +
+  facet_wrap(~block) +
+  ggtitle("21 dpi Head Across Seasons")
+#model
+mixModelseasonsHead21 <- lme4::glmer(Head~class + block + block*class + (1|site), 
+                          data=seasons[seasons$DPI=="21",],
+                          family=binomial(link="logit"))
+#get a summary
+summary(mixModelseasonsHead21)
+#check significance
+Anova(mixModelseasonsHead21) 
+#check overdispersion
+overdisp_fun(mixModelseasonsHead21) 
+```
+
+Again, there is a significant effect of class and block, but no interaction. Similar effects as with the body infections.
+
+```{r seasonal 21 dpi Saliva infection}
+#explore data
+ggplot(data=seasons[seasons$DPI=="21",], aes(factor(class))) +
+  geom_bar(stat="identity",aes(y=Saliva)) +
+  facet_wrap(~block) + 
+  ggtitle("21 dpi Saliva across Seasons")
+#model
+mixModelseasonsSaliva21 <- lme4::glmer(Saliva~class + block + block*class + (1|site), 
+                          data=seasons[seasons$DPI=="21",],
+                          family=binomial(link="logit"))
+#get a summary
+summary(mixModelseasonsSaliva21)
+#check significance
+Anova(mixModelseasonsSaliva21)
+#check overdispersion
+overdisp_fun(mixModelseasonsSaliva21) 
+```
+
+There is **no significant effect on saliva**. There is almost (p=0.056) an effect of block, but not quite.
 
 ## Test 2: Microclimate
 
@@ -697,6 +785,23 @@ climate$Day <- as.Date(climate$Date)
 # add tray id to climate data
 trayID <- read.csv("../../data/microclimate/trayLoggerID.csv") #read in IDs
 climate <- merge(climate, trayID, by="Pot_ID")
+
+#fix duplicates for R1T1
+climate <- unique(climate)
+
+#U2T2 and U1T2 are missing data
+range(climate[climate$Tray_ID=="U2T2", 'Date']) 
+range(climate[climate$Tray_ID=="U1T2", 'Date']) 
+
+#drop U2T2 becuase it only has data until August 5th
+inds <- which(climate$Tray_ID=="U2T2")
+climate <- climate[-inds,]
+rm(inds)
+
+#U2T4 wasn't working right, reporting temps above 40C in October
+inds <- which(climate$Tray_ID=="U2T4")
+climate <- climate[-inds,]
+rm(inds)
 ```
 
 We need to correct these for the days when mosquitoes were actually collected, and the number of mosquitoes from each tray.
@@ -710,7 +815,7 @@ octEmerg$block <- as.factor("fall")
 allEmerg <- rbind(augEmerg, octEmerg)
 ```
 
-```{r standardize/correct for emergence}
+```{r standardize and correct for emergence}
 #filter out only days when infected mosquitoes were in the trays
 octInf <- octEmerg %>%
   filter(Sex=="F") %>%
@@ -722,7 +827,10 @@ augInf <- augEmerg %>%
   filter(Sex=="F") %>%
     filter((Site_Code %in% c("U2", "U1", "S3", "R1") & Day <= 14) |
            (Site_Code %in% c("S1", "S2", "R2", "R3", "U3") & Day <= 17))
+```
 
+```{r, message=T}
+detach("package:plyr", unload=TRUE)
 octClim <- climate %>%
   dplyr::select(-Date) %>%
   filter(Day >= as.Date("2016-09-26","%Y-%m-%d")) %>%
@@ -742,8 +850,56 @@ octClim <- climate %>%
   group_by(Tray_ID) %>%
   summarise_each(funs(mean))
 
+#calculate hours above a set Tmax and below a set Tmin based on Mordecai et al min and max r0, min=16C, max= 31 C
+
+#calculate percent of time above and below temperatures
+octBelow16 <- climate %>%
+  dplyr::select(-Date) %>%
+  filter(Day >= as.Date("2016-09-26","%Y-%m-%d")) %>%
+  #filter out appropriate days
+  filter((Site_ID %in% c("U3", "R3") & Day <= "2016-10-21") |
+           (Site_ID %in% c("U2", "U1", "S3") & Day <= "2016-10-20") |
+           (Site_ID %in% c("S1", "S2", "R1", "R2") & Day <= "2016-10-24")) %>%
+  filter(Temp<16) %>%
+  group_by(Tray_ID) %>%
+  dplyr::summarise(Tcount=n()) %>%
+  mutate(hoursBelow16=Tcount/6) %>%
+  select(-Tcount)
+
+
+
+octAbove31 <- climate %>%
+  dplyr::select(-Date) %>%
+  filter(Day >= as.Date("2016-09-26","%Y-%m-%d")) %>%
+  #filter out appropriate days
+  filter((Site_ID %in% c("U3", "R3") & Day <= "2016-10-21") |
+           (Site_ID %in% c("U2", "U1", "S3") & Day <= "2016-10-20") |
+           (Site_ID %in% c("S1", "S2", "R1", "R2") & Day <= "2016-10-24")) %>%
+  filter(Temp>31) %>%
+  group_by(Tray_ID) %>%
+  summarise(Tcount=n()) %>%
+  mutate(hoursAbove31=Tcount/6) %>%
+  select(-Tcount)
+
+
+#merge climate variables together
+octClim <- merge(octClim, octBelow16, by="Tray_ID", all.x=T)
+octClim <- merge(octClim, octAbove31, by="Tray_ID", all.x=T)
+
+#add 0s
+octClim$hoursAbove31[is.na(octClim$hoursAbove31)] <- 0
+octClim$hoursBelow16[is.na(octClim$hoursBelow16)] <- 0
+
+
 #merge climate and infection data
-test <- merge(octInf, octClim, by.x="Tray_Code", by.y="Tray_ID")
+test <- merge(octInf, octClim, by.x="Tray_Code", by.y="Tray_ID", all.x=T)
+
+#replace missing tray data with mean of the site values
+meanU2 <- test %>%
+  filter(Site_Code=="U2") %>%
+  summarise_each(funs(mean(.,na.rm=T)), Temp_mean:hoursAbove31)
+missingInds <- which(is.na(test$Temp_mean))
+test[missingInds, 12:ncol(test)] <- meanU2
 
 #weight contribution of each tray based on how many mosquitoes emerged from it that were infected
 
@@ -774,7 +930,9 @@ octEnvVar <- test %>%
   distinct(Site_Code, .keep_all=T)
   
 rm(test) #clear unused temporary dataframe
+```
 
+```{r august climate formatting, message=T}
 ##repeat above for August
 augClim <- climate %>%
   dplyr::select(-Date) %>%
@@ -793,8 +951,48 @@ augClim <- climate %>%
   group_by(Tray_ID) %>%
   summarise_each(funs(mean))
 
+#calculate hours above a set Tmax and below a set Tmin based on Mordecai et al min and max r0, min=16C, max= 31 C
+
+#calculate number of hours above and below temperatures
+#there are no hours below 16 in august
+# augBelow16 <- climate %>%
+#   dplyr::select(-Date) %>%
+#   filter(Day >= as.Date("2016-08-01","%Y-%m-%d")) %>%
+#     filter((Site_ID %in% c("U2", "U1", "S3", "R1") & Day <= "2016-08-14") |
+#            (Site_ID %in% c("S1", "S2", "R2", "R3", "U3") & Day <= "2016-08-17")) %>%
+#   filter(Temp<16) %>%
+#   group_by(Tray_ID) %>%
+#   summarise(Tcount=n()) %>%
+#   mutate(hoursBelow16=Tcount/6) %>%
+#   select(-Tcount)
+
+augAbove31 <- climate %>%
+  dplyr::select(-Date) %>%
+  filter(Day >= as.Date("2016-08-01","%Y-%m-%d")) %>%
+  filter((Site_ID %in% c("U2", "U1", "S3", "R1") & Day <= "2016-08-14") |
+           (Site_ID %in% c("S1", "S2", "R2", "R3", "U3") & Day <= "2016-08-17")) %>%
+  filter(Temp>31) %>%
+  group_by(Tray_ID) %>%
+  dplyr::summarise(Tcount=n()) %>%
+  mutate(hoursAbove31=Tcount/6) %>%
+  select(-Tcount)
+
+
+#merge climate variables together
+augClim <- merge(augClim, augAbove31, by="Tray_ID", all.x=T)
+
+#add 0s
+augClim$hoursAbove31[is.na(augClim$hoursAbove31)] <- 0
+augClim$hoursBelow16 <- 0
 
 test <- merge(augInf, augClim, by.x="Tray_Code", by.y="Tray_ID")
+
+#replace missing tray data with mean of the site values
+meanU2 <- test %>%
+  filter(Site_Code=="U2") %>%
+  summarise_each(funs(mean(.,na.rm=T)), Temp_mean:hoursAbove31)
+missingInds <- which(is.na(test$Temp_mean))
+test[missingInds, 12:ncol(test)] <- meanU2
 
 augEnvVar <- test %>%
   dplyr::select(-Tray_Code,-Site, -Tray, - Class, - Month, - Day, - Exp_Day, - Sex) %>%
@@ -809,7 +1007,9 @@ augEnvVar <- test %>%
   dplyr::select(-cumEmerge, -Num_Emerge) %>%
   #get unique values per site
   distinct(Site_Code, .keep_all=T)
+```
 
+```{r}
 #merge the summer and fall into one dataframe
 oct$block <- as.factor("fall")
 august$block <- as.factor("summer")
@@ -818,7 +1018,9 @@ seasonInf <- merge(rbind(oct, august[august$DPI=="21",]), rbind(augEnvVar,octEnv
 
 This results in a dataframe `seasonInf` that has the infection status and environmental variables associated with each individual in both seasons.
 
-### statistical tests
+### Stats
+
+#### Visualization
 
 ```{r facet visualization function}
 envVarPlot <- function(sample){
@@ -855,9 +1057,19 @@ p6 <- ggplot(data=seasonInf, aes_string(x="RH_min", y=sample)) +
 
 p7 <- ggplot(data=seasonInf, aes_string(x="DTR", y=sample)) +
   geom_point(aes(color=class)) +
+  geom_smooth() +
+  theme(legend.position="none")
+
+p8 <- ggplot(data=seasonInf, aes_string(x="hoursAbove31", y=sample)) +
+  geom_point(aes(color=class)) +
+  geom_smooth() +
+  theme(legend.position="none")
+
+p9 <- ggplot(data=seasonInf, aes_string(x="hoursBelow16", y=sample)) +
+  geom_point(aes(color=class)) +
   geom_smooth()
 
-plotAll <- grid.arrange(p1,p2,p3,p4,p5,p6,p7,nrow=4)
+plotAll <- grid.arrange(p1,p2,p3,p4,p5,p6,p7,p8,p9,nrow=3)
 return(plotAll)
 }
 ```
@@ -870,11 +1082,31 @@ envVarPlot("Saliva")
 
 There doesn't seem to be much of an effect of any of them on saliva infection, but all the temperature variables seem to have a similar effect, and the RH variables an inverse (which makes sense). RH max is super weird because most of them have 100, so I will not use it in the glmer model.
 
+We can also check out some collinearity and correlations.
+
+```{r inspect correlation}
+#envVars <- seasonInf[,10:ncol(seasonInf)]
+#corrplot(cor(envVars))
+#pairs(envVars)
+line_fn <- function(data, mapping, ...){
+  p <- ggplot(data = data, mapping = mapping) + 
+    geom_point() + 
+    geom_smooth(method=loess, fill="red", color="red", ...) +
+    geom_smooth(method=lm, fill="blue", color="blue", ...)
+  p
+}
+ggpairs(seasonInf, 10:ncol(seasonInf),lower = list(continuous = line_fn))
+```
+
+There are some variables that are really correlated. 
+
+#### GBM
+
 Because the response is binary, I'm going to give it a shot using glmnet and GBM. Also, there is no longer a random effect of site because the environmental variables are aggregated by site.
 
-```{r GBM}
+```{r GBM, echo=F}
 respV <- "Body"
-predVs <- c("Temp_mean","RH_mean","Temp_min","RH_min", "Temp_max", "DTR")
+predVs <- c("Temp_mean","RH_mean","Temp_min","RH_min", "Temp_max", "DTR", "hoursAbove31", "hoursBelow16")
 
 prop.table(table(seasonInf[,respV])) #need at least %15 infected for easier stats
 
@@ -886,6 +1118,7 @@ modDF <- na.omit(modDF)
 modDF[,respV] <- as.factor(modDF[,respV])
 levels(modDF[,respV]) <- c("no", "yes")
 
+
 #split into testing and training
 set.seed(8675309)
 inds <- createDataPartition(modDF[,respV], p=.7, list=F, times=1)
@@ -893,324 +1126,118 @@ train <- modDF[inds,]
 test <- modDF[-inds,]
 
 #set controls for testing different tuning parameters
-objControl <- trainControl(method='cv', number=3, returnResamp='none', summaryFunction = twoClassSummary, classProbs = TRUE)
+gbmControl <- trainControl(method='cv', returnResamp='none', summaryFunction = twoClassSummary, classProbs = TRUE, preProcOptions = c("center", "scale", "corr"))
 
-objModel <- train(train[,predVs], (train[,respV]), 
+gbmTune <- expand.grid(n.trees=c(10000, 20000), interaction.depth=c(1,2,3), shrinkage=c(0.1,0.01,0.005), n.minobsinnode=c(1))
+
+gbmModel <- train(train[,predVs], (train[,respV]), 
                   method='gbm', 
-                  trControl=objControl,  
+                  trControl=gbmControl,  
                   metric = "ROC",
-                  preProc = c("center", "scale"))
-summary(objModel)
-objModel
+                  tuneGrid=gbmTune,
+                  verbose=F) 
+```
+
+```{r}
+summary(gbmModel)
+plot(gbmModel)
+gbmModel
 
 #check performance
-preds <- predict(object=objModel, test[,predVs], type='prob')
-auc <- roc(ifelse(test[,respV]=="yes",1,0), preds[[2]])
-auc$auc
-```
-
-The GBM performs poorly on Body with an AUC of `auc$auc`.
-
-
-
-
-
-
-
-# Deprecated
-## Pair Seasonal Infection with Emergence Rates
-
-```{r load emergence data}
-augEmerg <- read.csv("../../data/emergence/raw/AugustEmergence.csv")
-augEmerg$block <- as.factor("summer")
-octEmerg <- read.csv("../../data/emergence/raw/SeptemberEmergence.csv")
-octEmerg$block <- as.factor("fall")
-
-allEmerg <- rbind(augEmerg, octEmerg)
-```
-
-I would like to compare infection to percent emerged. This is because a higher survival can mean healthier mosquitoes.
-
-```{r calculate average emergence rates}
-emergeSite <- allEmerg %>%
-  group_by(block, Tray_Code, Site_Code) %>%
-  summarise(percEmerg = sum(Num_Emerge)/100) %>%
-  ungroup()
-
-#also calculate number of mosquitos from each tray used in the infections to weight these values?
-#for now just taking the mean
-siteSp <- emergeSite %>%
-  filter(percEmerg!= 0) %>%
-  group_by(block, Site_Code) %>%
-  summarise(percEmerg=mean(percEmerg)) %>%
-  ungroup()
-
-seasonEmerge <- merge(seasons[seasons$DPI=="21",], siteSp, by.x=c("block", "site"), by.y = c("block", "Site_Code"))
+preds <- predict(object=gbmModel, test[,predVs], type='prob')
+aucGBM <- roc(ifelse(test[,respV]=="yes",1,0), preds[[2]])
 
 ```
 
-```{r plots and stats}
-plot(seasonEmerge$Body~jitter(seasonEmerge$percEmerg), pch=c(17,16)[seasonEmerge$block], col=c(colRural, colSuburban,colUrban)[seasonEmerge$class])
-abline(lm(seasonEmerge$Body[seasonEmerge$block=="fall"]~seasonEmerge$percEmerg[seasonEmerge$block=="fall"]), col="navyblue")
-abline(lm(seasonEmerge$Body[seasonEmerge$block=="summer"]~seasonEmerge$percEmerg[seasonEmerge$block=="summer"]), col="orange")
+The GBM performs not so great on Body with an AUC of `r aucGBM$auc`.
 
-min(emergeSite$percEmerg[emergeSite$block=="summer"])
-max(emergeSite$percEmerg[emergeSite$block=="fall"])
+The important variables are `r print(xtable(summary(gbmModel)), type="html")`
 
-legend("topleft", legend=c("Rural","Suburban", "Urban", "Summer", "Fall"), pch=c(16,16,16,16,17),
-       bty = "n", col = c(colRural, colSuburban,colUrban, "orange", "navyblue"))
+#### glmnet
 
-seasonAve <- seasonEmerge %>%
-  select(-Wing, -Individual, -DPI) %>%
-  group_by(site, class, block) %>%
-  summarise_each(funs(mean(.,na.rm=T))) %>%
-  ungroup()
 
-pdf(file="../figures/survivalandInfection.pdf", width = 8, height=6, family="sans")
+```{r}
+#create new controls and models
+glmControl <- trainControl(method='cv', number=3, returnResamp='none', classProbs=T, preProcOptions = c("center", "corr", "scale")) #3 cd levels
+set.seed(8675309)
+glmModel <- train(train[, predVs], train[, respV], 
+                  method='glmnet',  
+                  metric = "Accuracy", 
+                  trControl=glmControl)
 
-plot(seasonAve$Body~seasonAve$percEmerg, pch=c(17,16)[seasonAve$block], col=c("navyblue","orange")[seasonAve$block])
-abline(lm(seasonAve$Body[seasonAve$block=="fall"]~seasonAve$percEmerg[seasonAve$block=="fall"]), col="navyblue")
-abline(lm(seasonAve$Body[seasonAve$block=="summer"]~seasonAve$percEmerg[seasonAve$block=="summer"]), col="orange")
-abline(lm(seasonAve$Body~seasonAve$percEmerg), col="gray20", lty=2)
+plot(varImp(glmModel,scale=F))
+glmModel$results
 
-legend("topright", legend=c("Summer", "Fall"), pch=c(16,17),
-       bty = "n", col = c( "orange", "navyblue"))
-dev.off()
+#check performance
+preds <- predict(object=glmModel, test[,predVs], type='prob')
+aucGLMnet <- roc(ifelse(test[,respV]=="yes",1,0), preds[[2]])
 
 ```
 
+This performed slightly better than the `GBM`, with an AUC of `r aucGLMnet$auc`. The important variables are `Temp_mean`, `DTR`, `RH_mean`, `Temp_min`.
 
-## Wing Length and Infection
+**Classification Summary**: Both models perform poorly, with an AUC of around 0.58-0.61 on the testing data. This could be due to the collinearity of the variables. Similar variables do arise as important, however, with `Temp_mean`, `DTR` and `RH_mean` coming up as especially important.
 
-```{r linear plot}
-pdf(file="figures/wingLengthInfectionlm.pdf", width = 8, height=6, family="sans")
-plot(y=jitter(august$Body), x=august$Wing, pch=16, 
-     col=c("gray80", "dodgerblue", "maroon")[august$class],
-     ylab="Body Infections",
-     xlab= "Wing Length (mm)",
-     main= "Wing Length and Body Infection by Land Class")
-with(august[august$class=="Rural",],abline(lm(Body~Wing), col="gray80"))
-with(august[august$class=="Suburban",],abline(lm(Body~Wing), col="dodgerblue"))
-with(august[august$class=="Urban",],abline(lm(Body~Wing), col="maroon"))
-dev.off()
-# or plot the opposite way
-plot(x=as.factor(august$Body), y=august$Wing)
-points(x=(as.factor(august$Body)), y=august$Wing,
-       pch=16,
-       col=c("gray80", "dodgerblue", "maroon")[august$class])
-#create summary of mean wing length of those that are and are not infected
-wingMean <- august[august$DPI=="21",] %>%
-  group_by(class, Body) %>%
-  summarise(wingmean=mean(Wing), n=n()) %>%
-  ungroup()
+
+#### glm
+
+We can try this out with a generalized linear model (note we don't need a mixed-model because we have no random effect of site).
+
+```{r, eval=T}
+#drop Tmax because it is rank deficient
+BodyEnv <- glm(Body~ 
+                         scale(Temp_mean, center=T, scale=T) 
+                       + scale(DTR, center=T, scale=T) 
+                       + scale(RH_mean, center=T, scale=T) 
+                       + scale(Temp_min, center=T, scale=T) 
+                       + scale(RH_min, center=T, scale=T) 
+                       #+ scale(Temp_max, center=T, scale=T)
+                       + scale(hoursAbove31, center=T, scale=T)
+                       + scale(hoursBelow16, center=T, scale=T), 
+                          data=train,
+                          family=binomial(link="logit"))
+
+summary(BodyEnv)
+plot(BodyEnv)
+
+#check performance
+preds <- predict(object=BodyEnv, test[,predVs], type='response')
+aucGLM <- roc(test[,respV], preds)
 ```
 
-There seems to be a different relationship with size and infection/competence depending on the land use. I suspect this is due to the time to emergence in suburban sites (maybe).
+The only variable that is even somewhat significant is mean RH(p=0.04 and mean Temp (0.05). The other variables are also highly correlated, which makes it difficult to see which is having the largest effect. This does perform about the same as the `GBM` and `glmnet` models, with an auc of `r aucGLM$auc`. It's AIC is `r AIC(BodyEnv)`
 
+#### Model Selection using a priori variable selection
 
-## Wing Length Analyses
-These are kind of just junk wing length analyses for the GMCA conference.
+First, I will try to do model selection based on what variables the earlier lasso regression had chosen to keep.
 
-```{r wing length summary stats}
-wings <- augustraw[,6:8]
-#mixed model I guess
-require(lmerTest)
-wingMod <- lmer(Wing~class + (1|site), data=wings)
-summary(wingMod)
-#create a dataframe to plot
-fixef(wingMod)
-Vcov <- vcov(wingMod, useScale=F)
-se <- sqrt(diag(Vcov))
-means <- c(fixef(wingMod)[[1]], (fixef(wingMod)[[1]] + fixef(wingMod)[[2]]), 
-           (fixef(wingMod)[[1]] + fixef(wingMod)[[3]]))
-ModtoPlot <- as.data.frame(cbind(means, se))
-rownames(ModtoPlot) <- c("rural", "suburban", "urban")
-wings <- na.omit(wings)
-wings$classNum <- as.numeric(wings$class)
-require(scales)
-require(vioplot)
-pdf("figures/wingLength.pdf", height=6, width=6)
-par(mar=rep(6,4))
-plot(x=c(0.5,1.5,2.5,3.5), y=rep(2.5,4), ylim=c(1.8, 3), pch=NA, xlim=c(0.5,3.5),
-     xaxt='n', xlab="Land Class", ylab= "Wing Length (mm)", 
-     cex.lab=1.5, cex.axis=1, las=2)
-#points(wings$Wing~jitter(wings$classNum, factor=0.3), pch=16, 
-       #col=c("dodgerblue", "gray20","maroon")[wings$classNum])
-vioplot(wings$Wing[wings$class=="Rural"], col=alpha("dodgerblue",0.5), at=1,
-        add=T, rectCol=NA, drawRect=F, clip=F)
-points(x=1, y=mean(wings$Wing[wings$class=="Rural"]), pch=16, cex=2)
-vioplot(wings$Wing[wings$class=="Suburban"], col=alpha("gray20",0.5), at=2,
-        add=T, rectCol=NA, drawRect=F, clip=F)
-points(x=2, y=mean(wings$Wing[wings$class=="Suburban"]), pch=16, cex=2)
-vioplot(wings$Wing[wings$class=="Urban"], col=alpha("maroon",0.5), at=3,
-        add=T, rectCol=NA, drawRect=F, clip=F)
-points(x=3, y=mean(wings$Wing[wings$class=="Urban"]), pch=16, cex=2)
-axis(side=1, at=c(1,2,3), labels=c("Rural", "Suburban", "Urban"), tck=0, cex=1.5)
-dev.off()
-```
+```{r GLM with a priori variable selection}
+BodyEnvMS <- glm(Body~ 
+                         scale(Temp_mean, center=T, scale=T) 
+                       + scale(DTR, center=T, scale=T) 
+                       + scale(RH_mean, center=T, scale=T) 
+                       + scale(Temp_min, center=T, scale=T), 
+                       #+ scale(RH_min, center=T, scale=T) 
+                       #+ scale(Temp_max, center=T, scale=T)
+                       #+ scale(hoursAbove31, center=T, scale=T)
+                       #+ scale(hoursBelow16, center=T, scale=T), 
+                          data=trainGLM,
+                          family=binomial(link="logit"))
 
-## Estimating R0
+summary(BodyEnvMS)
+plot(BodyEnvMS)
 
-This is just to make a figure of R0 for the TropMed poster:
-
-Parameters in R0:
-
-- m : mosquito density (estimate out of those survived)
-- a (bite rate) :keep constant
-- bc : vector competence : c is mosquitoes, b is humans
-- mu : mosquito mortality : or p ^n where is p is survival, and n is EIP days
-- EIP : extrinsic incubation period
-
-```{r create VC function}
-
-vcEq <- function(m, a, bc, p, n){
-  vc <- (m * a^2 * bc * (p^n))/(-log(p))
-}
-```
-
-I will parameterize this with the stuff from Erin's paper, then add in what effects I measured.
-
-I want to calculate the VC for each tray.
-
-- m : mosquitoes emerged out of original 50 (density)
-- a : estimated from Mordecai et al 2016
-- bc : calculated based on my infectiousness rates
-- p : survival, from Mordecai et al 2016 (pEA)
-- n : EIP, (1/PDR from Mordecai et al 2016) *used 14 becuase Mordecai estimate was 4.8 for 28C, which is just way too low*
-
-To get the parameters for the temperature, we use the equations from Mordecai et al 2016 with the average temperature per tray as the temperature.
-
-Briere equation: aa * T * (T - Tmin) * (Tmax - T)^(1/2)
-
-```{r merge experimental data together by tray}
-#read in dataframe to link trays with loggers
-idMerge <- read.csv("../data/microclimate/trayLoggerID.csv")
-#add climate to idMerge
-climateTray <- merge(idMerge, climate, by="Pot_ID")
-#create dataframe of average temperature by tray
-tempByTray <- climateTray %>%
-  group_by(Tray_ID, Site_ID, Class) %>%
-  summarise(Temp=mean(Temp)) %>%
-  ungroup()
-
-# add in mosquito density per tray
-emergence <- read.csv("../data/microclimate/emergenceAugust.csv")
-byTray <- emergence %>%
-  group_by(Class, Tray_Code, Sex) %>%
-  summarise(cumulative=sum(Num_Emerge)) %>%
-  ungroup()
-byTrayF <- byTray[byTray$Sex=="F",]
-R0params <- merge(tempByTray, byTrayF, by.x="Tray_ID", by.y="Tray_Code")
-#drop extra columns
-R0params <- select(R0params, -Class.y, -Sex)
-R0params$m <- R0params$cumulative/50
-
-#we only have infection by site, but we'll add it to each tray anyways
-bc <- select(augustSumm21, site, Saliva_mean)
-#merge infectiousness into parameter dataframe
-R0params <- merge(R0params, bc, by.x="Site_ID", by.y="site")
+#check performance
+preds <- predict(object=BodyEnvMS, test[,predVs], type='response')
+aucGLMMS <- roc(test[,respV], preds)
+AIC(BodyEnvMS)
 ```
 
 
-It may be better to parameterize using rate summation. This involves calculating the parameters throughout a day with varying temperatures.  So I need to:
+The BIC value of this is `r BIC(BodyEnvMS)` compare to `r BIC(BodyEnv)` for the one without variable selection.  It's AUC value is `r aucGLMMS$auc`. This really isn't much different than the other one with all of the variables. The AUC and AIC values are the same, and the BIC value only decreases because of parsimony (i.e. it penalizes having more variables).
 
-1. create a plot of the average daily temperature plot by hour for each tray
-2. use these values to calculate the parameter at each of these
-3. take mean value
+### Stats Summary
 
-```{r or use rate summation}
-#### calculate hourly temperatures 
-#split Date into date and hour
-climateTray$Date <- as.POSIXct(climateTray$Date)
-require(lubridate)
-climateTray$Hour <- hour(climateTray$Date)
-#aggregate by Hour
-climateTrayHr <- climateTray %>%
-  group_by(Tray_ID, Class, Site_ID, Hour) %>%
-  summarise(Temp=mean(Temp)) %>%
-  ungroup()
+So what do we learn from this big mess of stats?  On the body (which is all we've done so far), a model consisting of these environmental variables does not predict infection very well.  We get some variable importance from the GBM, but in the GLM there are no significant predictor variables. However, we did get a strong effect of season and land use on body infection in the section above.  To me, this means that we are seeing a difference, but it isn't being measured by the variables we collected. There may be other things, then, that are influencing a mosquito's ability to become infected.  A potential idea is that this may such an indirect effect of temperature that we don't see it. Specifically, I am thinking of the fact that emergence and survival was different across land use and season, and that this could impact 1) resource availability to those that survive and 2) overall "quality" of the mosquitoes that do survive to adulthood.
 
-#### merge with other stuff as above
-R0params <- merge(climateTrayHr, byTrayF, by.x="Tray_ID", by.y="Tray_Code")
-#drop extra columns
-R0params <- select(R0params, -Class.y, -Sex)
-R0params$m <- R0params$cumulative/50
-
-#we only have infection by site, but we'll add it to each tray anyways
-bc <- select(augustSumm21, site, Saliva_mean)
-#merge infectiousness into parameter dataframe
-R0params <- merge(R0params, bc, by.x="Site_ID", by.y="site")
-```
-
-
-```{r parameterize based on mordecai et al}
-R0params$a <- 1.93E-04 * R0params$Temp * (R0params$Temp - 10.25) * (38.32 - R0params$Temp)^(1/2)
-
-#egg to adult survival is quadratic
-#solve for equation with known points
-x=c(9.04,29.33,25)
-y=c(0,0,.85)
-pEAMod <- lm(y ~ poly(x,2, raw=T))
-R0params$p <- coef(pEAMod)[[2]] * R0params$Temp + coef(pEAMod)[[3]] * (R0params$Temp^2) + coef(pEAMod)[[1]]
-
-#this is using the 28C from the incubator, but honestly it definitely took longer than that
-R0params$n <- 1/(1.09E-04 * 28 * (28 - 10.39) * (43.05 - 28)^(1/2))
-#let's use 14 for now
-#R0params$n <- 14
-
-#take mean value, this is specifically for rate summation, but should be fine for the other as well
-R0params <- R0params %>%
-  group_by(Tray_ID, Class.x, Site_ID) %>%
-  summarise(m=mean(m), Saliva_mean=mean(Saliva_mean), a=mean(a, na.rm=T), p=mean(p, na.rm=T), n=mean(n, na.rm=T)) %>%
-  ungroup()
-
-
-```
-
-Calculate vector competence
-
-```{r vector competence calc}
-#This is really small and based on only 100 mosquitoes, so let's multiply by 10
-R0params$VC <- vcEq(m=R0params$m, a=R0params$a, bc=R0params$Saliva_mean, p=R0params$p, n=R0params$n) * 10
-```
-
-Now make some sweet bar plots comparing the disease risk:
-
-```{r calculate means + se for bar plots}
-r0Plot <- R0params %>%
-  group_by(Class.x) %>%
-  summarise(mean=mean(VC, na.rm=T), se=(sd(VC, na.rm=T)/sqrt(n()))) %>%
-  ungroup()
-```
-
-```{r barplots}
-pdf(file="figures/R0class.pdf", width = 8, height=6, family="sans")
-par(mar=rep(6,4))
-barCenters <- barplot(r0Plot$mean, 
-                      col=c(colRural, colSuburban, 
-                            colUrban),
-                      names.arg=r0Plot$Class.x,
-                      ylim=c(0,max(r0Plot$mean)+0.02),
-                      #main = "Predicted Disease Risk",
-                      ylab = "Relative Vectorial Capacity", #calculate per 1k initial larvae
-                      las=1,
-                      cex.lab=1.5, cex.axis=1,
-                      xlab = "Land Class"
-                      )
-  #add se bars
-segments(barCenters, r0Plot$mean - r0Plot$se , barCenters,
-         r0Plot$mean + r0Plot$se, lwd = 1.5)
-  
-arrows(barCenters, r0Plot$mean - r0Plot$se , barCenters,
-         r0Plot$mean + r0Plot$se,
-         lwd = 1.5, 
-         angle = 90,
-         code = 3, length = 0.03)
-dev.off()
-```
-
-```{r plot stats}
-require(lmerTest)
-r0stats <- lmerTest::lmer(VC~Class.x + (1|Site_ID), data=R0params)
-summary(r0stats)
-```
+#### "Final" Model to Use
