@@ -41,6 +41,10 @@ colS <- colSuburban <- "gray80"
 colU <- colUrban <- "maroon"
 ```
 
+# Exploratory Visualizations
+
+## Comparing Seasons in Plots
+
 ```{r}
 formatData <- function(month){
   #' format infection data
@@ -132,9 +136,7 @@ seasonPlot <- function(bodyPart, summTable=seasonSumm){
                       col=colvec,
                       density = c(40,NA),
                       names.arg=colnames(tempMean),
-                      ylim=c(0,0.80),
-                      #main = paste0("Dengue ", bodyPart," Infections"),
-                      ylab = "Proportion Infected"
+                      ylim=c(0,0.80)
                       )
   
   tempSE <- tempLarge %>%
@@ -162,375 +164,28 @@ seasonPlot <- function(bodyPart, summTable=seasonSumm){
 }
 ```
 
-```{r, echo=T}
-#pdf(file="../figures/forMS/seasonInfections.pdf", width = 8, height=12, family="sans")
-par(mfrow=c(3,1), las=1)
-#pdf(file="../figures/seasonBody.pdf", width = 8, height=4, family="sans")
-seasonPlot(bodyPart="Body")
-mtext("Body")
-#dev.off()
-
-#pdf(file="../figures/seasonHead.pdf", width = 8, height=4, family="sans")
-seasonPlot(bodyPart="Head")
-mtext("Head")
-#dev.off()
-
-#pdf(file="../figures/seasonSaliva.pdf", width = 8, height=4, family="sans")
-seasonPlot(bodyPart="Saliva")
-mtext("Saliva")
-#dev.off()
-```
-
-
-
-
-
-# Exploratory Visualizations
-
-## Summary Plots by Site
-
-```{r plot by site function}
-sitePlot <- function(summTable, dpi, bodyPart){
-  cols <- c(1:3,grep(bodyPart, colnames(summTable)))
-temp <- summTable[summTable$DPI==dpi,cols]
-colnames(temp)[4:6] <- c("mean", "sd", "se")
-  barCenters <- barplot(temp$mean, 
-          col=c(colRural, colSuburban, colUrban)[temp$class],
-          names.arg=temp$site,
-          ylim=c(0,max(temp$mean+0.2)),
-          main = paste0(bodyPart, " Infection (", dpi, "dpi)")
-          )
-  #add se bars
-  segments(barCenters, temp$mean - temp$se , barCenters,
-         temp$mean + temp$se, lwd = 1.5)
-  
-  arrows(barCenters, temp$mean - temp$se , barCenters,
-         temp$mean + temp$se, lwd = 1.5, 
-         angle = 90,
-       code = 3, length = 0.05)
-}
-
-```
-
-```{r plot:body, eval=FALSE, echo=FALSE}
-par(mfrow=c(2,2))
-sitePlot(summTable=augustSumm, dpi="9", bodyPart = "Body")
-sitePlot(summTable=augustSumm, dpi="14", bodyPart = "Body")
-sitePlot(summTable=augustSumm, dpi="21", bodyPart = "Body")
-
-sitePlot(summTable=octSumm, dpi="21", bodyPart="Body")
-mtext("October")
-```
-
-```{r plot:head, eval=FALSE, echo=FALSE}
-par(mfrow=c(2,2))
-sitePlot(summTable=augustSumm, dpi="9", bodyPart = "Head")
-sitePlot(summTable=augustSumm, dpi="14", bodyPart = "Head")
-sitePlot(summTable=augustSumm, dpi="21", bodyPart = "Head")
-
-sitePlot(summTable=octSumm, dpi="21", bodyPart="Head")
-mtext("October")
-```
-
-```{r plot:saliva,eval=FALSE, echo=FALSE}
-sitePlot(summTable=augustSumm, dpi="9", bodyPart = "Saliva")
-sitePlot(summTable=augustSumm, dpi="14", bodyPart = "Saliva")
-sitePlot(summTable=augustSumm, dpi="21", bodyPart = "Saliva")
-
-sitePlot(summTable=octSumm, dpi="21", bodyPart="Saliva")
-mtext("October")
-```
-
-## Plotting them beside each other
-
-```{r beside plot function}
-besidePlot <- function(summTable, bodyPart, byclass=F){
-  if (byclass==T){
-    cols <- c(1:2,grep(bodyPart, colnames(summTable)))
-  } else cols <- c(1:3,grep(bodyPart, colnames(summTable)))
-  tempLarge <- summTable[,cols]
-  colnames(tempLarge)[(ncol(tempLarge)-2):ncol(tempLarge)] <- c("mean", "sd", "se")
-  if (byclass==F){
-  tempMean <- tempLarge %>%
-    select(-sd,-se, -class) %>%
-    spread(DPI, mean) %>%
-    select(-site)
-  } else tempMean <- tempLarge %>%
-    select(-sd,-se) %>%
-    spread( DPI, mean) %>%
-    select(-class)
-  if (byclass==T){
-    rownames(tempMean) <- levels(summTable$class)
-    } else rownames(tempMean) <- levels(summTable$site)
-  tempMean <- t(as.matrix(tempMean))
-  #colors
-  if (byclass==T){
-    colvec <- c(rep(colRural,3), rep(colSuburban,3), 
-                            rep(colUrban,3))
-  } else colvec <- c(rep(colRural,9), rep(colSuburban,9), 
-                            rep(colUrban,9))
-  #plot
-  barCenters <- barplot(tempMean, 
-                      beside=T,
-                      col=colvec,
-                      density = c(10,40,NA),
-                      names.arg=colnames(tempMean),
-                      ylim=c(0,0.80),
-                      main = paste0("Dengue ", bodyPart," Infections"),
-                      ylab = "Percent Infected"
-                      )
-
-    if (byclass==F){
-  tempSE <- tempLarge %>%
-    select(-sd,-mean,-class) %>%
-    spread( DPI, se) %>%
-    select(-site)
-  } else   tempSE <- tempLarge %>%
-    select(-sd,-mean) %>%
-    spread( DPI, se) %>%
-    select(-class)
-  
-  tempSE <- t(tempSE)
-  
-  #add se bars
-  segments(barCenters, tempMean - tempSE , barCenters,
-         tempMean + tempSE, lwd = 1.5)
-  
-  arrows(barCenters, tempMean - tempSE , barCenters,
-         tempMean + tempSE,
-         lwd = 1.5, 
-         angle = 90,
-         code = 3, length = 0.03)
-  
-  legend("topright", legend=c("9 dpi","14 dpi", "21 dpi"), density = c(10,40,NA),
-       bty = "n", col = "gray80")
-}
-```
-
-## August Plots by DPI
-
-Note there are none of these for October becuase we only did 21 dpi.
-
-```{r barplot:besideBody, eval=T, echo=FALSE}
-#pdf(file="../figures/augustBody.pdf", width = 8, height=6, family="sans")
-besidePlot(summTable=augustSumm, bodyPart="Body")
-#dev.off()
-```
-
-```{r barplot:besideHead aug, eval=T, echo=FALSE}
-#pdf(file="../figures/augustHead.pdf", width = 8, height=6, family="sans")
-besidePlot(summTable=augustSumm, bodyPart="Head")
-#dev.off()
-```
-
-```{r barplot:besideSaliva, eval=T, echo=FALSE}
-#pdf(file="../figures/augustSaliva.pdf", width = 8, height=6, family="sans")
-besidePlot(summTable=augustSumm, bodyPart="Saliva")
-#dev.off()
-```
-
-
-
-## Plots by Class
-
-```{r beside barplot for october, echo=FALSE}
-besidePlotOct <- function(summTable, bodyPart, byclass=F){
-  if (byclass==T){
-    cols <- c(1,2,grep(bodyPart, colnames(summTable)))
-  } else cols <- c(1:3,grep(bodyPart, colnames(summTable)))
-  tempLarge <- summTable[,cols]
-  colnames(tempLarge)[(ncol(tempLarge)-2):ncol(tempLarge)] <- c("mean", "sd", "se")
-  if (byclass==F){
-  tempMean <- tempLarge %>%
-    select(-sd,-se, -class) %>%
-    spread( DPI, mean) %>%
-    select(-site)
-  } else tempMean <- tempLarge %>%
-    select(-sd,-se, -class, -DPI)
-  if (byclass==T){
-    rownames(tempMean) <- levels(summTable$class)
-    } else rownames(tempMean) <- levels(summTable$site)
-  tempMean <- t(as.matrix(tempMean))
-  #colors
-  if (byclass==T){
-    colvec <- c(rep(colRural,1), rep(colSuburban,1), 
-                            rep(colUrban,1))
-  } else colvec <- c(rep(colRural,3), rep(colSuburban,3), 
-                            rep(colUrban,3))
-  #plot
-  barCenters <- barplot(tempMean, 
-                      beside=T,
-                      col=colvec,
-                      density = c(NA),
-                      names.arg=colnames(tempMean),
-                      ylim=c(0,0.80),
-                      main = paste0("Dengue ", bodyPart," Infections"),
-                      ylab = "Percent Infected"
-                      )
-
-    if (byclass==F){
-  tempSE <- tempLarge %>%
-    select(-sd,-mean,-class) %>%
-    spread( DPI, se) %>%
-    select(-site)
-  } else   tempSE <- tempLarge %>%
-    select(-sd,-mean) %>%
-    spread( DPI, se) %>%
-    select(-class)
-  
-  tempSE <- t(tempSE)
-  
-  #add se bars
-  segments(barCenters, tempMean - tempSE , barCenters,
-         tempMean + tempSE, lwd = 1.5)
-  
-  arrows(barCenters, tempMean - tempSE , barCenters,
-         tempMean + tempSE,
-         lwd = 1.5, 
-         angle = 90,
-         code = 3, length = 0.03)
-  
-  #legend("topright", legend=c("9 dpi","14 dpi", "21 dpi"), density = c(10,40,NA),
-       #bty = "n", col = "gray80")
-}
-
-```
-
-```{r format by class, eval=T}
-augustclassSumm <- august%>%
-  #drop individual
-  select(-Individual, -site) %>%
-  group_by(DPI, class) %>%
-  summarise_each(funs(mean(.,na.rm=T),sd(.,na.rm=T),se=(sd(., na.rm=T)/sqrt(n())))) %>%
-  ungroup()
-
-#print(xtable(augustclassSumm), type="html")
-augustclassSumm
-
-octclassSumm <- oct %>%
-  select(-Individual, -site) %>%
-  group_by(DPI, class) %>%
-  summarise_each(funs(mean(.,na.rm=T),sd(.,na.rm=T),se=(sd(., na.rm=T)/sqrt(n())))) %>%
-  ungroup()
-
-#print(xtable(octclassSumm), type="html")
-octclassSumm
-```
-
-```{r plot by class, eval=FALSE, echo=FALSE}
-pdf(file="../figures/forMS/augustHeadClass.pdf", width = 8, height=6, family="sans")
-besidePlot(summTable=augustclassSumm, bodyPart="Head", byclass=T)
-dev.off()
-
-pdf(file="../figures/forMS/augustBodyClass.pdf", width = 8, height=6, family="sans")
-besidePlot(summTable=augustclassSumm, bodyPart="Body", byclass=T)
-dev.off()
-
-pdf(file="../figures/forMS/augustSalivaClass.pdf", width = 8, height=6, family="sans")
-besidePlot(summTable=augustclassSumm, bodyPart="Saliva", byclass=T)
-dev.off()
-
-pdf(file="../figures/forMS/octoberHeadClass.pdf", width = 8, height=6, family="sans")
-besidePlotOct(summTable=octclassSumm, bodyPart="Head", byclass=T)
-dev.off()
-
-pdf(file="../figures/forMS/octoberBodyClass.pdf", width = 8, height=6, family="sans")
-besidePlotOct(summTable=octclassSumm, bodyPart="Body", byclass=T)
-dev.off()
-
-pdf(file="../figures/forMS/octoberSalivaClass.pdf", width = 8, height=6, family="sans")
-besidePlotOct(summTable=octclassSumm, bodyPart="Saliva", byclass=T)
-dev.off()
-
-```
-
-## Comparing Seasons in Plots
-
-Because I only have data for 21 dpi in October, that is all I will compare. This will make a plot that compares mean infections by class and body part across seasons. I can then "facet" these together to have three showing similar things for each body part.
-
-```{r seasonal data formatting, echo=FALSE}
-seasons <- rbind(august,oct)
-seasons$block <- as.factor(c(rep("summer", nrow(august)), rep("fall", nrow(oct))))
-
-seasonSumm <- seasons %>%
-  filter(DPI==21) %>%
-  #drop individual
-  select(-Individual, -site, -Wing, -DPI) %>%
-  group_by(block, class) %>%
-  summarise_each(funs(mean(.,na.rm=T),sd(.,na.rm=T),se=(sd(., na.rm=T)/sqrt(n())))) %>%
-  ungroup()
-```
-
-```{r seasonal plot function, echo=FALSE}
-seasonPlot <- function(bodyPart, summTable=seasonSumm){
-  cols <- c(1,2,grep(bodyPart, colnames(summTable)))
-  tempLarge <- summTable[,cols]
-  colnames(tempLarge)[3:5] <- c("mean", "sd", "se")
-    
-  tempMean <- tempLarge %>%
-    select(-sd,-se) %>%
-    spread(block, mean) %>%
-    select(-class)
-  
-  #put summer before fall
-  tempMean <- tempMean[,c(2,1)]
-
-  
-  rownames(tempMean) <- levels(tempLarge$class)
-  tempMean <- t(as.matrix(tempMean))
-  
-  colvec <- c(rep(colRural,2), rep(colSuburban,2), 
-                            rep(colUrban,2))
-  
-  barCenters <- barplot(tempMean, 
-                      beside=T,
-                      col=colvec,
-                      density = c(40,NA),
-                      names.arg=colnames(tempMean),
-                      ylim=c(0,0.80),
-                      #main = paste0("Dengue ", bodyPart," Infections"),
-                      ylab = "Proportion Infected"
-                      )
-  
-  tempSE <- tempLarge %>%
-    select(-sd,-mean) %>%
-    spread(block, se) %>%
-    select(-class)
-  
-   #put summer before fall
-  tempSE <- tempSE[,c(2,1)]
-  
-   tempSE <- t(tempSE)
-  
-  #add se bars
-  segments(barCenters, tempMean - tempSE , barCenters,
-         tempMean + tempSE, lwd = 1.5)
-  
-  arrows(barCenters, tempMean - tempSE , barCenters,
-         tempMean + tempSE,
-         lwd = 1.5, 
-         angle = 90,
-         code = 3, length = 0.03)
-  
-  #legend("topright", legend=c("Summer", "Fall"), density = c(40,NA),
-       #bty = "n", col = "gray80")
-}
-```
 
 ```{r seasonal plots, eval=F, echo=FALSE}
-pdf(file="../figures/forMS/seasonInfections.pdf", width = 8, height=12, family="sans")
-par(mfrow=c(3,1), las=1)
+#pdf(file="../figures/forMS/seasonInfections.pdf", width = 4, height=6, family="sans")
+png(file="../figures/forMS/seasonInfections.png", width = 4, height=6, units="in", res=500, family="sans")
+par(mfrow=c(3,1), las=1, par(mar=c(5.1,6.1,4.1,2.1)))
 #pdf(file="../figures/seasonBody.pdf", width = 8, height=4, family="sans")
 seasonPlot(bodyPart="Body")
+par(xpd=T)
+legend(x=7.5, y=1.0, legend=c("Summer", "Fall"), density = c(40,NA),
+       bty = "n", col = "gray80", cex=1.1)
 mtext("Body")
 #dev.off()
 
 #pdf(file="../figures/seasonHead.pdf", width = 8, height=4, family="sans")
 seasonPlot(bodyPart="Head")
 mtext("Head")
+par(las=0)
+mtext("Proportion Infected", side=2, line=3)
 #dev.off()
 
 #pdf(file="../figures/seasonSaliva.pdf", width = 8, height=4, family="sans")
+par(las=1)
 seasonPlot(bodyPart="Saliva")
 mtext("Saliva")
 dev.off()
@@ -710,7 +365,7 @@ mixModelseasonsBody21 <- lme4::glmer(Body~class + block + (1|site),
 #get a summary
 summary(mixModelseasonsBody21)
 #check significance
-Anova(mixModelseasonsBody21) 
+Anova(mixModelseasonsBody21, type=2) 
 #check overdispersion
 overdisp_fun(mixModelseasonsBody21) 
 plot(mixModelseasonsBody21)
@@ -1036,6 +691,234 @@ This results in a dataframe `seasonInf` that has the infection status and enviro
 
 ### Stats
 
+### Test 2b: Climate and Infection by Site
+
+When plotting environmental variables against each other, I realized why it was so difficult for classification models to identify infected individuals.  This is becuase the climatic variables were grouped by site, so identical variables could be describing infected and non-infected individuals.  With this is in mind, it is actually quite remarkable that it was able to discren anything at all from the data, and gives me hope that if I consider infection at the site level, this will be more informative.
+
+```{r create dataframe of site-aggregated infections}
+seasonSite <- seasons %>%
+  filter(DPI=="21") %>%
+  dplyr::select(-Individual, -DPI) %>%
+  dplyr::group_by(block, class, site) %>%
+  summarise_each(funs(mean(.,na.rm=T)))
+
+#group with temperature data
+seasonInfSite <- merge(seasonSite, rbind(augEnvVar,octEnvVar), by.x=c("block", "site"), by.y=c("block", "Site_Code"))
+```
+
+Now for some visualization:
+
+```{r}
+envVarPlot("Body", dataset=seasonInfSite)
+envVarPlot("Head", dataset=seasonInfSite)
+envVarPlot("Saliva", dataset=seasonInfSite)
+```
+
+Correlation plots:
+
+```{r}
+line_fn <- function(data, mapping, ...){
+  p <- ggplot(data = data, mapping = mapping) + 
+    geom_point() + 
+    geom_smooth(method=loess, fill="red", color="red", ...) +
+    geom_smooth(method=lm, fill="blue", color="blue", ...)
+  p
+}
+ggpairs(seasonInfSite, 8:ncol(seasonInfSite),lower = list(continuous = line_fn))
+```
+
+Now pair-wise plots of variables, based on some of the output of the GBM and glmnet from above:
+
+```{r}
+par(mfrow=c(3,3))
+vars <- colnames(seasonInfSite)[-c(1:7)]
+ggplot(data=seasonInfSite, aes_string(x=vars[1], y=vars[2])) +
+  geom_point(aes(color=Body, shape=class, size=Body))
+ggplot(data=seasonInfSite, aes_string(x=vars[1], y=vars[3])) +
+  geom_point(aes(color=Body, shape=class, size=Body))
+ggplot(data=seasonInfSite, aes_string(x=vars[1], y=vars[4])) +
+  geom_point(aes(color=Body, shape=class, size=Body))
+ggplot(data=seasonInfSite, aes_string(x=vars[1], y=vars[5])) +
+  geom_point(aes(color=Body, shape=class, size=Body))
+ggplot(data=seasonInfSite, aes_string(x=vars[1], y=vars[6])) +
+  geom_point(aes(color=Body, shape=class, size=Body))
+ggplot(data=seasonInfSite, aes_string(x=vars[1], y=vars[7])) +
+  geom_point(aes(color=Body, shape=class, size=Body))
+ggplot(data=seasonInfSite, aes_string(x=vars[1], y=vars[8])) +
+  geom_point(aes(color=Body, shape=class, size=Body))
+ggplot(data=seasonInfSite, aes_string(x=vars[1], y=vars[9])) +
+  geom_point(aes(color=Body, shape=class, size=Body))
+```
+
+
+Using glmnet to make a regression:
+
+```{r}
+respV <- "Body"
+predVs <- c("Temp_mean","RH_mean","Temp_min","RH_min", "Temp_max", "DTR", "hoursAbove31", "hoursBelow16")
+
+hist(seasonInfSite$Body)
+
+#create dataframe without NAs
+myCols <- c(respV, predVs)
+modDF <- seasonInfSite %>%
+  dplyr::select(one_of(myCols)) 
+modDF <- na.omit(modDF)
+#modDF[,respV] <- as.factor(modDF[,respV])
+#levels(modDF[,respV]) <- c("no", "yes")
+
+
+#split into testing and training - Don't do because only have 18 values
+# set.seed(8675309)
+# inds <- createDataPartition(modDF[,respV], p=.7, list=F, times=1)
+# train <- modDF[inds,]
+# test <- modDF[-inds,]
+
+##glmnet
+glmControl <- trainControl(method='LOOCV', 
+                           #number=17,
+                           returnResamp='none'
+                           #preProcOptions = c("center", "corr", "scale")
+                           )
+set.seed(8675309)
+glmModel <- train(modDF[, predVs[-c(4,2,7,8)]], modDF[, respV], 
+                  method='glmnet',
+                  trControl=glmControl)
+
+plot(varImp(glmModel,scale=F))
+glmModel$results
+coef(glmModel$finalModel, glmModel$bestTune$lambda)
+
+```
+
+The best way to judge importance of the variables could be to drop out each and look at model performance.
+
+First Run:
+- Dropping Temp_min has no effect on performance
+- Dropping RH_min improves performance
+- Dropping Temp_max improves, but not as much as RH_min
+- Dropping Hours above 31 improves performance (as much as RH_min)
+- Dropping Hours below 16 greatly decreases performance
+
+Decision (1): 
+- Drop  RH_min from the model - RMSE of 15.94, R2 of 0.3955
+
+Second Run:
+- Dropping Temp_mean drops performance
+- Dropping Temp_min improves performance(RMSE=0.1533)
+- RH_mean has no impact
+- Temp_max has no impact
+- Dropping DTR improves performance (RMSE=0.1582)
+- Droping Hours above 31 greatly improves performance (RMSE=15.06)
+- Hours Below 16 decreases
+
+Decions (2):
+- Drop Hours Above 31 (RMSE=15.06, R2=0.4403)
+
+Third Run:
+- RH_mean improves performance (RMSE=0.1484)
+- all the rest decrease performance
+
+Decision (3): 
+- Drop RH_mean (RMSE=0.1484, R2=0.428)
+- Adding back HoursAbove31 decreases performance
+
+Fourth Run
+- Everything is important
+
+Final Model: Temp_mean, Temp_min, Temp_max, DTR (RMSE=0.1416, R2=0.4727)
+
+#### Visualization of Important Variables
+
+```{r}
+par(mfrow=c(3,3))
+ggplot(data=seasonInfSite, aes(x=Temp_mean, y=Temp_min)) +
+  geom_point(aes(color=Body, shape=class, size=Body))
+ggplot(data=seasonInfSite, aes(x=Temp_mean, y=hoursBelow16)) +
+  geom_point(aes(color=Body, shape=class, size=Body))
+ggplot(data=seasonInfSite, aes(x=Temp_mean, y=DTR)) +
+  geom_point(aes(color=Body, shape=class, size=Body))
+ggplot(data=seasonInfSite, aes(x=Temp_mean, y=Temp_max)) +
+  geom_point(aes(color=Body, shape=class, size=Body))
+ggplot(data=seasonInfSite, aes(x=DTR, y=hoursBelow16)) +
+  geom_point(aes(color=Body, shape=class, size=Body))
+ggplot(data=seasonInfSite, aes(x=Temp_max, y=DTR)) +
+  geom_point(aes(color=Body, shape=class, size=Body)) #this is especially cool
+ggplot(data=seasonInfSite, aes(x=Temp_min, y=DTR)) +
+  geom_point(aes(color=Body, shape=class, size=Body))
+
+ggplot(data=seasonInfSite, aes(x=Temp_mean, y=Body))+
+  geom_point(aes(color=class, shape=block), size=4) + 
+  scale_color_manual(values=c(colRural, colSuburban, colUrban)) +
+  theme_base() +
+  ylab("Prop. Body Infection")
+```
+
+```{r 3D Chart}
+library(plotly)
+
+plot_ly(seasonInfSite, x=~Temp_mean, y=~Temp_min, z=~Body, color=~class, colors=c(colRural, colSuburban, colUrban)) %>%
+  add_markers()
+```
+
+Need a plot of temp_mean and body infection (scattler plots with SE bars)
+
+
+### Test 3: Winglength
+
+Because we have found a significant effect of class on body and head infection, but no significant effect of climate, we are wondering if it is indirectly through body size. That is, microclimate leads to different sized mosquitoes, and different size mosquitoes are more or less susceptible to infection. This requires two tests:
+
+* a) the relationship between wing size and infection
+* b) the relationship between climate and wing size
+
+#### Test 3.a Wing Size and Infection
+
+```{r}
+par(mfrow=c(3,1))
+ggplot(data=seasonInf, aes_string(x="Wing", y="Body")) +
+  geom_point(aes(color=class)) +
+  geom_smooth()
+ggplot(data=seasonInf, aes_string(x="Wing", y="Head")) +
+  geom_point(aes(color=class)) +
+  geom_smooth()
+ggplot(data=seasonInf, aes_string(x="Wing", y="Saliva")) +
+  geom_point(aes(color=class)) +
+  geom_smooth()
+```
+
+From these rough plots, it does seem like larger mosquitoes are less likely to have body or head infections than smaller. And, as above, there is really no trend in Saliva infections.
+
+Now we try some tests:
+
+```{r}
+mixModelwingBody <- lme4::glmer(Body~Wing, 
+                          data=seasonInf,
+                          family=binomial(link="logit"))
+plot(mixModelwingBody)
+summary(mixModelwingBody)
+
+glmWingBody <- glm(as.factor(Body)~Wing, 
+                          data=seasonInf,
+                          family=binomial(link="logit"))
+summary(glmWingBody)
+plot(glmWingBody)
+```
+
+#### Test 3.b Climate and Wing Size
+
+I've actually decided to wait and do this for the whole experiment.
+
+```{r}
+envVarPlot("Wing")
+```
+
+
+Really seems like warmer sites (urban), had larger mosquitoes, and therefore lower infection of body and heads. And then, when it comes to Saliva, it really doesn't matter.
+
+
+\newpage
+
+# Deprecated
 #### Visualization
 
 ```{r facet visualization function, echo=FALSE}
@@ -1293,242 +1176,264 @@ AIC(BodyEnvMS)
 
 The BIC value of this is `r BIC(BodyEnvMS)` compare to `r BIC(BodyEnv)` for the one without variable selection.  It's AUC value is `r print(aucGLMMS$auc)`. This really isn't much different than the other one with all of the variables. The AUC and AIC values are the same, and the BIC value only decreases because of parsimony (i.e. it penalizes having more variables).
 
-### Stats Summary
 
-So what do we learn from this big mess of stats?  On the body (which is all we've done so far), a model consisting of these environmental variables does not predict infection very well.  We get some variable importance from the GBM, but in the GLM there are no significant predictor variables. However, we did get a strong effect of season and land use on body infection in the section above.  To me, this means that we are seeing a difference, but it isn't being measured by the variables we collected. There may be other things, then, that are influencing a mosquito's ability to become infected.  A potential idea is that this may such an indirect effect of temperature that we don't see it. Specifically, I am thinking of the fact that emergence and survival was different across land use and season, and that this could impact 1) resource availability to those that survive and 2) overall "quality" of the mosquitoes that do survive to adulthood.
+## Summary Plots by Site
 
-#### "Final" Model to Use
-
-The GLM with the a priori variable selection performs the best (as judged by AUC and AIC). No variables come out as significant, but I think we can make the argument that these variables were ranked as important by the glmnet and GBM model, so do have an effect, just not a clear significant one. 
-
-Conclusion: Something else is going on at these times (most likely related to climate) that we are just not measuring appropriately.
-
-### Test 2b: Climate and Infection by Site
-
-When plotting environmental variables against each other, I realized why it was so difficult for classification models to identify infected individuals.  This is becuase the climatic variables were grouped by site, so identical variables could be describing infected and non-infected individuals.  With this is in mind, it is actually quite remarkable that it was able to discren anything at all from the data, and gives me hope that if I consider infection at the site level, this will be more informative.
-
-```{r create dataframe of site-aggregated infections}
-seasonSite <- seasons %>%
-  filter(DPI=="21") %>%
-  dplyr::select(-Individual, -DPI) %>%
-  dplyr::group_by(block, class, site) %>%
-  summarise_each(funs(mean(.,na.rm=T)))
-
-#group with temperature data
-seasonInfSite <- merge(seasonSite, rbind(augEnvVar,octEnvVar), by.x=c("block", "site"), by.y=c("block", "Site_Code"))
-```
-
-Now for some visualization:
-
-```{r}
-envVarPlot("Body", dataset=seasonInfSite)
-envVarPlot("Head", dataset=seasonInfSite)
-envVarPlot("Saliva", dataset=seasonInfSite)
-```
-
-Correlation plots:
-
-```{r}
-line_fn <- function(data, mapping, ...){
-  p <- ggplot(data = data, mapping = mapping) + 
-    geom_point() + 
-    geom_smooth(method=loess, fill="red", color="red", ...) +
-    geom_smooth(method=lm, fill="blue", color="blue", ...)
-  p
+```{r plot by site function}
+sitePlot <- function(summTable, dpi, bodyPart){
+  cols <- c(1:3,grep(bodyPart, colnames(summTable)))
+temp <- summTable[summTable$DPI==dpi,cols]
+colnames(temp)[4:6] <- c("mean", "sd", "se")
+  barCenters <- barplot(temp$mean, 
+          col=c(colRural, colSuburban, colUrban)[temp$class],
+          names.arg=temp$site,
+          ylim=c(0,max(temp$mean+0.2)),
+          main = paste0(bodyPart, " Infection (", dpi, "dpi)")
+          )
+  #add se bars
+  segments(barCenters, temp$mean - temp$se , barCenters,
+         temp$mean + temp$se, lwd = 1.5)
+  
+  arrows(barCenters, temp$mean - temp$se , barCenters,
+         temp$mean + temp$se, lwd = 1.5, 
+         angle = 90,
+       code = 3, length = 0.05)
 }
-ggpairs(seasonInfSite, 8:ncol(seasonInfSite),lower = list(continuous = line_fn))
-```
-
-Now pair-wise plots of variables, based on some of the output of the GBM and glmnet from above:
-
-```{r}
-par(mfrow=c(3,3))
-vars <- colnames(seasonInfSite)[-c(1:7)]
-ggplot(data=seasonInfSite, aes_string(x=vars[1], y=vars[2])) +
-  geom_point(aes(color=Body, shape=class, size=Body))
-ggplot(data=seasonInfSite, aes_string(x=vars[1], y=vars[3])) +
-  geom_point(aes(color=Body, shape=class, size=Body))
-ggplot(data=seasonInfSite, aes_string(x=vars[1], y=vars[4])) +
-  geom_point(aes(color=Body, shape=class, size=Body))
-ggplot(data=seasonInfSite, aes_string(x=vars[1], y=vars[5])) +
-  geom_point(aes(color=Body, shape=class, size=Body))
-ggplot(data=seasonInfSite, aes_string(x=vars[1], y=vars[6])) +
-  geom_point(aes(color=Body, shape=class, size=Body))
-ggplot(data=seasonInfSite, aes_string(x=vars[1], y=vars[7])) +
-  geom_point(aes(color=Body, shape=class, size=Body))
-ggplot(data=seasonInfSite, aes_string(x=vars[1], y=vars[8])) +
-  geom_point(aes(color=Body, shape=class, size=Body))
-ggplot(data=seasonInfSite, aes_string(x=vars[1], y=vars[9])) +
-  geom_point(aes(color=Body, shape=class, size=Body))
-```
-
-
-Using glmnet to make a regression:
-
-```{r}
-respV <- "Body"
-predVs <- c("Temp_mean","RH_mean","Temp_min","RH_min", "Temp_max", "DTR", "hoursAbove31", "hoursBelow16")
-
-hist(seasonInfSite$Body)
-
-#create dataframe without NAs
-myCols <- c(respV, predVs)
-modDF <- seasonInfSite %>%
-  dplyr::select(one_of(myCols)) 
-modDF <- na.omit(modDF)
-#modDF[,respV] <- as.factor(modDF[,respV])
-#levels(modDF[,respV]) <- c("no", "yes")
-
-
-#split into testing and training - Don't do because only have 18 values
-# set.seed(8675309)
-# inds <- createDataPartition(modDF[,respV], p=.7, list=F, times=1)
-# train <- modDF[inds,]
-# test <- modDF[-inds,]
-
-##glmnet
-glmControl <- trainControl(method='LOOCV', 
-                           #number=17,
-                           returnResamp='none'
-                           #preProcOptions = c("center", "corr", "scale")
-                           )
-set.seed(8675309)
-glmModel <- train(modDF[, predVs[-c(4,2,7,8)]], modDF[, respV], 
-                  method='glmnet',
-                  trControl=glmControl)
-
-plot(varImp(glmModel,scale=F))
-glmModel$results
-coef(glmModel$finalModel, glmModel$bestTune$lambda)
 
 ```
 
-The best way to judge importance of the variables could be to drop out each and look at model performance.
+```{r plot:body, eval=FALSE, echo=FALSE}
+par(mfrow=c(2,2))
+sitePlot(summTable=augustSumm, dpi="9", bodyPart = "Body")
+sitePlot(summTable=augustSumm, dpi="14", bodyPart = "Body")
+sitePlot(summTable=augustSumm, dpi="21", bodyPart = "Body")
 
-First Run:
-- Dropping Temp_min has no effect on performance
-- Dropping RH_min improves performance
-- Dropping Temp_max improves, but not as much as RH_min
-- Dropping Hours above 31 improves performance (as much as RH_min)
-- Dropping Hours below 16 greatly decreases performance
-
-Decision (1): 
-- Drop  RH_min from the model - RMSE of 15.94, R2 of 0.3955
-
-Second Run:
-- Dropping Temp_mean drops performance
-- Dropping Temp_min improves performance(RMSE=0.1533)
-- RH_mean has no impact
-- Temp_max has no impact
-- Dropping DTR improves performance (RMSE=0.1582)
-- Droping Hours above 31 greatly improves performance (RMSE=15.06)
-- Hours Below 16 decreases
-
-Decions (2):
-- Drop Hours Above 31 (RMSE=15.06, R2=0.4403)
-
-Third Run:
-- RH_mean improves performance (RMSE=0.1484)
-- all the rest decrease performance
-
-Decision (3): 
-- Drop RH_mean (RMSE=0.1484, R2=0.428)
-- Adding back HoursAbove31 decreases performance
-
-Fourth Run
-- Everything is important
-
-Final Model: Temp_mean, Temp_min, Temp_max, DTR (RMSE=0.1416, R2=0.4727)
-
-#### Visualization of Important Variables
-
-```{r}
-par(mfrow=c(3,3))
-ggplot(data=seasonInfSite, aes(x=Temp_mean, y=Temp_min)) +
-  geom_point(aes(color=Body, shape=class, size=Body))
-ggplot(data=seasonInfSite, aes(x=Temp_mean, y=hoursBelow16)) +
-  geom_point(aes(color=Body, shape=class, size=Body))
-ggplot(data=seasonInfSite, aes(x=Temp_mean, y=DTR)) +
-  geom_point(aes(color=Body, shape=class, size=Body))
-ggplot(data=seasonInfSite, aes(x=Temp_mean, y=Temp_max)) +
-  geom_point(aes(color=Body, shape=class, size=Body))
-ggplot(data=seasonInfSite, aes(x=DTR, y=hoursBelow16)) +
-  geom_point(aes(color=Body, shape=class, size=Body))
-ggplot(data=seasonInfSite, aes(x=Temp_max, y=DTR)) +
-  geom_point(aes(color=Body, shape=class, size=Body)) #this is especially cool
-ggplot(data=seasonInfSite, aes(x=Temp_min, y=DTR)) +
-  geom_point(aes(color=Body, shape=class, size=Body))
-
-ggplot(data=seasonInfSite, aes(x=Temp_mean, y=Body))+
-  geom_point(aes(color=class, shape=block), size=4) + 
-  scale_color_manual(values=c(colRural, colSuburban, colUrban)) +
-  theme_base() +
-  ylab("Prop. Body Infection")
+sitePlot(summTable=octSumm, dpi="21", bodyPart="Body")
+mtext("October")
 ```
 
-```{r 3D Chart}
-library(plotly)
+```{r plot:head, eval=FALSE, echo=FALSE}
+par(mfrow=c(2,2))
+sitePlot(summTable=augustSumm, dpi="9", bodyPart = "Head")
+sitePlot(summTable=augustSumm, dpi="14", bodyPart = "Head")
+sitePlot(summTable=augustSumm, dpi="21", bodyPart = "Head")
 
-plot_ly(seasonInfSite, x=~Temp_mean, y=~Temp_min, z=~Body, color=~class, colors=c(colRural, colSuburban, colUrban)) %>%
-  add_markers()
+sitePlot(summTable=octSumm, dpi="21", bodyPart="Head")
+mtext("October")
 ```
 
-Need a plot of temp_mean and body infection (scattler plots with SE bars)
+```{r plot:saliva,eval=FALSE, echo=FALSE}
+sitePlot(summTable=augustSumm, dpi="9", bodyPart = "Saliva")
+sitePlot(summTable=augustSumm, dpi="14", bodyPart = "Saliva")
+sitePlot(summTable=augustSumm, dpi="21", bodyPart = "Saliva")
 
-
-### Test 3: Winglength
-
-Because we have found a significant effect of class on body and head infection, but no significant effect of climate, we are wondering if it is indirectly through body size. That is, microclimate leads to different sized mosquitoes, and different size mosquitoes are more or less susceptible to infection. This requires two tests:
-
-* a) the relationship between wing size and infection
-* b) the relationship between climate and wing size
-
-#### Test 3.a Wing Size and Infection
-
-```{r}
-par(mfrow=c(3,1))
-ggplot(data=seasonInf, aes_string(x="Wing", y="Body")) +
-  geom_point(aes(color=class)) +
-  geom_smooth()
-ggplot(data=seasonInf, aes_string(x="Wing", y="Head")) +
-  geom_point(aes(color=class)) +
-  geom_smooth()
-ggplot(data=seasonInf, aes_string(x="Wing", y="Saliva")) +
-  geom_point(aes(color=class)) +
-  geom_smooth()
+sitePlot(summTable=octSumm, dpi="21", bodyPart="Saliva")
+mtext("October")
 ```
 
-From these rough plots, it does seem like larger mosquitoes are less likely to have body or head infections than smaller. And, as above, there is really no trend in Saliva infections.
+## Plotting them beside each other
 
-Now we try some tests:
+```{r beside plot function}
+besidePlot <- function(summTable, bodyPart, byclass=F){
+  if (byclass==T){
+    cols <- c(1:2,grep(bodyPart, colnames(summTable)))
+  } else cols <- c(1:3,grep(bodyPart, colnames(summTable)))
+  tempLarge <- summTable[,cols]
+  colnames(tempLarge)[(ncol(tempLarge)-2):ncol(tempLarge)] <- c("mean", "sd", "se")
+  if (byclass==F){
+  tempMean <- tempLarge %>%
+    select(-sd,-se, -class) %>%
+    spread(DPI, mean) %>%
+    select(-site)
+  } else tempMean <- tempLarge %>%
+    select(-sd,-se) %>%
+    spread( DPI, mean) %>%
+    select(-class)
+  if (byclass==T){
+    rownames(tempMean) <- levels(summTable$class)
+    } else rownames(tempMean) <- levels(summTable$site)
+  tempMean <- t(as.matrix(tempMean))
+  #colors
+  if (byclass==T){
+    colvec <- c(rep(colRural,3), rep(colSuburban,3), 
+                            rep(colUrban,3))
+  } else colvec <- c(rep(colRural,9), rep(colSuburban,9), 
+                            rep(colUrban,9))
+  #plot
+  barCenters <- barplot(tempMean, 
+                      beside=T,
+                      col=colvec,
+                      density = c(10,40,NA),
+                      names.arg=colnames(tempMean),
+                      ylim=c(0,0.80),
+                      main = paste0("Dengue ", bodyPart," Infections"),
+                      ylab = "Percent Infected"
+                      )
 
-```{r}
-mixModelwingBody <- lme4::glmer(Body~Wing, 
-                          data=seasonInf,
-                          family=binomial(link="logit"))
-plot(mixModelwingBody)
-summary(mixModelwingBody)
-
-glmWingBody <- glm(as.factor(Body)~Wing, 
-                          data=seasonInf,
-                          family=binomial(link="logit"))
-summary(glmWingBody)
-plot(glmWingBody)
+    if (byclass==F){
+  tempSE <- tempLarge %>%
+    select(-sd,-mean,-class) %>%
+    spread( DPI, se) %>%
+    select(-site)
+  } else   tempSE <- tempLarge %>%
+    select(-sd,-mean) %>%
+    spread( DPI, se) %>%
+    select(-class)
+  
+  tempSE <- t(tempSE)
+  
+  #add se bars
+  segments(barCenters, tempMean - tempSE , barCenters,
+         tempMean + tempSE, lwd = 1.5)
+  
+  arrows(barCenters, tempMean - tempSE , barCenters,
+         tempMean + tempSE,
+         lwd = 1.5, 
+         angle = 90,
+         code = 3, length = 0.03)
+  
+  legend("topright", legend=c("9 dpi","14 dpi", "21 dpi"), density = c(10,40,NA),
+       bty = "n", col = "gray80")
+}
 ```
 
-#### Test 3.b Climate and Wing Size
+## August Plots by DPI
 
-I've actually decided to wait and do this for the whole experiment.
+Note there are none of these for October becuase we only did 21 dpi.
 
-```{r}
-envVarPlot("Wing")
+```{r barplot:besideBody, eval=T, echo=FALSE}
+#pdf(file="../figures/augustBody.pdf", width = 8, height=6, family="sans")
+besidePlot(summTable=augustSumm, bodyPart="Body")
+#dev.off()
+```
+
+```{r barplot:besideHead aug, eval=T, echo=FALSE}
+#pdf(file="../figures/augustHead.pdf", width = 8, height=6, family="sans")
+besidePlot(summTable=augustSumm, bodyPart="Head")
+#dev.off()
+```
+
+```{r barplot:besideSaliva, eval=T, echo=FALSE}
+#pdf(file="../figures/augustSaliva.pdf", width = 8, height=6, family="sans")
+besidePlot(summTable=augustSumm, bodyPart="Saliva")
+#dev.off()
 ```
 
 
-Really seems like warmer sites (urban), had larger mosquitoes, and therefore lower infection of body and heads. And then, when it comes to Saliva, it really doesn't matter.
 
+## Plots by Class
 
-# Deprecated
+```{r beside barplot for october, echo=FALSE}
+besidePlotOct <- function(summTable, bodyPart, byclass=F){
+  if (byclass==T){
+    cols <- c(1,2,grep(bodyPart, colnames(summTable)))
+  } else cols <- c(1:3,grep(bodyPart, colnames(summTable)))
+  tempLarge <- summTable[,cols]
+  colnames(tempLarge)[(ncol(tempLarge)-2):ncol(tempLarge)] <- c("mean", "sd", "se")
+  if (byclass==F){
+  tempMean <- tempLarge %>%
+    select(-sd,-se, -class) %>%
+    spread( DPI, mean) %>%
+    select(-site)
+  } else tempMean <- tempLarge %>%
+    select(-sd,-se, -class, -DPI)
+  if (byclass==T){
+    rownames(tempMean) <- levels(summTable$class)
+    } else rownames(tempMean) <- levels(summTable$site)
+  tempMean <- t(as.matrix(tempMean))
+  #colors
+  if (byclass==T){
+    colvec <- c(rep(colRural,1), rep(colSuburban,1), 
+                            rep(colUrban,1))
+  } else colvec <- c(rep(colRural,3), rep(colSuburban,3), 
+                            rep(colUrban,3))
+  #plot
+  barCenters <- barplot(tempMean, 
+                      beside=T,
+                      col=colvec,
+                      density = c(NA),
+                      names.arg=colnames(tempMean),
+                      ylim=c(0,0.80),
+                      main = paste0("Dengue ", bodyPart," Infections"),
+                      ylab = "Percent Infected"
+                      )
+
+    if (byclass==F){
+  tempSE <- tempLarge %>%
+    select(-sd,-mean,-class) %>%
+    spread( DPI, se) %>%
+    select(-site)
+  } else   tempSE <- tempLarge %>%
+    select(-sd,-mean) %>%
+    spread( DPI, se) %>%
+    select(-class)
+  
+  tempSE <- t(tempSE)
+  
+  #add se bars
+  segments(barCenters, tempMean - tempSE , barCenters,
+         tempMean + tempSE, lwd = 1.5)
+  
+  arrows(barCenters, tempMean - tempSE , barCenters,
+         tempMean + tempSE,
+         lwd = 1.5, 
+         angle = 90,
+         code = 3, length = 0.03)
+  
+  #legend("topright", legend=c("9 dpi","14 dpi", "21 dpi"), density = c(10,40,NA),
+       #bty = "n", col = "gray80")
+}
+
+```
+
+```{r format by class, eval=T}
+augustclassSumm <- august%>%
+  #drop individual
+  select(-Individual, -site) %>%
+  group_by(DPI, class) %>%
+  summarise_each(funs(mean(.,na.rm=T),sd(.,na.rm=T),se=(sd(., na.rm=T)/sqrt(n())))) %>%
+  ungroup()
+
+#print(xtable(augustclassSumm), type="html")
+augustclassSumm
+
+octclassSumm <- oct %>%
+  select(-Individual, -site) %>%
+  group_by(DPI, class) %>%
+  summarise_each(funs(mean(.,na.rm=T),sd(.,na.rm=T),se=(sd(., na.rm=T)/sqrt(n())))) %>%
+  ungroup()
+
+#print(xtable(octclassSumm), type="html")
+octclassSumm
+```
+
+```{r plot by class, eval=FALSE, echo=FALSE}
+pdf(file="../figures/forMS/augustHeadClass.pdf", width = 8, height=6, family="sans")
+besidePlot(summTable=augustclassSumm, bodyPart="Head", byclass=T)
+dev.off()
+
+pdf(file="../figures/forMS/augustBodyClass.pdf", width = 8, height=6, family="sans")
+besidePlot(summTable=augustclassSumm, bodyPart="Body", byclass=T)
+dev.off()
+
+pdf(file="../figures/forMS/augustSalivaClass.pdf", width = 8, height=6, family="sans")
+besidePlot(summTable=augustclassSumm, bodyPart="Saliva", byclass=T)
+dev.off()
+
+pdf(file="../figures/forMS/octoberHeadClass.pdf", width = 8, height=6, family="sans")
+besidePlotOct(summTable=octclassSumm, bodyPart="Head", byclass=T)
+dev.off()
+
+pdf(file="../figures/forMS/octoberBodyClass.pdf", width = 8, height=6, family="sans")
+besidePlotOct(summTable=octclassSumm, bodyPart="Body", byclass=T)
+dev.off()
+
+pdf(file="../figures/forMS/octoberSalivaClass.pdf", width = 8, height=6, family="sans")
+besidePlotOct(summTable=octclassSumm, bodyPart="Saliva", byclass=T)
+dev.off()
+
+```
+
 
 ```{r summary table}
 augustSumm <- august %>%
