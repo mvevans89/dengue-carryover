@@ -6,161 +6,28 @@ This document is for the analysis of both the August and October Trials of Infec
 
 
 ```r
+library(knitr)
+knitr::opts_chunk$set(cache=TRUE)
+knitr::opts_chunk$set(message=FALSE)
+knitr::opts_chunk$set(warning=FALSE)
+```
+
+
+```r
 library(xtable)
 library(tidyr)
 library(ggplot2) 
 library(lme4) #mixed models
-```
-
-```
-## Loading required package: Matrix
-```
-
-```
-## 
-## Attaching package: 'Matrix'
-```
-
-```
-## The following object is masked from 'package:tidyr':
-## 
-##     expand
-```
-
-```r
 library(car)
 library(MASS)
-library(dplyr)
-```
-
-```
-## 
-## Attaching package: 'dplyr'
-```
-
-```
-## The following object is masked from 'package:MASS':
-## 
-##     select
-```
-
-```
-## The following object is masked from 'package:car':
-## 
-##     recode
-```
-
-```
-## The following objects are masked from 'package:stats':
-## 
-##     filter, lag
-```
-
-```
-## The following objects are masked from 'package:base':
-## 
-##     intersect, setdiff, setequal, union
-```
-
-```r
 library(gridExtra) #for facet grids later
-```
-
-```
-## 
-## Attaching package: 'gridExtra'
-```
-
-```
-## The following object is masked from 'package:dplyr':
-## 
-##     combine
-```
-
-```r
 library(gbm)
-```
-
-```
-## Loading required package: survival
-```
-
-```
-## Loading required package: lattice
-```
-
-```
-## Loading required package: splines
-```
-
-```
-## Loading required package: parallel
-```
-
-```
-## Loaded gbm 2.1.1
-```
-
-```r
 library(caret)
-```
-
-```
-## 
-## Attaching package: 'caret'
-```
-
-```
-## The following object is masked from 'package:survival':
-## 
-##     cluster
-```
-
-```r
 library(pROC)
-```
-
-```
-## Type 'citation("pROC")' for a citation.
-```
-
-```
-## 
-## Attaching package: 'pROC'
-```
-
-```
-## The following objects are masked from 'package:stats':
-## 
-##     cov, smooth, var
-```
-
-```r
 library(corrplot)
 library(glmnet)
-```
-
-```
-## Loading required package: foreach
-```
-
-```
-## Loaded glmnet 2.0-5
-```
-
-```
-## 
-## Attaching package: 'glmnet'
-```
-
-```
-## The following object is masked from 'package:pROC':
-## 
-##     auc
-```
-
-```r
-knitr::opts_chunk$set(cache=TRUE, message=F)
+library(GGally)
+library(dplyr)
 ```
 
 
@@ -226,26 +93,7 @@ formatData <- function(month){
 ```r
 #warning messages about NAs are fine
 august <- formatData("august")
-```
-
-```
-## Warning in formatData("august"): NAs introduced by coercion
-
-## Warning in formatData("august"): NAs introduced by coercion
-```
-
-```r
 oct <- formatData("october")
-```
-
-```
-## Warning in formatData("october"): NAs introduced by coercion
-```
-
-```
-## Warning in formatData("october"): NAs introduced by coercion
-
-## Warning in formatData("october"): NAs introduced by coercion
 ```
 
 First, lets create a table of the percentages for an overview:
@@ -259,42 +107,27 @@ augustSumm <- august %>%
   summarise_each(funs(mean(.,na.rm=T),sd(.,na.rm=T),se=(sd(., na.rm=T)/sqrt(n())))) %>%
   ungroup()
 
-print(xtable(augustSumm), type="html")
+#print(xtable(augustSumm), type="html")
+augustSumm
 ```
 
 ```
-## <!-- html table generated in R 3.3.3 by xtable 1.8-2 package -->
-## <!-- Wed Mar 29 12:45:13 2017 -->
-## <table border=1>
-## <tr> <th>  </th> <th> DPI </th> <th> site </th> <th> class </th> <th> Body_mean </th> <th> Head_mean </th> <th> Saliva_mean </th> <th> Wing_mean </th> <th> Body_sd </th> <th> Head_sd </th> <th> Saliva_sd </th> <th> Wing_sd </th> <th> Body_se </th> <th> Head_se </th> <th> Saliva_se </th> <th> Wing_se </th>  </tr>
-##   <tr> <td align="right"> 1 </td> <td> 9 </td> <td> R1 </td> <td> Rural </td> <td align="right"> 0.25 </td> <td align="right"> 0.05 </td> <td align="right"> 0.00 </td> <td align="right"> 2.45 </td> <td align="right"> 0.44 </td> <td align="right"> 0.22 </td> <td align="right"> 0.00 </td> <td align="right"> 0.13 </td> <td align="right"> 0.10 </td> <td align="right"> 0.05 </td> <td align="right"> 0.00 </td> <td align="right"> 0.03 </td> </tr>
-##   <tr> <td align="right"> 2 </td> <td> 9 </td> <td> R2 </td> <td> Rural </td> <td align="right"> 0.15 </td> <td align="right"> 0.10 </td> <td align="right"> 0.00 </td> <td align="right"> 2.35 </td> <td align="right"> 0.37 </td> <td align="right"> 0.31 </td> <td align="right"> 0.00 </td> <td align="right"> 0.11 </td> <td align="right"> 0.08 </td> <td align="right"> 0.07 </td> <td align="right"> 0.00 </td> <td align="right"> 0.03 </td> </tr>
-##   <tr> <td align="right"> 3 </td> <td> 9 </td> <td> R3 </td> <td> Rural </td> <td align="right"> 0.00 </td> <td align="right"> 0.00 </td> <td align="right"> 0.00 </td> <td align="right"> 2.48 </td> <td align="right"> 0.00 </td> <td align="right"> 0.00 </td> <td align="right"> 0.00 </td> <td align="right"> 0.09 </td> <td align="right"> 0.00 </td> <td align="right"> 0.00 </td> <td align="right"> 0.00 </td> <td align="right"> 0.02 </td> </tr>
-##   <tr> <td align="right"> 4 </td> <td> 9 </td> <td> S1 </td> <td> Suburban </td> <td align="right"> 0.15 </td> <td align="right"> 0.10 </td> <td align="right"> 0.00 </td> <td align="right"> 2.50 </td> <td align="right"> 0.37 </td> <td align="right"> 0.31 </td> <td align="right"> 0.00 </td> <td align="right"> 0.12 </td> <td align="right"> 0.08 </td> <td align="right"> 0.07 </td> <td align="right"> 0.00 </td> <td align="right"> 0.03 </td> </tr>
-##   <tr> <td align="right"> 5 </td> <td> 9 </td> <td> S2 </td> <td> Suburban </td> <td align="right"> 0.05 </td> <td align="right"> 0.00 </td> <td align="right"> 0.00 </td> <td align="right"> 2.26 </td> <td align="right"> 0.23 </td> <td align="right"> 0.00 </td> <td align="right"> 0.00 </td> <td align="right"> 0.14 </td> <td align="right"> 0.05 </td> <td align="right"> 0.00 </td> <td align="right"> 0.00 </td> <td align="right"> 0.03 </td> </tr>
-##   <tr> <td align="right"> 6 </td> <td> 9 </td> <td> S3 </td> <td> Suburban </td> <td align="right"> 0.30 </td> <td align="right"> 0.00 </td> <td align="right"> 0.00 </td> <td align="right"> 2.51 </td> <td align="right"> 0.47 </td> <td align="right"> 0.00 </td> <td align="right"> 0.00 </td> <td align="right"> 0.13 </td> <td align="right"> 0.11 </td> <td align="right"> 0.00 </td> <td align="right"> 0.00 </td> <td align="right"> 0.03 </td> </tr>
-##   <tr> <td align="right"> 7 </td> <td> 9 </td> <td> U1 </td> <td> Urban </td> <td align="right"> 0.25 </td> <td align="right"> 0.10 </td> <td align="right"> 0.00 </td> <td align="right"> 2.59 </td> <td align="right"> 0.44 </td> <td align="right"> 0.31 </td> <td align="right"> 0.00 </td> <td align="right"> 0.09 </td> <td align="right"> 0.10 </td> <td align="right"> 0.07 </td> <td align="right"> 0.00 </td> <td align="right"> 0.02 </td> </tr>
-##   <tr> <td align="right"> 8 </td> <td> 9 </td> <td> U2 </td> <td> Urban </td> <td align="right"> 0.10 </td> <td align="right"> 0.05 </td> <td align="right"> 0.00 </td> <td align="right"> 2.55 </td> <td align="right"> 0.31 </td> <td align="right"> 0.22 </td> <td align="right"> 0.00 </td> <td align="right"> 0.11 </td> <td align="right"> 0.07 </td> <td align="right"> 0.05 </td> <td align="right"> 0.00 </td> <td align="right"> 0.02 </td> </tr>
-##   <tr> <td align="right"> 9 </td> <td> 9 </td> <td> U3 </td> <td> Urban </td> <td align="right"> 0.00 </td> <td align="right"> 0.00 </td> <td align="right"> 0.00 </td> <td align="right"> 2.49 </td> <td align="right"> 0.00 </td> <td align="right"> 0.00 </td> <td align="right"> 0.00 </td> <td align="right"> 0.12 </td> <td align="right"> 0.00 </td> <td align="right"> 0.00 </td> <td align="right"> 0.00 </td> <td align="right"> 0.03 </td> </tr>
-##   <tr> <td align="right"> 10 </td> <td> 14 </td> <td> R1 </td> <td> Rural </td> <td align="right"> 0.10 </td> <td align="right"> 0.10 </td> <td align="right"> 0.10 </td> <td align="right"> 2.47 </td> <td align="right"> 0.31 </td> <td align="right"> 0.31 </td> <td align="right"> 0.31 </td> <td align="right"> 0.16 </td> <td align="right"> 0.07 </td> <td align="right"> 0.07 </td> <td align="right"> 0.07 </td> <td align="right"> 0.04 </td> </tr>
-##   <tr> <td align="right"> 11 </td> <td> 14 </td> <td> R2 </td> <td> Rural </td> <td align="right"> 0.20 </td> <td align="right"> 0.10 </td> <td align="right"> 0.00 </td> <td align="right"> 2.35 </td> <td align="right"> 0.41 </td> <td align="right"> 0.31 </td> <td align="right"> 0.00 </td> <td align="right"> 0.18 </td> <td align="right"> 0.09 </td> <td align="right"> 0.07 </td> <td align="right"> 0.00 </td> <td align="right"> 0.04 </td> </tr>
-##   <tr> <td align="right"> 12 </td> <td> 14 </td> <td> R3 </td> <td> Rural </td> <td align="right"> 0.15 </td> <td align="right"> 0.10 </td> <td align="right"> 0.00 </td> <td align="right"> 2.57 </td> <td align="right"> 0.37 </td> <td align="right"> 0.31 </td> <td align="right"> 0.00 </td> <td align="right"> 0.12 </td> <td align="right"> 0.08 </td> <td align="right"> 0.07 </td> <td align="right"> 0.00 </td> <td align="right"> 0.03 </td> </tr>
-##   <tr> <td align="right"> 13 </td> <td> 14 </td> <td> S1 </td> <td> Suburban </td> <td align="right"> 0.25 </td> <td align="right"> 0.25 </td> <td align="right"> 0.19 </td> <td align="right"> 2.53 </td> <td align="right"> 0.45 </td> <td align="right"> 0.45 </td> <td align="right"> 0.40 </td> <td align="right"> 0.08 </td> <td align="right"> 0.10 </td> <td align="right"> 0.10 </td> <td align="right"> 0.09 </td> <td align="right"> 0.02 </td> </tr>
-##   <tr> <td align="right"> 14 </td> <td> 14 </td> <td> S2 </td> <td> Suburban </td> <td align="right"> 0.25 </td> <td align="right"> 0.25 </td> <td align="right"> 0.00 </td> <td align="right"> 2.34 </td> <td align="right"> 0.44 </td> <td align="right"> 0.44 </td> <td align="right"> 0.00 </td> <td align="right"> 0.10 </td> <td align="right"> 0.10 </td> <td align="right"> 0.10 </td> <td align="right"> 0.00 </td> <td align="right"> 0.02 </td> </tr>
-##   <tr> <td align="right"> 15 </td> <td> 14 </td> <td> S3 </td> <td> Suburban </td> <td align="right"> 0.15 </td> <td align="right"> 0.15 </td> <td align="right"> 0.05 </td> <td align="right"> 2.50 </td> <td align="right"> 0.37 </td> <td align="right"> 0.37 </td> <td align="right"> 0.22 </td> <td align="right"> 0.10 </td> <td align="right"> 0.08 </td> <td align="right"> 0.08 </td> <td align="right"> 0.05 </td> <td align="right"> 0.02 </td> </tr>
-##   <tr> <td align="right"> 16 </td> <td> 14 </td> <td> U1 </td> <td> Urban </td> <td align="right"> 0.10 </td> <td align="right"> 0.10 </td> <td align="right"> 0.00 </td> <td align="right"> 2.66 </td> <td align="right"> 0.31 </td> <td align="right"> 0.31 </td> <td align="right"> 0.00 </td> <td align="right"> 0.10 </td> <td align="right"> 0.07 </td> <td align="right"> 0.07 </td> <td align="right"> 0.00 </td> <td align="right"> 0.02 </td> </tr>
-##   <tr> <td align="right"> 17 </td> <td> 14 </td> <td> U2 </td> <td> Urban </td> <td align="right"> 0.35 </td> <td align="right"> 0.20 </td> <td align="right"> 0.10 </td> <td align="right"> 2.63 </td> <td align="right"> 0.49 </td> <td align="right"> 0.41 </td> <td align="right"> 0.31 </td> <td align="right"> 0.09 </td> <td align="right"> 0.11 </td> <td align="right"> 0.09 </td> <td align="right"> 0.07 </td> <td align="right"> 0.02 </td> </tr>
-##   <tr> <td align="right"> 18 </td> <td> 14 </td> <td> U3 </td> <td> Urban </td> <td align="right"> 0.45 </td> <td align="right"> 0.40 </td> <td align="right"> 0.05 </td> <td align="right"> 2.56 </td> <td align="right"> 0.51 </td> <td align="right"> 0.50 </td> <td align="right"> 0.22 </td> <td align="right"> 0.10 </td> <td align="right"> 0.11 </td> <td align="right"> 0.11 </td> <td align="right"> 0.05 </td> <td align="right"> 0.02 </td> </tr>
-##   <tr> <td align="right"> 19 </td> <td> 21 </td> <td> R1 </td> <td> Rural </td> <td align="right"> 0.37 </td> <td align="right"> 0.30 </td> <td align="right"> 0.10 </td> <td align="right"> 2.41 </td> <td align="right"> 0.50 </td> <td align="right"> 0.47 </td> <td align="right"> 0.31 </td> <td align="right"> 0.12 </td> <td align="right"> 0.11 </td> <td align="right"> 0.11 </td> <td align="right"> 0.07 </td> <td align="right"> 0.03 </td> </tr>
-##   <tr> <td align="right"> 20 </td> <td> 21 </td> <td> R2 </td> <td> Rural </td> <td align="right"> 0.37 </td> <td align="right"> 0.30 </td> <td align="right"> 0.10 </td> <td align="right"> 2.42 </td> <td align="right"> 0.50 </td> <td align="right"> 0.47 </td> <td align="right"> 0.31 </td> <td align="right"> 0.11 </td> <td align="right"> 0.11 </td> <td align="right"> 0.11 </td> <td align="right"> 0.07 </td> <td align="right"> 0.02 </td> </tr>
-##   <tr> <td align="right"> 21 </td> <td> 21 </td> <td> R3 </td> <td> Rural </td> <td align="right"> 0.44 </td> <td align="right"> 0.35 </td> <td align="right"> 0.10 </td> <td align="right"> 2.54 </td> <td align="right"> 0.51 </td> <td align="right"> 0.49 </td> <td align="right"> 0.31 </td> <td align="right"> 0.10 </td> <td align="right"> 0.11 </td> <td align="right"> 0.11 </td> <td align="right"> 0.07 </td> <td align="right"> 0.02 </td> </tr>
-##   <tr> <td align="right"> 22 </td> <td> 21 </td> <td> S1 </td> <td> Suburban </td> <td align="right"> 0.71 </td> <td align="right"> 0.71 </td> <td align="right"> 0.35 </td> <td align="right"> 2.51 </td> <td align="right"> 0.47 </td> <td align="right"> 0.47 </td> <td align="right"> 0.49 </td> <td align="right"> 0.09 </td> <td align="right"> 0.11 </td> <td align="right"> 0.11 </td> <td align="right"> 0.11 </td> <td align="right"> 0.02 </td> </tr>
-##   <tr> <td align="right"> 23 </td> <td> 21 </td> <td> S2 </td> <td> Suburban </td> <td align="right"> 0.60 </td> <td align="right"> 0.50 </td> <td align="right"> 0.10 </td> <td align="right"> 2.44 </td> <td align="right"> 0.50 </td> <td align="right"> 0.51 </td> <td align="right"> 0.31 </td> <td align="right"> 0.10 </td> <td align="right"> 0.11 </td> <td align="right"> 0.11 </td> <td align="right"> 0.07 </td> <td align="right"> 0.02 </td> </tr>
-##   <tr> <td align="right"> 24 </td> <td> 21 </td> <td> S3 </td> <td> Suburban </td> <td align="right"> 0.40 </td> <td align="right"> 0.20 </td> <td align="right"> 0.10 </td> <td align="right"> 2.50 </td> <td align="right"> 0.50 </td> <td align="right"> 0.41 </td> <td align="right"> 0.31 </td> <td align="right"> 0.10 </td> <td align="right"> 0.11 </td> <td align="right"> 0.09 </td> <td align="right"> 0.07 </td> <td align="right"> 0.02 </td> </tr>
-##   <tr> <td align="right"> 25 </td> <td> 21 </td> <td> U1 </td> <td> Urban </td> <td align="right"> 0.25 </td> <td align="right"> 0.25 </td> <td align="right"> 0.15 </td> <td align="right"> 2.65 </td> <td align="right"> 0.44 </td> <td align="right"> 0.44 </td> <td align="right"> 0.37 </td> <td align="right"> 0.10 </td> <td align="right"> 0.10 </td> <td align="right"> 0.10 </td> <td align="right"> 0.08 </td> <td align="right"> 0.02 </td> </tr>
-##   <tr> <td align="right"> 26 </td> <td> 21 </td> <td> U2 </td> <td> Urban </td> <td align="right"> 0.21 </td> <td align="right"> 0.20 </td> <td align="right"> 0.20 </td> <td align="right"> 2.62 </td> <td align="right"> 0.42 </td> <td align="right"> 0.41 </td> <td align="right"> 0.41 </td> <td align="right"> 0.09 </td> <td align="right"> 0.09 </td> <td align="right"> 0.09 </td> <td align="right"> 0.09 </td> <td align="right"> 0.02 </td> </tr>
-##   <tr> <td align="right"> 27 </td> <td> 21 </td> <td> U3 </td> <td> Urban </td> <td align="right"> 0.08 </td> <td align="right"> 0.08 </td> <td align="right"> 0.00 </td> <td align="right"> 2.58 </td> <td align="right"> 0.29 </td> <td align="right"> 0.28 </td> <td align="right"> 0.00 </td> <td align="right"> 0.11 </td> <td align="right"> 0.06 </td> <td align="right"> 0.06 </td> <td align="right"> 0.00 </td> <td align="right"> 0.03 </td> </tr>
-##    </table>
+## # A tibble: 27 × 15
+##       DPI   site    class  Body_mean Head_mean Saliva_mean Wing_mean
+##    <fctr> <fctr>   <fctr>      <dbl>     <dbl>       <dbl>     <dbl>
+## 1       9     R1    Rural 0.25000000      0.05         0.0  2.450526
+## 2       9     R2    Rural 0.15000000      0.10         0.0  2.347500
+## 3       9     R3    Rural 0.00000000      0.00         0.0  2.479500
+## 4       9     S1 Suburban 0.15000000      0.10         0.0  2.495000
+## 5       9     S2 Suburban 0.05263158      0.00         0.0  2.264211
+## 6       9     S3 Suburban 0.30000000      0.00         0.0  2.508000
+## 7       9     U1    Urban 0.25000000      0.10         0.0  2.592632
+## 8       9     U2    Urban 0.10000000      0.05         0.0  2.545500
+## 9       9     U3    Urban 0.00000000      0.00         0.0  2.493000
+## 10     14     R1    Rural 0.10000000      0.10         0.1  2.474629
+## # ... with 17 more rows, and 8 more variables: Body_sd <dbl>,
+## #   Head_sd <dbl>, Saliva_sd <dbl>, Wing_sd <dbl>, Body_se <dbl>,
+## #   Head_se <dbl>, Saliva_se <dbl>, Wing_se <dbl>
 ```
 
 ```r
@@ -305,24 +138,26 @@ octSumm <- oct %>%
   summarise_each(funs(mean(.,na.rm=T),sd(.,na.rm=T),se=(sd(., na.rm=T)/sqrt(n())))) %>%
   ungroup()
 
-print(xtable(octSumm), type="html")
+#print(xtable(octSumm), type="html")
+octSumm
 ```
 
 ```
-## <!-- html table generated in R 3.3.3 by xtable 1.8-2 package -->
-## <!-- Wed Mar 29 12:45:13 2017 -->
-## <table border=1>
-## <tr> <th>  </th> <th> DPI </th> <th> site </th> <th> class </th> <th> Body_mean </th> <th> Head_mean </th> <th> Saliva_mean </th> <th> Wing_mean </th> <th> Body_sd </th> <th> Head_sd </th> <th> Saliva_sd </th> <th> Wing_sd </th> <th> Body_se </th> <th> Head_se </th> <th> Saliva_se </th> <th> Wing_se </th>  </tr>
-##   <tr> <td align="right"> 1 </td> <td> 21 </td> <td> R1 </td> <td> Rural </td> <td align="right"> 0.60 </td> <td align="right"> 0.60 </td> <td align="right"> 0.00 </td> <td align="right"> 2.45 </td> <td align="right"> 0.52 </td> <td align="right"> 0.52 </td> <td align="right"> 0.00 </td> <td align="right"> 0.06 </td> <td align="right"> 0.16 </td> <td align="right"> 0.16 </td> <td align="right"> 0.00 </td> <td align="right"> 0.02 </td> </tr>
-##   <tr> <td align="right"> 2 </td> <td> 21 </td> <td> R2 </td> <td> Rural </td> <td align="right"> 0.60 </td> <td align="right"> 0.60 </td> <td align="right"> 0.12 </td> <td align="right"> 2.37 </td> <td align="right"> 0.50 </td> <td align="right"> 0.50 </td> <td align="right"> 0.33 </td> <td align="right"> 0.14 </td> <td align="right"> 0.11 </td> <td align="right"> 0.11 </td> <td align="right"> 0.07 </td> <td align="right"> 0.03 </td> </tr>
-##   <tr> <td align="right"> 3 </td> <td> 21 </td> <td> R3 </td> <td> Rural </td> <td align="right"> 0.70 </td> <td align="right"> 0.60 </td> <td align="right"> 0.05 </td> <td align="right"> 2.49 </td> <td align="right"> 0.47 </td> <td align="right"> 0.50 </td> <td align="right"> 0.22 </td> <td align="right"> 0.13 </td> <td align="right"> 0.11 </td> <td align="right"> 0.11 </td> <td align="right"> 0.05 </td> <td align="right"> 0.03 </td> </tr>
-##   <tr> <td align="right"> 4 </td> <td> 21 </td> <td> S1 </td> <td> Suburban </td> <td align="right"> 0.65 </td> <td align="right"> 0.60 </td> <td align="right"> 0.10 </td> <td align="right"> 2.42 </td> <td align="right"> 0.49 </td> <td align="right"> 0.50 </td> <td align="right"> 0.31 </td> <td align="right"> 0.17 </td> <td align="right"> 0.11 </td> <td align="right"> 0.11 </td> <td align="right"> 0.07 </td> <td align="right"> 0.04 </td> </tr>
-##   <tr> <td align="right"> 5 </td> <td> 21 </td> <td> S2 </td> <td> Suburban </td> <td align="right"> 0.75 </td> <td align="right"> 0.75 </td> <td align="right"> 0.25 </td> <td align="right"> 2.42 </td> <td align="right"> 0.50 </td> <td align="right"> 0.50 </td> <td align="right"> 0.50 </td> <td align="right"> 0.09 </td> <td align="right"> 0.25 </td> <td align="right"> 0.25 </td> <td align="right"> 0.25 </td> <td align="right"> 0.04 </td> </tr>
-##   <tr> <td align="right"> 6 </td> <td> 21 </td> <td> S3 </td> <td> Suburban </td> <td align="right"> 0.63 </td> <td align="right"> 0.59 </td> <td align="right"> 0.00 </td> <td align="right"> 2.46 </td> <td align="right"> 0.50 </td> <td align="right"> 0.51 </td> <td align="right"> 0.00 </td> <td align="right"> 0.17 </td> <td align="right"> 0.11 </td> <td align="right"> 0.11 </td> <td align="right"> 0.00 </td> <td align="right"> 0.04 </td> </tr>
-##   <tr> <td align="right"> 7 </td> <td> 21 </td> <td> U1 </td> <td> Urban </td> <td align="right"> 0.20 </td> <td align="right"> 0.16 </td> <td align="right"> 0.00 </td> <td align="right"> 2.56 </td> <td align="right"> 0.41 </td> <td align="right"> 0.37 </td> <td align="right"> 0.00 </td> <td align="right"> 0.14 </td> <td align="right"> 0.09 </td> <td align="right"> 0.08 </td> <td align="right"> 0.00 </td> <td align="right"> 0.03 </td> </tr>
-##   <tr> <td align="right"> 8 </td> <td> 21 </td> <td> U2 </td> <td> Urban </td> <td align="right"> 0.58 </td> <td align="right"> 0.50 </td> <td align="right"> 0.10 </td> <td align="right"> 2.58 </td> <td align="right"> 0.51 </td> <td align="right"> 0.51 </td> <td align="right"> 0.31 </td> <td align="right"> 0.11 </td> <td align="right"> 0.11 </td> <td align="right"> 0.12 </td> <td align="right"> 0.07 </td> <td align="right"> 0.02 </td> </tr>
-##   <tr> <td align="right"> 9 </td> <td> 21 </td> <td> U3 </td> <td> Urban </td> <td align="right"> 0.55 </td> <td align="right"> 0.50 </td> <td align="right"> 0.10 </td> <td align="right"> 2.44 </td> <td align="right"> 0.51 </td> <td align="right"> 0.51 </td> <td align="right"> 0.31 </td> <td align="right"> 0.12 </td> <td align="right"> 0.11 </td> <td align="right"> 0.11 </td> <td align="right"> 0.07 </td> <td align="right"> 0.03 </td> </tr>
-##    </table>
+## # A tibble: 9 × 15
+##      DPI   site    class Body_mean Head_mean Saliva_mean Wing_mean
+##   <fctr> <fctr>   <fctr>     <dbl>     <dbl>       <dbl>     <dbl>
+## 1     21     R1    Rural 0.6000000 0.6000000   0.0000000  2.450000
+## 2     21     R2    Rural 0.6000000 0.6000000   0.1176471  2.367000
+## 3     21     R3    Rural 0.7000000 0.6000000   0.0500000  2.494500
+## 4     21     S1 Suburban 0.6500000 0.6000000   0.1000000  2.415000
+## 5     21     S2 Suburban 0.7500000 0.7500000   0.2500000  2.415000
+## 6     21     S3 Suburban 0.6315789 0.5882353   0.0000000  2.463000
+## 7     21     U1    Urban 0.2000000 0.1578947   0.0000000  2.560714
+## 8     21     U2    Urban 0.5789474 0.5000000   0.1000000  2.581667
+## 9     21     U3    Urban 0.5500000 0.5000000   0.1000000  2.441667
+## # ... with 8 more variables: Body_sd <dbl>, Head_sd <dbl>,
+## #   Saliva_sd <dbl>, Wing_sd <dbl>, Body_se <dbl>, Head_se <dbl>,
+## #   Saliva_se <dbl>, Wing_se <dbl>
 ```
 
 # Exploratory Visualizations
@@ -353,36 +188,10 @@ colnames(temp)[4:6] <- c("mean", "sd", "se")
 ```
 
 
-```r
-par(mfrow=c(2,2))
-sitePlot(summTable=augustSumm, dpi="9", bodyPart = "Body")
-sitePlot(summTable=augustSumm, dpi="14", bodyPart = "Body")
-sitePlot(summTable=augustSumm, dpi="21", bodyPart = "Body")
-
-sitePlot(summTable=octSumm, dpi="21", bodyPart="Body")
-mtext("October")
-```
 
 
-```r
-par(mfrow=c(2,2))
-sitePlot(summTable=augustSumm, dpi="9", bodyPart = "Head")
-sitePlot(summTable=augustSumm, dpi="14", bodyPart = "Head")
-sitePlot(summTable=augustSumm, dpi="21", bodyPart = "Head")
-
-sitePlot(summTable=octSumm, dpi="21", bodyPart="Head")
-mtext("October")
-```
 
 
-```r
-sitePlot(summTable=augustSumm, dpi="9", bodyPart = "Saliva")
-sitePlot(summTable=augustSumm, dpi="14", bodyPart = "Saliva")
-sitePlot(summTable=augustSumm, dpi="21", bodyPart = "Saliva")
-
-sitePlot(summTable=octSumm, dpi="21", bodyPart="Saliva")
-mtext("October")
-```
 
 ## Plotting them beside each other
 
@@ -455,184 +264,17 @@ besidePlot <- function(summTable, bodyPart, byclass=F){
 
 Note there are none of these for October becuase we only did 21 dpi.
 
-
-```r
-#pdf(file="../figures/augustBody.pdf", width = 8, height=6, family="sans")
-besidePlot(summTable=augustSumm, bodyPart="Body")
-```
-
-```
-## Warning: Setting row names on a tibble is deprecated.
-```
-
-```
-## Warning in arrows(barCenters, tempMean - tempSE, barCenters, tempMean + :
-## zero-length arrow is of indeterminate angle and so skipped
-
-## Warning in arrows(barCenters, tempMean - tempSE, barCenters, tempMean + :
-## zero-length arrow is of indeterminate angle and so skipped
-```
-
 ![](dengueInfections_files/figure-html/barplot:besideBody-1.png)<!-- -->
-
-```r
-#dev.off()
-```
-
-
-```r
-#pdf(file="../figures/augustSaliva.pdf", width = 8, height=6, family="sans")
-besidePlot(summTable=augustSumm, bodyPart="Saliva")
-```
-
-```
-## Warning: Setting row names on a tibble is deprecated.
-```
-
-```
-## Warning in arrows(barCenters, tempMean - tempSE, barCenters, tempMean + :
-## zero-length arrow is of indeterminate angle and so skipped
-
-## Warning in arrows(barCenters, tempMean - tempSE, barCenters, tempMean + :
-## zero-length arrow is of indeterminate angle and so skipped
-
-## Warning in arrows(barCenters, tempMean - tempSE, barCenters, tempMean + :
-## zero-length arrow is of indeterminate angle and so skipped
-
-## Warning in arrows(barCenters, tempMean - tempSE, barCenters, tempMean + :
-## zero-length arrow is of indeterminate angle and so skipped
-
-## Warning in arrows(barCenters, tempMean - tempSE, barCenters, tempMean + :
-## zero-length arrow is of indeterminate angle and so skipped
-
-## Warning in arrows(barCenters, tempMean - tempSE, barCenters, tempMean + :
-## zero-length arrow is of indeterminate angle and so skipped
-
-## Warning in arrows(barCenters, tempMean - tempSE, barCenters, tempMean + :
-## zero-length arrow is of indeterminate angle and so skipped
-
-## Warning in arrows(barCenters, tempMean - tempSE, barCenters, tempMean + :
-## zero-length arrow is of indeterminate angle and so skipped
-
-## Warning in arrows(barCenters, tempMean - tempSE, barCenters, tempMean + :
-## zero-length arrow is of indeterminate angle and so skipped
-
-## Warning in arrows(barCenters, tempMean - tempSE, barCenters, tempMean + :
-## zero-length arrow is of indeterminate angle and so skipped
-
-## Warning in arrows(barCenters, tempMean - tempSE, barCenters, tempMean + :
-## zero-length arrow is of indeterminate angle and so skipped
-
-## Warning in arrows(barCenters, tempMean - tempSE, barCenters, tempMean + :
-## zero-length arrow is of indeterminate angle and so skipped
-
-## Warning in arrows(barCenters, tempMean - tempSE, barCenters, tempMean + :
-## zero-length arrow is of indeterminate angle and so skipped
-
-## Warning in arrows(barCenters, tempMean - tempSE, barCenters, tempMean + :
-## zero-length arrow is of indeterminate angle and so skipped
-```
-
-![](dengueInfections_files/figure-html/barplot:besideSaliva-1.png)<!-- -->
-
-```r
-#dev.off()
-```
-
-
-```r
-#pdf(file="../figures/augustHead.pdf", width = 8, height=6, family="sans")
-besidePlot(summTable=augustSumm, bodyPart="Head")
-```
-
-```
-## Warning: Setting row names on a tibble is deprecated.
-```
-
-```
-## Warning in arrows(barCenters, tempMean - tempSE, barCenters, tempMean + :
-## zero-length arrow is of indeterminate angle and so skipped
-
-## Warning in arrows(barCenters, tempMean - tempSE, barCenters, tempMean + :
-## zero-length arrow is of indeterminate angle and so skipped
-
-## Warning in arrows(barCenters, tempMean - tempSE, barCenters, tempMean + :
-## zero-length arrow is of indeterminate angle and so skipped
-
-## Warning in arrows(barCenters, tempMean - tempSE, barCenters, tempMean + :
-## zero-length arrow is of indeterminate angle and so skipped
-```
 
 ![](dengueInfections_files/figure-html/barplot:besideHead aug-1.png)<!-- -->
 
-```r
-#dev.off()
-```
+![](dengueInfections_files/figure-html/barplot:besideSaliva-1.png)<!-- -->
+
+
 
 ## Plots by Class
 
 
-```r
-besidePlotOct <- function(summTable, bodyPart, byclass=F){
-  if (byclass==T){
-    cols <- c(1,2,grep(bodyPart, colnames(summTable)))
-  } else cols <- c(1:3,grep(bodyPart, colnames(summTable)))
-  tempLarge <- summTable[,cols]
-  colnames(tempLarge)[(ncol(tempLarge)-2):ncol(tempLarge)] <- c("mean", "sd", "se")
-  if (byclass==F){
-  tempMean <- tempLarge %>%
-    select(-sd,-se, -class) %>%
-    spread( DPI, mean) %>%
-    select(-site)
-  } else tempMean <- tempLarge %>%
-    select(-sd,-se, -class, -DPI)
-  if (byclass==T){
-    rownames(tempMean) <- levels(summTable$class)
-    } else rownames(tempMean) <- levels(summTable$site)
-  tempMean <- t(as.matrix(tempMean))
-  #colors
-  if (byclass==T){
-    colvec <- c(rep(colRural,1), rep(colSuburban,1), 
-                            rep(colUrban,1))
-  } else colvec <- c(rep(colRural,3), rep(colSuburban,3), 
-                            rep(colUrban,3))
-  #plot
-  barCenters <- barplot(tempMean, 
-                      beside=T,
-                      col=colvec,
-                      density = c(NA),
-                      names.arg=colnames(tempMean),
-                      ylim=c(0,0.80),
-                      main = paste0("Dengue ", bodyPart," Infections"),
-                      ylab = "Percent Infected"
-                      )
-
-    if (byclass==F){
-  tempSE <- tempLarge %>%
-    select(-sd,-mean,-class) %>%
-    spread( DPI, se) %>%
-    select(-site)
-  } else   tempSE <- tempLarge %>%
-    select(-sd,-mean) %>%
-    spread( DPI, se) %>%
-    select(-class)
-  
-  tempSE <- t(tempSE)
-  
-  #add se bars
-  segments(barCenters, tempMean - tempSE , barCenters,
-         tempMean + tempSE, lwd = 1.5)
-  
-  arrows(barCenters, tempMean - tempSE , barCenters,
-         tempMean + tempSE,
-         lwd = 1.5, 
-         angle = 90,
-         code = 3, length = 0.03)
-  
-  #legend("topright", legend=c("9 dpi","14 dpi", "21 dpi"), density = c(10,40,NA),
-       #bty = "n", col = "gray80")
-}
-```
 
 
 ```r
@@ -643,24 +285,26 @@ augustclassSumm <- august%>%
   summarise_each(funs(mean(.,na.rm=T),sd(.,na.rm=T),se=(sd(., na.rm=T)/sqrt(n())))) %>%
   ungroup()
 
-print(xtable(augustclassSumm), type="html")
+#print(xtable(augustclassSumm), type="html")
+augustclassSumm
 ```
 
 ```
-## <!-- html table generated in R 3.3.3 by xtable 1.8-2 package -->
-## <!-- Wed Mar 29 12:45:14 2017 -->
-## <table border=1>
-## <tr> <th>  </th> <th> DPI </th> <th> class </th> <th> Body_mean </th> <th> Head_mean </th> <th> Saliva_mean </th> <th> Wing_mean </th> <th> Body_sd </th> <th> Head_sd </th> <th> Saliva_sd </th> <th> Wing_sd </th> <th> Body_se </th> <th> Head_se </th> <th> Saliva_se </th> <th> Wing_se </th>  </tr>
-##   <tr> <td align="right"> 1 </td> <td> 9 </td> <td> Rural </td> <td align="right"> 0.13 </td> <td align="right"> 0.05 </td> <td align="right"> 0.00 </td> <td align="right"> 2.43 </td> <td align="right"> 0.34 </td> <td align="right"> 0.22 </td> <td align="right"> 0.00 </td> <td align="right"> 0.12 </td> <td align="right"> 0.04 </td> <td align="right"> 0.03 </td> <td align="right"> 0.00 </td> <td align="right"> 0.02 </td> </tr>
-##   <tr> <td align="right"> 2 </td> <td> 9 </td> <td> Suburban </td> <td align="right"> 0.17 </td> <td align="right"> 0.03 </td> <td align="right"> 0.00 </td> <td align="right"> 2.42 </td> <td align="right"> 0.38 </td> <td align="right"> 0.18 </td> <td align="right"> 0.00 </td> <td align="right"> 0.17 </td> <td align="right"> 0.05 </td> <td align="right"> 0.02 </td> <td align="right"> 0.00 </td> <td align="right"> 0.02 </td> </tr>
-##   <tr> <td align="right"> 3 </td> <td> 9 </td> <td> Urban </td> <td align="right"> 0.12 </td> <td align="right"> 0.05 </td> <td align="right"> 0.00 </td> <td align="right"> 2.54 </td> <td align="right"> 0.33 </td> <td align="right"> 0.22 </td> <td align="right"> 0.00 </td> <td align="right"> 0.11 </td> <td align="right"> 0.04 </td> <td align="right"> 0.03 </td> <td align="right"> 0.00 </td> <td align="right"> 0.01 </td> </tr>
-##   <tr> <td align="right"> 4 </td> <td> 14 </td> <td> Rural </td> <td align="right"> 0.15 </td> <td align="right"> 0.10 </td> <td align="right"> 0.03 </td> <td align="right"> 2.47 </td> <td align="right"> 0.36 </td> <td align="right"> 0.30 </td> <td align="right"> 0.18 </td> <td align="right"> 0.18 </td> <td align="right"> 0.05 </td> <td align="right"> 0.04 </td> <td align="right"> 0.02 </td> <td align="right"> 0.02 </td> </tr>
-##   <tr> <td align="right"> 5 </td> <td> 14 </td> <td> Suburban </td> <td align="right"> 0.21 </td> <td align="right"> 0.21 </td> <td align="right"> 0.07 </td> <td align="right"> 2.45 </td> <td align="right"> 0.41 </td> <td align="right"> 0.41 </td> <td align="right"> 0.26 </td> <td align="right"> 0.13 </td> <td align="right"> 0.05 </td> <td align="right"> 0.05 </td> <td align="right"> 0.03 </td> <td align="right"> 0.02 </td> </tr>
-##   <tr> <td align="right"> 6 </td> <td> 14 </td> <td> Urban </td> <td align="right"> 0.30 </td> <td align="right"> 0.23 </td> <td align="right"> 0.05 </td> <td align="right"> 2.62 </td> <td align="right"> 0.46 </td> <td align="right"> 0.43 </td> <td align="right"> 0.22 </td> <td align="right"> 0.11 </td> <td align="right"> 0.06 </td> <td align="right"> 0.06 </td> <td align="right"> 0.03 </td> <td align="right"> 0.01 </td> </tr>
-##   <tr> <td align="right"> 7 </td> <td> 21 </td> <td> Rural </td> <td align="right"> 0.39 </td> <td align="right"> 0.32 </td> <td align="right"> 0.10 </td> <td align="right"> 2.46 </td> <td align="right"> 0.49 </td> <td align="right"> 0.47 </td> <td align="right"> 0.30 </td> <td align="right"> 0.12 </td> <td align="right"> 0.06 </td> <td align="right"> 0.06 </td> <td align="right"> 0.04 </td> <td align="right"> 0.02 </td> </tr>
-##   <tr> <td align="right"> 8 </td> <td> 21 </td> <td> Suburban </td> <td align="right"> 0.56 </td> <td align="right"> 0.46 </td> <td align="right"> 0.18 </td> <td align="right"> 2.48 </td> <td align="right"> 0.50 </td> <td align="right"> 0.50 </td> <td align="right"> 0.38 </td> <td align="right"> 0.10 </td> <td align="right"> 0.06 </td> <td align="right"> 0.06 </td> <td align="right"> 0.05 </td> <td align="right"> 0.01 </td> </tr>
-##   <tr> <td align="right"> 9 </td> <td> 21 </td> <td> Urban </td> <td align="right"> 0.20 </td> <td align="right"> 0.19 </td> <td align="right"> 0.13 </td> <td align="right"> 2.62 </td> <td align="right"> 0.40 </td> <td align="right"> 0.39 </td> <td align="right"> 0.34 </td> <td align="right"> 0.10 </td> <td align="right"> 0.05 </td> <td align="right"> 0.05 </td> <td align="right"> 0.04 </td> <td align="right"> 0.01 </td> </tr>
-##    </table>
+## # A tibble: 9 × 14
+##      DPI    class Body_mean  Head_mean Saliva_mean Wing_mean   Body_sd
+##   <fctr>   <fctr>     <dbl>      <dbl>       <dbl>     <dbl>     <dbl>
+## 1      9    Rural 0.1333333 0.05000000  0.00000000  2.425424 0.3428033
+## 2      9 Suburban 0.1694915 0.03333333  0.00000000  2.422632 0.3784060
+## 3      9    Urban 0.1186441 0.05000000  0.00000000  2.542881 0.3261450
+## 4     14    Rural 0.1500000 0.10000000  0.03389831  2.469423 0.3600847
+## 5     14 Suburban 0.2142857 0.21428571  0.07142857  2.449395 0.4140393
+## 6     14    Urban 0.3000000 0.23333333  0.05000000  2.618182 0.4621248
+## 7     21    Rural 0.3928571 0.31666667  0.10000000  2.459182 0.4928054
+## 8     21 Suburban 0.5614035 0.45614035  0.17543860  2.480198 0.5006262
+## 9     21    Urban 0.1960784 0.18867925  0.13207547  2.617574 0.4009792
+## # ... with 7 more variables: Head_sd <dbl>, Saliva_sd <dbl>,
+## #   Wing_sd <dbl>, Body_se <dbl>, Head_se <dbl>, Saliva_se <dbl>,
+## #   Wing_se <dbl>
 ```
 
 ```r
@@ -670,240 +314,37 @@ octclassSumm <- oct %>%
   summarise_each(funs(mean(.,na.rm=T),sd(.,na.rm=T),se=(sd(., na.rm=T)/sqrt(n())))) %>%
   ungroup()
 
-print(xtable(octclassSumm), type="html")
+#print(xtable(octclassSumm), type="html")
+octclassSumm
 ```
 
 ```
-## <!-- html table generated in R 3.3.3 by xtable 1.8-2 package -->
-## <!-- Wed Mar 29 12:45:14 2017 -->
-## <table border=1>
-## <tr> <th>  </th> <th> DPI </th> <th> class </th> <th> Body_mean </th> <th> Head_mean </th> <th> Saliva_mean </th> <th> Wing_mean </th> <th> Body_sd </th> <th> Head_sd </th> <th> Saliva_sd </th> <th> Wing_sd </th> <th> Body_se </th> <th> Head_se </th> <th> Saliva_se </th> <th> Wing_se </th>  </tr>
-##   <tr> <td align="right"> 1 </td> <td> 21 </td> <td> Rural </td> <td align="right"> 0.64 </td> <td align="right"> 0.60 </td> <td align="right"> 0.06 </td> <td align="right"> 2.43 </td> <td align="right"> 0.48 </td> <td align="right"> 0.49 </td> <td align="right"> 0.25 </td> <td align="right"> 0.14 </td> <td align="right"> 0.07 </td> <td align="right"> 0.07 </td> <td align="right"> 0.03 </td> <td align="right"> 0.02 </td> </tr>
-##   <tr> <td align="right"> 2 </td> <td> 21 </td> <td> Suburban </td> <td align="right"> 0.65 </td> <td align="right"> 0.61 </td> <td align="right"> 0.07 </td> <td align="right"> 2.44 </td> <td align="right"> 0.48 </td> <td align="right"> 0.49 </td> <td align="right"> 0.26 </td> <td align="right"> 0.16 </td> <td align="right"> 0.07 </td> <td align="right"> 0.07 </td> <td align="right"> 0.04 </td> <td align="right"> 0.02 </td> </tr>
-##   <tr> <td align="right"> 3 </td> <td> 21 </td> <td> Urban </td> <td align="right"> 0.44 </td> <td align="right"> 0.39 </td> <td align="right"> 0.07 </td> <td align="right"> 2.53 </td> <td align="right"> 0.50 </td> <td align="right"> 0.49 </td> <td align="right"> 0.25 </td> <td align="right"> 0.13 </td> <td align="right"> 0.06 </td> <td align="right"> 0.06 </td> <td align="right"> 0.03 </td> <td align="right"> 0.02 </td> </tr>
-##    </table>
+## # A tibble: 3 × 14
+##      DPI    class Body_mean Head_mean Saliva_mean Wing_mean   Body_sd
+##   <fctr>   <fctr>     <dbl>     <dbl>       <dbl>     <dbl>     <dbl>
+## 1     21    Rural 0.6400000 0.6000000  0.06382979  2.434286 0.4848732
+## 2     21 Suburban 0.6511628 0.6097561  0.06976744  2.436818 0.4822428
+## 3     21    Urban 0.4406780 0.3859649  0.06779661  2.525400 0.5007300
+## # ... with 7 more variables: Head_sd <dbl>, Saliva_sd <dbl>,
+## #   Wing_sd <dbl>, Body_se <dbl>, Head_se <dbl>, Saliva_se <dbl>,
+## #   Wing_se <dbl>
 ```
 
 
-```r
-#pdf(file="../figures/augustHeadClass.pdf", width = 8, height=6, family="sans")
-besidePlot(summTable=augustclassSumm, bodyPart="Head", byclass=T)
-#dev.off()
-
-#pdf(file="../figures/augustBodyClass.pdf", width = 8, height=6, family="sans")
-besidePlot(summTable=augustclassSumm, bodyPart="Body", byclass=T)
-#dev.off()
-
-#pdf(file="../figures/augustSalivaClass.pdf", width = 8, height=6, family="sans")
-besidePlot(summTable=augustclassSumm, bodyPart="Saliva", byclass=T)
-#dev.off()
-
-#pdf(file="../figures/octoberHeadClass.pdf", width = 8, height=6, family="sans")
-besidePlotOct(summTable=octclassSumm, bodyPart="Head", byclass=T)
-#dev.off()
-
-#pdf(file="../figures/octoberBodyClass.pdf", width = 8, height=6, family="sans")
-besidePlotOct(summTable=octclassSumm, bodyPart="Body", byclass=T)
-#dev.off()
-
-#pdf(file="../figures/octoberSalivaClass.pdf", width = 8, height=6, family="sans")
-besidePlotOct(summTable=octclassSumm, bodyPart="Saliva", byclass=T)
-#dev.off()
-```
 
 ## Comparing Seasons in Plots
 
 Because I only have data for 21 dpi in October, that is all I will compare. This will make a plot that compares mean infections by class and body part across seasons. I can then "facet" these together to have three showing similar things for each body part.
 
 
-```r
-seasons <- rbind(august,oct)
-seasons$block <- as.factor(c(rep("summer", nrow(august)), rep("fall", nrow(oct))))
-
-seasonSumm <- seasons %>%
-  filter(DPI==21) %>%
-  #drop individual
-  select(-Individual, -site, -Wing, -DPI) %>%
-  group_by(block, class) %>%
-  summarise_each(funs(mean(.,na.rm=T),sd(.,na.rm=T),se=(sd(., na.rm=T)/sqrt(n())))) %>%
-  ungroup()
-```
 
 
-```r
-seasonPlot <- function(bodyPart, summTable=seasonSumm){
-  cols <- c(1,2,grep(bodyPart, colnames(summTable)))
-  tempLarge <- summTable[,cols]
-  colnames(tempLarge)[3:5] <- c("mean", "sd", "se")
-    
-  tempMean <- tempLarge %>%
-    select(-sd,-se) %>%
-    spread(block, mean) %>%
-    select(-class)
-  
-  #put summer before fall
-  tempMean <- tempMean[,c(2,1)]
-
-  
-  rownames(tempMean) <- levels(tempLarge$class)
-  tempMean <- t(as.matrix(tempMean))
-  
-  colvec <- c(rep(colRural,2), rep(colSuburban,2), 
-                            rep(colUrban,2))
-  
-  barCenters <- barplot(tempMean, 
-                      beside=T,
-                      col=colvec,
-                      density = c(40,NA),
-                      names.arg=colnames(tempMean),
-                      ylim=c(0,0.80)
-                      #main = paste0("Dengue ", bodyPart," Infections"),
-                      #ylab = "Percent Infected")
-                      )
-  
-  tempSE <- tempLarge %>%
-    select(-sd,-mean) %>%
-    spread(block, se) %>%
-    select(-class)
-  
-   #put summer before fall
-  tempSE <- tempSE[,c(2,1)]
-  
-   tempSE <- t(tempSE)
-  
-  #add se bars
-  segments(barCenters, tempMean - tempSE , barCenters,
-         tempMean + tempSE, lwd = 1.5)
-  
-  arrows(barCenters, tempMean - tempSE , barCenters,
-         tempMean + tempSE,
-         lwd = 1.5, 
-         angle = 90,
-         code = 3, length = 0.03)
-  
-  #legend("topright", legend=c("Summer", "Fall"), density = c(40,NA),
-       #bty = "n", col = "gray80")
-}
-```
-
-
-```r
-par(mfrow=c(1,3))
-#pdf(file="../figures/seasonSaliva.pdf", width = 8, height=4, family="sans")
-seasonPlot(bodyPart="Saliva")
-```
-
-```
-## Warning: Setting row names on a tibble is deprecated.
-```
-
-```r
-mtext("Saliva")
-#dev.off()
-
-#pdf(file="../figures/seasonHead.pdf", width = 8, height=4, family="sans")
-seasonPlot(bodyPart="Head")
-```
-
-```
-## Warning: Setting row names on a tibble is deprecated.
-```
-
-```r
-mtext("Head")
-#dev.off()
-
-#pdf(file="../figures/seasonBody.pdf", width = 8, height=4, family="sans")
-seasonPlot(bodyPart="Body")
-```
-
-```
-## Warning: Setting row names on a tibble is deprecated.
-```
-
-```r
-mtext("Body")
-```
 
 ![](dengueInfections_files/figure-html/seasonal plots-1.png)<!-- -->
 
-```r
-#dev.off()
-```
-
-## Plots of Efficiency by Season
 
 
-```r
-effPlot <- function(rawTable){
-  #format data
-  tempLarge <- rawTable %>%
-    filter(DPI=="21") %>%
-    group_by(site,class) %>%
-    mutate(bodyEff=mean(Body, na.rm=T))%>%
-    ungroup() %>%
-    filter(Body==1) %>%
-    group_by(site,class) %>%
-    mutate(headEff=mean(Head, na.rm=T))%>%
-    ungroup() %>%
-    filter(Head==1)%>%
-    group_by(site,class) %>%
-    mutate(salEff=mean(Saliva, na.rm=T))%>%
-    select(site, class, bodyEff, headEff, salEff) %>%
-    ungroup()
-  tempLarge <- unique(tempLarge)
-  #get mean and se
-  temp <- tempLarge %>%
-    select(-site) %>%
-    group_by(class) %>%
-    summarise_each(funs(mean(.,na.rm=T),se=(sd(., na.rm=T)/sqrt(n())))) %>%
-    ungroup()
-  
-  tempMean <- as.matrix(temp[,2:4])
-  rownames(tempMean) <- levels(temp$class)
-  tempMean <- t(tempMean)
- 
-  colvec <- c(rep(colRural,3), rep(colSuburban,3), 
-                            rep(colUrban,3))
-  #plot
-  barCenters <- barplot(tempMean, 
-                      beside=T,
-                      col=colvec,
-                      density = c(20,60,NA),
-                      names.arg=colnames(tempMean),
-                      ylim=c(0,1),
-                      ylab = "Relative Efficiency"
-                      )
 
-  tempSE <- as.matrix(temp[,5:7])
-  
-  tempSE <- t(tempSE)
-  
-  #add se bars
-  segments(barCenters, tempMean - tempSE , barCenters,
-         tempMean + tempSE, lwd = 1.5)
-  
-  arrows(barCenters, tempMean - tempSE , barCenters,
-         tempMean + tempSE,
-         lwd = 1.5, 
-         angle = 90,
-         code = 3, length = 0.03)
-  
-  #legend("topright", legend=c("9 dpi","14 dpi", "21 dpi"), density = c(10,40,NA),
-       #bty = "n", col = "gray80")
-}
-```
-
-
-```r
-pdf(file="../figures/augEff.pdf", width = 8, height=4, family="sans")
-effPlot(rawTable=august)
-dev.off()
-
-pdf(file="../figures/octEff.pdf", width = 8, height=4, family="sans")
-effPlot(rawTable=oct)
-dev.off()
-```
 
 
 
@@ -938,46 +379,11 @@ This [thread](https://stats.stackexchange.com/questions/134630/assessing-fit-of-
 So many examples (including some based on Bolker et al. 2009): http://glmm.wikidot.com/examples
 
 
-```r
-#this function is from https://ase.tufts.edu/gsc/gradresources/guidetomixedmodelsinr/mixed%20model%20guide.html
-
-overdisp_fun <- function(model) {
-    ## number of variance parameters in an n-by-n variance-covariance matrix
-    vpars <- function(m) {
-        nrow(m) * (nrow(m) + 1)/2
-    }
-    # The next two lines calculate the residual degrees of freedom
-    model.df <- sum(sapply(VarCorr(model), vpars)) + length(fixef(model))
-    rdf <- nrow(model.frame(model)) - model.df
-    # extracts the Pearson residuals
-    rp <- residuals(model, type = "pearson")
-    Pearson.chisq <- sum(rp^2)
-    prat <- Pearson.chisq/rdf
-    # Generates a p-value. If less than 0.05, the data are overdispersed.
-    pval <- pchisq(Pearson.chisq, df = rdf, lower.tail = FALSE)
-    c(chisq = Pearson.chisq, ratio = prat, rdf = rdf, p = pval)
-}
-```
 
 I could make a function to do all this, but it is better to look at each individually.
 
 ### August 9 DPI
 
-
-```r
-#check out data 
-# ggplot(data=august[august$DPI=="9",], aes(factor(class))) +
-#   geom_bar(stat="identity",aes(y=Body)) +
-#   ggtitle("August 9 dpi Body")
-#pdf? We know is binomial becuase it is binary
-#nbinom <- fitdistr(august$Body[august$DPI=="9"], "Negative Binomial")
-#qqp(august$Body[august$DPI=="9"], "nbinom", size=nbinom$estimate[[1]], mu = nbinom$estimate[[2]])
-mixModelAugBody9 <- lme4::glmer(Body~class + (1|site), 
-                          data=august[august$DPI=="9",],
-                          family=binomial)
-#get a summary
-summary(mixModelAugBody9)
-```
 
 ```
 ## Generalized linear mixed model fit by maximum likelihood (Laplace
@@ -1012,11 +418,6 @@ summary(mixModelAugBody9)
 ## classUrban  -0.665  0.500
 ```
 
-```r
-#check significance
-Anova(mixModelAugBody9) 
-```
-
 ```
 ## Analysis of Deviance Table (Type II Wald chisquare tests)
 ## 
@@ -1025,35 +426,13 @@ Anova(mixModelAugBody9)
 ## class 0.3897  2      0.823
 ```
 
-```r
-#check overdispersion
-overdisp_fun(mixModelAugBody9) #it's okay!
-```
-
 ```
 ##       chisq       ratio         rdf           p 
 ## 151.2583871   0.8693011 174.0000000   0.8926038
 ```
 
-```r
-plot(mixModelAugBody9)
-```
-
 ![](dengueInfections_files/figure-html/august 9 dpi Body infection-1.png)<!-- -->
 
-
-```r
-#explore data
-# ggplot(data=august[august$DPI=="9",], aes(factor(class))) +
-#   geom_bar(stat="identity",aes(y=Head)) +
-#   ggtitle("August 9 dpi Head")
-#model
-mixModelAugHead9 <- lme4::glmer(Head~class + (1|site), 
-                          data=august[august$DPI=="9",],
-                          family=binomial)
-#get a summary
-summary(mixModelAugHead9)
-```
 
 ```
 ## Generalized linear mixed model fit by maximum likelihood (Laplace
@@ -1088,22 +467,12 @@ summary(mixModelAugHead9)
 ## classUrban  -0.707  0.450
 ```
 
-```r
-#check significance
-Anova(mixModelAugHead9) 
-```
-
 ```
 ## Analysis of Deviance Table (Type II Wald chisquare tests)
 ## 
 ## Response: Head
 ##        Chisq Df Pr(>Chisq)
 ## class 0.2581  2     0.8789
-```
-
-```r
-#check overdispersion
-overdisp_fun(mixModelAugHead9) 
 ```
 
 ```
@@ -1117,19 +486,6 @@ The above code runs a mixed model on body and head infection in August at 9 dpi 
 
 ### August 14 DPI
 
-
-```r
-#explore data
-# ggplot(data=august[august$DPI=="14",], aes(factor(class))) +
-#   geom_bar(stat="identity",aes(y=Body)) +
-#   ggtitle("August 14 dpi Body")
-#model
-mixModelAugBody14 <- lme4::glmer(Body~class + (1|site), 
-                          data=august[august$DPI=="14",],
-                          family=binomial)
-#get a summary
-summary(mixModelAugBody14)
-```
 
 ```
 ## Generalized linear mixed model fit by maximum likelihood (Laplace
@@ -1164,11 +520,6 @@ summary(mixModelAugBody14)
 ## classUrban  -0.785  0.585
 ```
 
-```r
-#check significance
-Anova(mixModelAugBody14) 
-```
-
 ```
 ## Analysis of Deviance Table (Type II Wald chisquare tests)
 ## 
@@ -1177,31 +528,13 @@ Anova(mixModelAugBody14)
 ## class 3.757  2     0.1528
 ```
 
-```r
-#check overdispersion
-overdisp_fun(mixModelAugBody14) 
-```
-
 ```
 ##       chisq       ratio         rdf           p 
-## 175.6184943   1.0210378 172.0000000   0.4091872
+## 175.6184916   1.0210377 172.0000000   0.4091873
 ```
 
-This is approaching signficance, with Urban mosquitoes more likely to be infected (0.888, p=0.0553).
+This is approaching signficance, with Urban mosquitoes more likely to be infected (coef=0.888, p=0.1528).
 
-
-```r
-#explore data
-# ggplot(data=august[august$DPI=="14",], aes(factor(class))) +
-#   geom_bar(stat="identity",aes(y=Head)) +
-#   ggtitle("August 14 dpi Head")
-#model
-mixModelAugHead14 <- lme4::glmer(Head~class + (1|site), 
-                          data=august[august$DPI=="14",],
-                          family=binomial)
-#get a summary
-summary(mixModelAugHead14)
-```
 
 ```
 ## Generalized linear mixed model fit by maximum likelihood (Laplace
@@ -1236,22 +569,12 @@ summary(mixModelAugHead14)
 ## classUrban  -0.816  0.650
 ```
 
-```r
-#check significance
-Anova(mixModelAugHead14) 
-```
-
 ```
 ## Analysis of Deviance Table (Type II Wald chisquare tests)
 ## 
 ## Response: Head
 ##        Chisq Df Pr(>Chisq)
 ## class 3.9559  2     0.1384
-```
-
-```r
-#check overdispersion
-overdisp_fun(mixModelAugHead14) 
 ```
 
 ```
@@ -1261,19 +584,6 @@ overdisp_fun(mixModelAugHead14)
 
 As above, head infection is close to significance, with urban more likely than rural, but suburban and urban very similar.
 
-
-```r
-#explore data
-# ggplot(data=august[august$DPI=="14",], aes(factor(class))) +
-#   geom_bar(stat="identity",aes(y=Saliva)) + 
-#   ggtitle("August 14 dpi Saliva")
-#model
-mixModelAugSaliva14 <- lme4::glmer(Saliva~class + (1|site), 
-                          data=august[august$DPI=="14",],
-                          family=binomial)
-#get a summary
-summary(mixModelAugSaliva14)
-```
 
 ```
 ## Generalized linear mixed model fit by maximum likelihood (Laplace
@@ -1308,11 +618,6 @@ summary(mixModelAugSaliva14)
 ## classUrban  -0.728  0.604
 ```
 
-```r
-#check significance
-Anova(mixModelAugSaliva14) 
-```
-
 ```
 ## Analysis of Deviance Table (Type II Wald chisquare tests)
 ## 
@@ -1321,14 +626,9 @@ Anova(mixModelAugSaliva14)
 ## class 0.6833  2     0.7106
 ```
 
-```r
-#check overdispersion
-overdisp_fun(mixModelAugSaliva14) 
-```
-
 ```
 ##       chisq       ratio         rdf           p 
-## 152.5602161   0.8921650 171.0000000   0.8411014
+## 152.5602239   0.8921651 171.0000000   0.8411013
 ```
 
 No difference in Saliva.
@@ -1344,10 +644,6 @@ ggplot(data=seasons[seasons$DPI=="21",], aes(factor(class))) +
   geom_bar(stat="identity",aes(y=Body)) +
   facet_wrap(~block) + 
   ggtitle("21 dpi Body across Seasons")
-```
-
-```
-## Warning: Removed 18 rows containing missing values (position_stack).
 ```
 
 ![](dengueInfections_files/figure-html/seasonal 21 dpi Body infection-1.png)<!-- -->
@@ -1455,10 +751,6 @@ ggplot(data=seasons[seasons$DPI=="21",], aes(factor(class))) +
   ggtitle("21 dpi Head Across Seasons")
 ```
 
-```
-## Warning: Removed 16 rows containing missing values (position_stack).
-```
-
 ![](dengueInfections_files/figure-html/seasonal 21 dpi Head infection-1.png)<!-- -->
 
 ```r
@@ -1486,17 +778,17 @@ summary(mixModelseasonsHead21)
 ## 
 ## Random effects:
 ##  Groups Name        Variance  Std.Dev. 
-##  site   (Intercept) 2.543e-14 1.595e-07
+##  site   (Intercept) 6.679e-14 2.584e-07
 ## Number of obs: 318, groups:  site, 9
 ## 
 ## Fixed effects:
 ##                           Estimate Std. Error z value Pr(>|z|)   
-## (Intercept)                0.40547    0.28868   1.405  0.16015   
+## (Intercept)                0.40547    0.28867   1.405  0.16015   
 ## classSuburban              0.04082    0.43108   0.095  0.92456   
 ## classUrban                -0.86977    0.39669  -2.193  0.02834 * 
 ## blocksummer               -1.17460    0.40044  -2.933  0.00335 **
 ## classSuburban:blocksummer  0.55242    0.57756   0.956  0.33883   
-## classUrban:blocksummer     0.18029    0.59803   0.302  0.76306   
+## classUrban:blocksummer     0.18029    0.59803   0.302  0.76305   
 ## ---
 ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 ## 
@@ -1521,7 +813,7 @@ Anova(mixModelseasonsHead21)
 ##               Chisq Df Pr(>Chisq)    
 ## class       14.2528  2  0.0008036 ***
 ## block       14.9093  1  0.0001128 ***
-## class:block  0.9408  2  0.6247611    
+## class:block  0.9408  2  0.6247647    
 ## ---
 ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 ```
@@ -1538,29 +830,7 @@ overdisp_fun(mixModelseasonsHead21)
 
 Again, there is a significant effect of class and block, but no interaction. Similar effects as with the body infections.
 
-
-```r
-#explore data
-ggplot(data=seasons[seasons$DPI=="21",], aes(factor(class))) +
-  geom_bar(stat="identity",aes(y=Saliva)) +
-  facet_wrap(~block) + 
-  ggtitle("21 dpi Saliva across Seasons")
-```
-
-```
-## Warning: Removed 15 rows containing missing values (position_stack).
-```
-
 ![](dengueInfections_files/figure-html/seasonal 21 dpi Saliva infection-1.png)<!-- -->
-
-```r
-#model
-mixModelseasonsSaliva21 <- lme4::glmer(Saliva~class + block + block*class + (1|site), 
-                          data=seasons[seasons$DPI=="21",],
-                          family=binomial(link="logit"))
-#get a summary
-summary(mixModelseasonsSaliva21)
-```
 
 ```
 ## Generalized linear mixed model fit by maximum likelihood (Laplace
@@ -1578,17 +848,17 @@ summary(mixModelseasonsSaliva21)
 ## 
 ## Random effects:
 ##  Groups Name        Variance  Std.Dev.
-##  site   (Intercept) 0.0006551 0.0256  
+##  site   (Intercept) 0.0006547 0.02559 
 ## Number of obs: 319, groups:  site, 9
 ## 
 ## Fixed effects:
 ##                           Estimate Std. Error z value Pr(>|z|)    
-## (Intercept)               -2.68591    0.60090  -4.470 7.83e-06 ***
-## classSuburban              0.09513    0.84638   0.112    0.911    
-## classUrban                 0.06458    0.79043   0.082    0.935    
-## blocksummer                0.48842    0.73587   0.664    0.507    
-## classSuburban:blocksummer  0.55471    1.01309   0.548    0.584    
-## classUrban:blocksummer     0.24984    0.98722   0.253    0.800    
+## (Intercept)               -2.68591    0.60093  -4.470 7.84e-06 ***
+## classSuburban              0.09513    0.84640   0.112    0.911    
+## classUrban                 0.06458    0.79045   0.082    0.935    
+## blocksummer                0.48842    0.73590   0.664    0.507    
+## classSuburban:blocksummer  0.55471    1.01313   0.548    0.584    
+## classUrban:blocksummer     0.24985    0.98727   0.253    0.800    
 ## ---
 ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 ## 
@@ -1599,11 +869,6 @@ summary(mixModelseasonsSaliva21)
 ## blocksummer -0.808  0.571  0.612              
 ## clssSbrbn:b  0.577 -0.837 -0.444 -0.725       
 ## clssUrbn:bl  0.603 -0.425 -0.800 -0.746  0.539
-```
-
-```r
-#check significance
-Anova(mixModelseasonsSaliva21)
 ```
 
 ```
@@ -1618,14 +883,9 @@ Anova(mixModelseasonsSaliva21)
 ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 ```
 
-```r
-#check overdispersion
-overdisp_fun(mixModelseasonsSaliva21) 
 ```
-
-```
-##       chisq       ratio         rdf           p 
-## 318.9191001   1.0221766 312.0000000   0.3814757
+##      chisq      ratio        rdf          p 
+## 318.919342   1.022177 312.000000   0.381472
 ```
 
 There is **no significant effect on saliva**. There is almost (p=0.056) an effect of block, but not quite.
@@ -1637,284 +897,25 @@ Based on the results of Test 1, we only see a difference in infection at 21 dpi 
 ### Load and Format Microclimate Data
 
 
-```r
-climate <- read.csv('../../data/microclimate/clean/2016TrialsAdult.csv')[,-1]
-#toss out ridiculous levels
-climate <- climate[climate$Temp<75,]
-#format date
-climate$Date <- strptime(climate$Date, format="%Y-%m-%d %H:%M:%S")
-#draw out day
-climate$Day <- as.Date(climate$Date)
-
-# add tray id to climate data
-trayID <- read.csv("../../data/microclimate/trayLoggerID.csv") #read in IDs
-climate <- merge(climate, trayID, by="Pot_ID")
-
-#fix duplicates for R1T1
-climate <- unique(climate)
-
-#U2T2 and U1T2 are missing data
-range(climate[climate$Tray_ID=="U2T2", 'Date']) 
-```
-
 ```
 ## [1] "2016-08-01 17:04:48 EDT" "2016-08-05 09:14:48 EDT"
-```
-
-```r
-range(climate[climate$Tray_ID=="U1T2", 'Date']) 
 ```
 
 ```
 ## [1] "2016-08-01 17:07:27 EDT" "2016-11-07 16:51:04 EST"
 ```
 
-```r
-#drop U2T2 becuase it only has data until August 5th
-inds <- which(climate$Tray_ID=="U2T2")
-climate <- climate[-inds,]
-rm(inds)
-
-#U2T4 wasn't working right, reporting temps above 40C in October
-inds <- which(climate$Tray_ID=="U2T4")
-climate <- climate[-inds,]
-rm(inds)
-```
-
 We need to correct these for the days when mosquitoes were actually collected, and the number of mosquitoes from each tray.
 
 
-```r
-augEmerg <- read.csv("../../data/emergence/raw/AugustEmergence.csv")
-augEmerg$block <- as.factor("summer")
-octEmerg <- read.csv("../../data/emergence/raw/OctoberEmergence.csv")
-octEmerg$block <- as.factor("fall")
-
-allEmerg <- rbind(augEmerg, octEmerg)
-```
-
-
-```r
-#filter out only days when infected mosquitoes were in the trays
-octInf <- octEmerg %>%
-  filter(Sex=="F") %>%
-  filter((Site_Code %in% c("U3", "R3") & Day <= 21) |
-           (Site_Code %in% c("U2", "U1", "S3") & Day <= 20) |
-           (Site_Code %in% c("S1", "S2", "R1", "R2") & Day <= 24))
-
-augInf <- augEmerg %>%
-  filter(Sex=="F") %>%
-    filter((Site_Code %in% c("U2", "U1", "S3", "R1") & Day <= 14) |
-           (Site_Code %in% c("S1", "S2", "R2", "R3", "U3") & Day <= 17))
-```
-
-
-```r
-detach("package:plyr", unload=TRUE)
-```
-
-```
-## Warning: 'plyr' namespace cannot be unloaded:
-##   namespace 'plyr' is imported by 'scales', 'ggplot2', 'reshape2', 'caret', 'pROC' so cannot be unloaded
-```
-
-```r
-octClim <- climate %>%
-  dplyr::select(-Date) %>%
-  filter(Day >= as.Date("2016-09-26","%Y-%m-%d")) %>%
-  #filter out appropriate days
-  filter((Site_ID %in% c("U3", "R3") & Day <= "2016-10-21") |
-           (Site_ID %in% c("U2", "U1", "S3") & Day <= "2016-10-20") |
-           (Site_ID %in% c("S1", "S2", "R1", "R2") & Day <= "2016-10-24")) %>%
-  dplyr::select(-Site_ID, -Pot_ID, -Class) %>%
-  #get daily averages by Tray
-  group_by(Tray_ID, Day) %>%
-  summarise_each(funs(mean(., na.rm=T), min(., na.rm=T), max(., na.rm=T))) %>%
-  #calculate DTR
-  mutate(DTR=Temp_max-Temp_min) %>%
-  #get overall average over study period per tray (average daily values)
-  ungroup() %>%
-  dplyr::select(-Day) %>%
-  group_by(Tray_ID) %>%
-  summarise_each(funs(mean))
-
-#calculate hours above a set Tmax and below a set Tmin based on Mordecai et al min and max r0, min=16C, max= 31 C
-
-#calculate percent of time above and below temperatures
-octBelow16 <- climate %>%
-  dplyr::select(-Date) %>%
-  filter(Day >= as.Date("2016-09-26","%Y-%m-%d")) %>%
-  #filter out appropriate days
-  filter((Site_ID %in% c("U3", "R3") & Day <= "2016-10-21") |
-           (Site_ID %in% c("U2", "U1", "S3") & Day <= "2016-10-20") |
-           (Site_ID %in% c("S1", "S2", "R1", "R2") & Day <= "2016-10-24")) %>%
-  filter(Temp<16) %>%
-  group_by(Tray_ID) %>%
-  dplyr::summarise(Tcount=n()) %>%
-  mutate(hoursBelow16=Tcount/6) %>%
-  select(-Tcount)
 
 
 
-octAbove31 <- climate %>%
-  dplyr::select(-Date) %>%
-  filter(Day >= as.Date("2016-09-26","%Y-%m-%d")) %>%
-  #filter out appropriate days
-  filter((Site_ID %in% c("U3", "R3") & Day <= "2016-10-21") |
-           (Site_ID %in% c("U2", "U1", "S3") & Day <= "2016-10-20") |
-           (Site_ID %in% c("S1", "S2", "R1", "R2") & Day <= "2016-10-24")) %>%
-  filter(Temp>31) %>%
-  group_by(Tray_ID) %>%
-  summarise(Tcount=n()) %>%
-  mutate(hoursAbove31=Tcount/6) %>%
-  select(-Tcount)
 
 
-#merge climate variables together
-octClim <- merge(octClim, octBelow16, by="Tray_ID", all.x=T)
-octClim <- merge(octClim, octAbove31, by="Tray_ID", all.x=T)
-
-#add 0s
-octClim$hoursAbove31[is.na(octClim$hoursAbove31)] <- 0
-octClim$hoursBelow16[is.na(octClim$hoursBelow16)] <- 0
 
 
-#merge climate and infection data
-test <- merge(octInf, octClim, by.x="Tray_Code", by.y="Tray_ID", all.x=T)
 
-#replace missing tray data with mean of the site values
-meanU2 <- test %>%
-  filter(Site_Code=="U2") %>%
-  summarise_each(funs(mean(.,na.rm=T)), Temp_mean:hoursAbove31)
-missingInds <- which(is.na(test$Temp_mean))
-test[missingInds, 12:ncol(test)] <- meanU2
-
-#weight contribution of each tray based on how many mosquitoes emerged from it that were infected
-
-#function multiplies value by number of mosquitoes emerged
-emergWeight <- function(envVar, noEmerg){
-  newVal <- envVar * noEmerg
-  return(newVal)
-}
-
-#function that divides by the total emerged per site
-cumDivide <- function(envVar, cumul){
-  newVal <- sum(envVar)/cumul
-  return(newVal)
-}
-
-octEnvVar <- test %>%
-  dplyr::select(-Tray_Code,-Site, -Tray, - Class, - Month, - Day, - Exp_Day, - Sex) %>%
-  rowwise() %>%
-  #multiply by number per tray
-  mutate_each(funs(emergWeight(., Num_Emerge)), -Site_Code, -block) %>%
-  group_by(Site_Code, block) %>%
-  #sum and divide by cumulative emergence
-  mutate(cumEmerge = sum(Num_Emerge)) %>%
-  mutate_each(funs(cumDivide(.,cumEmerge)), -Site_Code, -block) %>%
-  ungroup() %>%
-  dplyr::select(-cumEmerge, -Num_Emerge) %>%
-  #get unique values per site
-  distinct(Site_Code, .keep_all=T)
-```
-
-```
-## Warning: Grouping rowwise data frame strips rowwise nature
-```
-
-```r
-rm(test) #clear unused temporary dataframe
-```
-
-
-```r
-##repeat above for August
-augClim <- climate %>%
-  dplyr::select(-Date) %>%
-  filter(Day >= as.Date("2016-08-01","%Y-%m-%d")) %>%
-    filter((Site_ID %in% c("U2", "U1", "S3", "R1") & Day <= "2016-08-14") |
-           (Site_ID %in% c("S1", "S2", "R2", "R3", "U3") & Day <= "2016-08-17")) %>%
-  dplyr::select(-Site_ID, -Pot_ID, -Class) %>%
-  #get daily averages by Tray
-  group_by(Tray_ID, Day) %>%
-  summarise_each(funs(mean(., na.rm=T), min(., na.rm=T), max(., na.rm=T))) %>%
-  #calculate DTR
-  mutate(DTR=Temp_max-Temp_min) %>%
-  #get overall average over study period per tray (average daily values)
-  ungroup() %>%
-  dplyr::select(-Day) %>%
-  group_by(Tray_ID) %>%
-  summarise_each(funs(mean))
-
-#calculate hours above a set Tmax and below a set Tmin based on Mordecai et al min and max r0, min=16C, max= 31 C
-
-#calculate number of hours above and below temperatures
-#there are no hours below 16 in august
-# augBelow16 <- climate %>%
-#   dplyr::select(-Date) %>%
-#   filter(Day >= as.Date("2016-08-01","%Y-%m-%d")) %>%
-#     filter((Site_ID %in% c("U2", "U1", "S3", "R1") & Day <= "2016-08-14") |
-#            (Site_ID %in% c("S1", "S2", "R2", "R3", "U3") & Day <= "2016-08-17")) %>%
-#   filter(Temp<16) %>%
-#   group_by(Tray_ID) %>%
-#   summarise(Tcount=n()) %>%
-#   mutate(hoursBelow16=Tcount/6) %>%
-#   select(-Tcount)
-
-augAbove31 <- climate %>%
-  dplyr::select(-Date) %>%
-  filter(Day >= as.Date("2016-08-01","%Y-%m-%d")) %>%
-  filter((Site_ID %in% c("U2", "U1", "S3", "R1") & Day <= "2016-08-14") |
-           (Site_ID %in% c("S1", "S2", "R2", "R3", "U3") & Day <= "2016-08-17")) %>%
-  filter(Temp>31) %>%
-  group_by(Tray_ID) %>%
-  dplyr::summarise(Tcount=n()) %>%
-  mutate(hoursAbove31=Tcount/6) %>%
-  select(-Tcount)
-
-
-#merge climate variables together
-augClim <- merge(augClim, augAbove31, by="Tray_ID", all.x=T)
-
-#add 0s
-augClim$hoursAbove31[is.na(augClim$hoursAbove31)] <- 0
-augClim$hoursBelow16 <- 0
-
-test <- merge(augInf, augClim, by.x="Tray_Code", by.y="Tray_ID")
-
-#replace missing tray data with mean of the site values
-meanU2 <- test %>%
-  filter(Site_Code=="U2") %>%
-  summarise_each(funs(mean(.,na.rm=T)), Temp_mean:hoursAbove31)
-missingInds <- which(is.na(test$Temp_mean))
-test[missingInds, 12:ncol(test)] <- meanU2
-
-augEnvVar <- test %>%
-  dplyr::select(-Tray_Code,-Site, -Tray, - Class, - Month, - Day, - Exp_Day, - Sex) %>%
-  rowwise() %>%
-  #multiply by number per tray
-  mutate_each(funs(emergWeight(., Num_Emerge)), -Site_Code, -block) %>%
-  group_by(Site_Code, block) %>%
-  #sum and divide by cumulative emergence
-  mutate(cumEmerge = sum(Num_Emerge)) %>%
-  mutate_each(funs(cumDivide(.,cumEmerge)), -Site_Code, -block) %>%
-  ungroup() %>%
-  dplyr::select(-cumEmerge, -Num_Emerge) %>%
-  #get unique values per site
-  distinct(Site_Code, .keep_all=T)
-```
-
-```
-## Warning: Grouping rowwise data frame strips rowwise nature
-```
-
-
-```r
-#merge the summer and fall into one dataframe
-oct$block <- as.factor("fall")
-august$block <- as.factor("summer")
-seasonInf <- merge(rbind(oct, august[august$DPI=="21",]), rbind(augEnvVar,octEnvVar), by.x=c("block", "site"), by.y=c("block", "Site_Code"))
-```
 
 This results in a dataframe `seasonInf` that has the infection status and environmental variables associated with each individual in both seasons.
 
@@ -1923,134 +924,6 @@ This results in a dataframe `seasonInf` that has the infection status and enviro
 #### Visualization
 
 
-```r
-envVarPlot <- function(sample){
-  
-p1 <- ggplot(data=seasonInf, aes_string(x="Temp_mean", y=sample)) +
-  geom_point(aes(color=class)) +
-  geom_smooth() +
-  theme(legend.position="none")
-
-p2 <- ggplot(data=seasonInf, aes_string(x="Temp_max", y=sample)) +
-  geom_point(aes(color=class)) +
-  geom_smooth() +
-  theme(legend.position="none")
-
-p3 <- ggplot(data=seasonInf, aes_string(x="Temp_min", y=sample)) +
-  geom_point(aes(color=class)) +
-  geom_smooth() +
-  theme(legend.position="none")
-
-p4 <- ggplot(data=seasonInf, aes_string(x="RH_mean", y=sample)) +
-  geom_point(aes(color=class)) +
-  geom_smooth() +
-  theme(legend.position="none")
-
-p5 <- ggplot(data=seasonInf, aes_string(x="RH_max", y=sample)) +
-  geom_point(aes(color=class)) +
-  geom_smooth() +
-  theme(legend.position="none")
-
-p6 <- ggplot(data=seasonInf, aes_string(x="RH_min", y=sample)) +
-  geom_point(aes(color=class)) +
-  geom_smooth() +
-  theme(legend.position="none")
-
-p7 <- ggplot(data=seasonInf, aes_string(x="DTR", y=sample)) +
-  geom_point(aes(color=class)) +
-  geom_smooth() +
-  theme(legend.position="none")
-
-p8 <- ggplot(data=seasonInf, aes_string(x="hoursAbove31", y=sample)) +
-  geom_point(aes(color=class)) +
-  geom_smooth() +
-  theme(legend.position="none")
-
-p9 <- ggplot(data=seasonInf, aes_string(x="hoursBelow16", y=sample)) +
-  geom_point(aes(color=class)) +
-  geom_smooth()
-
-plotAll <- grid.arrange(p1,p2,p3,p4,p5,p6,p7,p8,p9,nrow=3)
-return(plotAll)
-}
-```
-
-
-```r
-envVarPlot("Body")
-```
-
-```
-## Warning: Removed 18 rows containing non-finite values (stat_smooth).
-```
-
-```
-## Warning: Removed 18 rows containing missing values (geom_point).
-```
-
-```
-## Warning: Removed 18 rows containing non-finite values (stat_smooth).
-```
-
-```
-## Warning: Removed 18 rows containing missing values (geom_point).
-```
-
-```
-## Warning: Removed 18 rows containing non-finite values (stat_smooth).
-```
-
-```
-## Warning: Removed 18 rows containing missing values (geom_point).
-```
-
-```
-## Warning: Removed 18 rows containing non-finite values (stat_smooth).
-```
-
-```
-## Warning: Removed 18 rows containing missing values (geom_point).
-```
-
-```
-## Warning: Removed 18 rows containing non-finite values (stat_smooth).
-```
-
-```
-## Warning: Removed 18 rows containing missing values (geom_point).
-```
-
-```
-## Warning: Removed 18 rows containing non-finite values (stat_smooth).
-```
-
-```
-## Warning: Removed 18 rows containing missing values (geom_point).
-```
-
-```
-## Warning: Removed 18 rows containing non-finite values (stat_smooth).
-```
-
-```
-## Warning: Removed 18 rows containing missing values (geom_point).
-```
-
-```
-## Warning: Removed 18 rows containing non-finite values (stat_smooth).
-```
-
-```
-## Warning: Removed 18 rows containing missing values (geom_point).
-```
-
-```
-## Warning: Removed 18 rows containing non-finite values (stat_smooth).
-```
-
-```
-## Warning: Removed 18 rows containing missing values (geom_point).
-```
 
 ![](dengueInfections_files/figure-html/visualize all sample types-1.png)<!-- -->
 
@@ -2068,82 +941,6 @@ envVarPlot("Body")
 ## 9 9 (3-3,3-3) arrange gtable[layout]
 ```
 
-```r
-envVarPlot("Head")
-```
-
-```
-## Warning: Removed 16 rows containing non-finite values (stat_smooth).
-```
-
-```
-## Warning: Removed 16 rows containing missing values (geom_point).
-```
-
-```
-## Warning: Removed 16 rows containing non-finite values (stat_smooth).
-```
-
-```
-## Warning: Removed 16 rows containing missing values (geom_point).
-```
-
-```
-## Warning: Removed 16 rows containing non-finite values (stat_smooth).
-```
-
-```
-## Warning: Removed 16 rows containing missing values (geom_point).
-```
-
-```
-## Warning: Removed 16 rows containing non-finite values (stat_smooth).
-```
-
-```
-## Warning: Removed 16 rows containing missing values (geom_point).
-```
-
-```
-## Warning: Removed 16 rows containing non-finite values (stat_smooth).
-```
-
-```
-## Warning: Removed 16 rows containing missing values (geom_point).
-```
-
-```
-## Warning: Removed 16 rows containing non-finite values (stat_smooth).
-```
-
-```
-## Warning: Removed 16 rows containing missing values (geom_point).
-```
-
-```
-## Warning: Removed 16 rows containing non-finite values (stat_smooth).
-```
-
-```
-## Warning: Removed 16 rows containing missing values (geom_point).
-```
-
-```
-## Warning: Removed 16 rows containing non-finite values (stat_smooth).
-```
-
-```
-## Warning: Removed 16 rows containing missing values (geom_point).
-```
-
-```
-## Warning: Removed 16 rows containing non-finite values (stat_smooth).
-```
-
-```
-## Warning: Removed 16 rows containing missing values (geom_point).
-```
-
 ![](dengueInfections_files/figure-html/visualize all sample types-2.png)<!-- -->
 
 ```
@@ -2158,82 +955,6 @@ envVarPlot("Head")
 ## 7 7 (3-3,1-1) arrange gtable[layout]
 ## 8 8 (3-3,2-2) arrange gtable[layout]
 ## 9 9 (3-3,3-3) arrange gtable[layout]
-```
-
-```r
-envVarPlot("Saliva")
-```
-
-```
-## Warning: Removed 15 rows containing non-finite values (stat_smooth).
-```
-
-```
-## Warning: Removed 15 rows containing missing values (geom_point).
-```
-
-```
-## Warning: Removed 15 rows containing non-finite values (stat_smooth).
-```
-
-```
-## Warning: Removed 15 rows containing missing values (geom_point).
-```
-
-```
-## Warning: Removed 15 rows containing non-finite values (stat_smooth).
-```
-
-```
-## Warning: Removed 15 rows containing missing values (geom_point).
-```
-
-```
-## Warning: Removed 15 rows containing non-finite values (stat_smooth).
-```
-
-```
-## Warning: Removed 15 rows containing missing values (geom_point).
-```
-
-```
-## Warning: Removed 15 rows containing non-finite values (stat_smooth).
-```
-
-```
-## Warning: Removed 15 rows containing missing values (geom_point).
-```
-
-```
-## Warning: Removed 15 rows containing non-finite values (stat_smooth).
-```
-
-```
-## Warning: Removed 15 rows containing missing values (geom_point).
-```
-
-```
-## Warning: Removed 15 rows containing non-finite values (stat_smooth).
-```
-
-```
-## Warning: Removed 15 rows containing missing values (geom_point).
-```
-
-```
-## Warning: Removed 15 rows containing non-finite values (stat_smooth).
-```
-
-```
-## Warning: Removed 15 rows containing missing values (geom_point).
-```
-
-```
-## Warning: Removed 15 rows containing non-finite values (stat_smooth).
-```
-
-```
-## Warning: Removed 15 rows containing missing values (geom_point).
 ```
 
 ![](dengueInfections_files/figure-html/visualize all sample types-3.png)<!-- -->
@@ -2256,30 +977,14 @@ There doesn't seem to be much of an effect of any of them on saliva infection, b
 
 We can also check out some collinearity and correlations.
 
-
-```r
-envVars <- seasonInf[,10:ncol(seasonInf)]
-corrplot(cor(envVars))
-```
-
 ![](dengueInfections_files/figure-html/inspect correlation-1.png)<!-- -->
 
-```r
-#pairs(envVars)
-```
-
+There are some variables that are highly correlated. 
 
 #### GBM
 
 Because the response is binary, I'm going to give it a shot using glmnet and GBM. Also, there is no longer a random effect of site because the environmental variables are aggregated by site.
 
-
-```r
-respV <- "Body"
-predVs <- c("Temp_mean","RH_mean","Temp_min","RH_min", "Temp_max", "DTR", "hoursAbove31", "hoursBelow16")
-
-prop.table(table(seasonInf[,respV])) #need at least %15 infected for easier stats
-```
 
 ```
 ## 
@@ -2287,55 +992,30 @@ prop.table(table(seasonInf[,respV])) #need at least %15 infected for easier stat
 ## 0.5253165 0.4746835
 ```
 
+
 ```r
-#create dataframe without NAs
-myCols <- c(respV, predVs)
-modDF <- seasonInf %>%
-  dplyr::select(one_of(myCols)) 
-modDF <- na.omit(modDF)
-modDF[,respV] <- as.factor(modDF[,respV])
-levels(modDF[,respV]) <- c("no", "yes")
-
-
-#split into testing and training
-set.seed(8675309)
-inds <- createDataPartition(modDF[,respV], p=.7, list=F, times=1)
-train <- modDF[inds,]
-test <- modDF[-inds,]
-
-#set controls for testing different tuning parameters
-gbmControl <- trainControl(method='cv', returnResamp='none', summaryFunction = twoClassSummary, classProbs = TRUE, preProcOptions = c("center", "scale", "corr"))
-
-gbmTune <- expand.grid(n.trees=c(10000, 20000), interaction.depth=c(1,2,3), shrinkage=c(0.1,0.01,0.005), n.minobsinnode=c(1))
-
-gbmModel <- train(train[,predVs], (train[,respV]), 
-                  method='gbm', 
-                  trControl=gbmControl,  
-                  metric = "ROC",
-                  tuneGrid=gbmTune,
-                  verbose=F) 
 summary(gbmModel)
 ```
 
-![](dengueInfections_files/figure-html/GBM-1.png)<!-- -->
+![](dengueInfections_files/figure-html/unnamed-chunk-4-1.png)<!-- -->
 
 ```
 ##                       var   rel.inf
-## hoursAbove31 hoursAbove31 29.171626
-## Temp_mean       Temp_mean 22.988853
-## RH_min             RH_min 19.678318
-## Temp_max         Temp_max 10.861224
-## DTR                   DTR  8.051446
-## RH_mean           RH_mean  5.757522
-## hoursBelow16 hoursBelow16  1.908151
-## Temp_min         Temp_min  1.582861
+## hoursAbove31 hoursAbove31 29.168174
+## Temp_mean       Temp_mean 22.443764
+## RH_min             RH_min 19.999434
+## Temp_max         Temp_max 11.022955
+## DTR                   DTR  8.026170
+## RH_mean           RH_mean  5.830620
+## hoursBelow16 hoursBelow16  1.921181
+## Temp_min         Temp_min  1.587702
 ```
 
 ```r
 plot(gbmModel)
 ```
 
-![](dengueInfections_files/figure-html/GBM-2.png)<!-- -->
+![](dengueInfections_files/figure-html/unnamed-chunk-4-2.png)<!-- -->
 
 ```r
 gbmModel
@@ -2345,33 +1025,33 @@ gbmModel
 ## Stochastic Gradient Boosting 
 ## 
 ## 222 samples
-##   8 predictors
+##   8 predictor
 ##   2 classes: 'no', 'yes' 
 ## 
 ## No pre-processing
 ## Resampling: Cross-Validated (10 fold) 
-## Summary of sample sizes: 200, 200, 200, 199, 201, 199, ... 
+## Summary of sample sizes: 200, 200, 200, 200, 199, 200, ... 
 ## Resampling results across tuning parameters:
 ## 
 ##   shrinkage  interaction.depth  n.trees  ROC        Sens       Spec     
-##   0.005      1                  10000    0.6649070  0.6590909  0.6363636
-##   0.005      1                  20000    0.6636054  0.6590909  0.6454545
-##   0.005      2                  10000    0.6610021  0.6757576  0.6363636
-##   0.005      2                  20000    0.6668285  0.6757576  0.6263636
-##   0.005      3                  10000    0.6680269  0.6590909  0.6463636
-##   0.005      3                  20000    0.6641012  0.6757576  0.6263636
-##   0.010      1                  10000    0.6536742  0.6757576  0.6454545
-##   0.010      1                  20000    0.6586054  0.6590909  0.6454545
-##   0.010      2                  10000    0.6611811  0.6757576  0.6454545
-##   0.010      2                  20000    0.6687569  0.6590909  0.6454545
-##   0.010      3                  10000    0.6736605  0.6757576  0.6363636
-##   0.010      3                  20000    0.6648588  0.6590909  0.6363636
-##   0.100      1                  10000    0.6527514  0.6674242  0.6454545
-##   0.100      1                  20000    0.6608092  0.6681818  0.6354545
-##   0.100      2                  10000    0.6692665  0.6757576  0.6263636
-##   0.100      2                  20000    0.6575999  0.6674242  0.6263636
-##   0.100      3                  10000    0.6592872  0.6856061  0.6163636
-##   0.100      3                  20000    0.6570764  0.6848485  0.6363636
+##   0.005      1                  10000    0.6664945  0.6477273  0.6263636
+##   0.005      1                  20000    0.6689187  0.6560606  0.6163636
+##   0.005      2                  10000    0.6681612  0.6560606  0.5990909
+##   0.005      2                  20000    0.6672590  0.6560606  0.6263636
+##   0.005      3                  10000    0.6703512  0.6560606  0.6263636
+##   0.005      3                  20000    0.6680716  0.6651515  0.6172727
+##   0.010      1                  10000    0.6674036  0.6477273  0.6263636
+##   0.010      1                  20000    0.6697658  0.6560606  0.5990909
+##   0.010      2                  10000    0.6656061  0.6560606  0.6081818
+##   0.010      2                  20000    0.6638636  0.6568182  0.6172727
+##   0.010      3                  10000    0.6753788  0.6651515  0.6172727
+##   0.010      3                  20000    0.6696143  0.6734848  0.5981818
+##   0.100      1                  10000    0.6678375  0.6734848  0.6163636
+##   0.100      1                  20000    0.6655303  0.6477273  0.6163636
+##   0.100      2                  10000    0.6739394  0.6568182  0.6081818
+##   0.100      2                  20000    0.6551309  0.6810606  0.5890909
+##   0.100      3                  10000    0.6600344  0.6651515  0.5881818
+##   0.100      3                  20000    0.6632507  0.6727273  0.5872727
 ## 
 ## Tuning parameter 'n.minobsinnode' was held constant at a value of 1
 ## ROC was used to select the optimal model using  the largest value.
@@ -2382,15 +1062,10 @@ gbmModel
 ```r
 #check performance
 preds <- predict(object=gbmModel, test[,predVs], type='prob')
-auc <- roc(ifelse(test[,respV]=="yes",1,0), preds[[2]])
-auc$auc
+aucGBM <- roc(ifelse(test[,respV]=="yes",1,0), preds[[2]])
 ```
 
-```
-## Area under the curve: 0.5723
-```
-
-The GBM performs poorly on Body with an AUC of 0.5723356.
+The GBM performs not so great on Body with an AUC of .
 
 The important variables are 
 
@@ -2410,7 +1085,7 @@ glmModel <- train(train[, predVs], train[, respV],
 plot(varImp(glmModel,scale=F))
 ```
 
-![](dengueInfections_files/figure-html/unnamed-chunk-4-1.png)<!-- -->
+![](dengueInfections_files/figure-html/unnamed-chunk-5-1.png)<!-- -->
 
 ```r
 glmModel$results
@@ -2432,180 +1107,92 @@ glmModel$results
 ```r
 #check performance
 preds <- predict(object=glmModel, test[,predVs], type='prob')
-auc <- roc(ifelse(test[,respV]=="yes",1,0), preds[[2]])
-auc$auc
+aucGLMnet <- roc(ifelse(test[,respV]=="yes",1,0), preds[[2]])
 ```
 
-```
-## Area under the curve: 0.5406
-```
-
-This performed slightly less well than the `GBM`, with an AUC of 0.5405896. The important variables are `Temp_mean`, `DTR`, `RH_mean`, `Temp_min`.
+This performed slightly better than the `GBM`, with an AUC of 0.5405896. The important variables are `Temp_mean`, `DTR`, `RH_mean`, `Temp_min`.
 
 **Classification Summary**: Both models perform poorly, with an AUC of around 0.58-0.61 on the testing data. This could be due to the collinearity of the variables. Similar variables do arise as important, however, with `Temp_mean`, `DTR` and `RH_mean` coming up as especially important.
 
 
-#### glmer
+#### glm
+
+We can try this out with a generalized linear model (note we don't need a mixed-model because we have no random effect of site).
 
 
 ```r
-respV <- "Body"
-predVs <- c("Temp_mean","RH_mean","Temp_min","RH_min", "Temp_max", "DTR", "hoursAbove31", "hoursBelow16", "site")
-
-#create dataframe without NAs
-myCols <- c(respV, predVs)
-modDF <- seasonInf %>%
-  dplyr::select(one_of(myCols)) 
-modDF <- na.omit(modDF)
-modDF[,respV] <- as.factor(modDF[,respV])
-
-
-#split into testing and training
-set.seed(8675309)
-inds <- createDataPartition(modDF[,respV], p=.7, list=F, times=1)
-trainGLM <- modDF[inds,]
-testGLM <- modDF[-inds,]
-
-BodyEnv <- lme4::glmer(Body~ 
+#drop Tmax because it is rank deficient
+BodyEnv <- glm(Body~ 
                          scale(Temp_mean, center=T, scale=T) 
                        + scale(DTR, center=T, scale=T) 
                        + scale(RH_mean, center=T, scale=T) 
                        + scale(Temp_min, center=T, scale=T) 
                        + scale(RH_min, center=T, scale=T) 
-                       + scale(Temp_max, center=T, scale=T)
+                       #+ scale(Temp_max, center=T, scale=T)
                        + scale(hoursAbove31, center=T, scale=T)
-                       + scale(hoursBelow16, center=T, scale=T)
-                       + (1|site) , 
-                          data=trainGLM,
+                       + scale(hoursBelow16, center=T, scale=T), 
+                          data=train,
                           family=binomial(link="logit"))
-```
 
-```
-## Warning in checkConv(attr(opt, "derivs"), opt$par, ctrl = control
-## $checkConv, : Model failed to converge with max|grad| = 0.00147181 (tol =
-## 0.001, component 1)
-```
-
-```r
 summary(BodyEnv)
 ```
 
 ```
-## Generalized linear mixed model fit by maximum likelihood (Laplace
-##   Approximation) [glmerMod]
-##  Family: binomial  ( logit )
-## Formula: 
-## Body ~ scale(Temp_mean, center = T, scale = T) + scale(DTR, center = T,  
-##     scale = T) + scale(RH_mean, center = T, scale = T) + scale(Temp_min,  
-##     center = T, scale = T) + scale(RH_min, center = T, scale = T) +  
-##     scale(Temp_max, center = T, scale = T) + scale(hoursAbove31,  
-##     center = T, scale = T) + scale(hoursBelow16, center = T,  
-##     scale = T) + (1 | site)
-##    Data: trainGLM
 ## 
-##      AIC      BIC   logLik deviance df.resid 
-##    299.2    329.9   -140.6    281.2      213 
+## Call:
+## glm(formula = Body ~ scale(Temp_mean, center = T, scale = T) + 
+##     scale(DTR, center = T, scale = T) + scale(RH_mean, center = T, 
+##     scale = T) + scale(Temp_min, center = T, scale = T) + scale(RH_min, 
+##     center = T, scale = T) + scale(hoursAbove31, center = T, 
+##     scale = T) + scale(hoursBelow16, center = T, scale = T), 
+##     family = binomial(link = "logit"), data = train)
 ## 
-## Scaled residuals: 
-##     Min      1Q  Median      3Q     Max 
-## -1.6930 -0.7877 -0.4754  0.8745  1.8387 
+## Deviance Residuals: 
+##     Min       1Q   Median       3Q      Max  
+## -1.6353  -1.0046  -0.7118   1.1370   1.6854  
 ## 
-## Random effects:
-##  Groups Name        Variance Std.Dev.
-##  site   (Intercept) 0.08085  0.2843  
-## Number of obs: 222, groups:  site, 9
-## 
-## Fixed effects:
+## Coefficients:
 ##                                             Estimate Std. Error z value
-## (Intercept)                                 -0.09829    0.17442  -0.564
-## scale(Temp_mean, center = T, scale = T)    -25.81155   22.47198  -1.149
-## scale(DTR, center = T, scale = T)            2.97015    8.32940   0.357
-## scale(RH_mean, center = T, scale = T)        7.74726    8.93191   0.867
-## scale(Temp_min, center = T, scale = T)      14.48982   14.99873   0.966
-## scale(RH_min, center = T, scale = T)         2.37554    7.30645   0.325
-## scale(hoursAbove31, center = T, scale = T)  -0.09834    0.32256  -0.305
-## scale(hoursBelow16, center = T, scale = T)  -1.21328    1.22918  -0.987
+## (Intercept)                                 -0.10626    0.14366  -0.740
+## scale(Temp_mean, center = T, scale = T)    -22.31916   18.11438  -1.232
+## scale(DTR, center = T, scale = T)            0.96656    6.10257   0.158
+## scale(RH_mean, center = T, scale = T)        9.97013    7.03238   1.418
+## scale(Temp_min, center = T, scale = T)      12.33590   12.25068   1.007
+## scale(RH_min, center = T, scale = T)         0.45385    5.23052   0.087
+## scale(hoursAbove31, center = T, scale = T)  -0.05879    0.27508  -0.214
+## scale(hoursBelow16, center = T, scale = T)  -0.88540    0.86941  -1.018
 ##                                            Pr(>|z|)
-## (Intercept)                                   0.573
-## scale(Temp_mean, center = T, scale = T)       0.251
-## scale(DTR, center = T, scale = T)             0.721
-## scale(RH_mean, center = T, scale = T)         0.386
-## scale(Temp_min, center = T, scale = T)        0.334
-## scale(RH_min, center = T, scale = T)          0.745
-## scale(hoursAbove31, center = T, scale = T)    0.760
-## scale(hoursBelow16, center = T, scale = T)    0.324
+## (Intercept)                                   0.460
+## scale(Temp_mean, center = T, scale = T)       0.218
+## scale(DTR, center = T, scale = T)             0.874
+## scale(RH_mean, center = T, scale = T)         0.156
+## scale(Temp_min, center = T, scale = T)        0.314
+## scale(RH_min, center = T, scale = T)          0.931
+## scale(hoursAbove31, center = T, scale = T)    0.831
+## scale(hoursBelow16, center = T, scale = T)    0.308
 ## 
-## Correlation of Fixed Effects:
-##                              (Intr) scale(Temp_men,cntr=T,scl=T) s(Dc=Ts=T
-## scale(Temp_men,cntr=T,scl=T) -0.027                                       
-## s(DTRc=Ts=T                   0.023 -0.907                                
-## scale(RH_men,cntr=T,scl=T)   -0.003  0.460                       -0.755   
-## scale(Temp_min,cntr=T,scl=T)  0.031 -0.994                        0.895   
-## scale(RH_min,cntr=T,scl=T)    0.000 -0.692                        0.878   
-## s(A31c=Ts=T                  -0.055  0.706                       -0.599   
-## s(B16c=Ts=T                  -0.008  0.558                       -0.650   
-##                              scale(RH_men,cntr=T,scl=T)
-## scale(Temp_men,cntr=T,scl=T)                           
-## s(DTRc=Ts=T                                            
-## scale(RH_men,cntr=T,scl=T)                             
-## scale(Temp_min,cntr=T,scl=T) -0.458                    
-## scale(RH_min,cntr=T,scl=T)   -0.911                    
-## s(A31c=Ts=T                   0.083                    
-## s(B16c=Ts=T                   0.344                    
-##                              scale(Temp_min,cntr=T,scl=T)
-## scale(Temp_men,cntr=T,scl=T)                             
-## s(DTRc=Ts=T                                              
-## scale(RH_men,cntr=T,scl=T)                               
-## scale(Temp_min,cntr=T,scl=T)                             
-## scale(RH_min,cntr=T,scl=T)    0.663                      
-## s(A31c=Ts=T                  -0.706                      
-## s(B16c=Ts=T                  -0.482                      
-##                              scale(RH_min,cntr=T,scl=T) s(Ac=Ts=T
-## scale(Temp_men,cntr=T,scl=T)                                     
-## s(DTRc=Ts=T                                                      
-## scale(RH_men,cntr=T,scl=T)                                       
-## scale(Temp_min,cntr=T,scl=T)                                     
-## scale(RH_min,cntr=T,scl=T)                                       
-## s(A31c=Ts=T                  -0.249                              
-## s(B16c=Ts=T                  -0.581                      0.478   
-## fit warnings:
-## fixed-effect model matrix is rank deficient so dropping 1 column / coefficient
-## convergence code: 0
-## Model failed to converge with max|grad| = 0.00147181 (tol = 0.001, component 1)
+## (Dispersion parameter for binomial family taken to be 1)
+## 
+##     Null deviance: 307.11  on 221  degrees of freedom
+## Residual deviance: 281.42  on 214  degrees of freedom
+## AIC: 297.42
+## 
+## Number of Fisher Scoring iterations: 4
 ```
 
 ```r
 plot(BodyEnv)
 ```
 
-![](dengueInfections_files/figure-html/unnamed-chunk-5-1.png)<!-- -->
-
-```r
-Anova(BodyEnv)
-```
-
-```
-## Analysis of Deviance Table (Type II Wald chisquare tests)
-## 
-## Response: Body
-##                                             Chisq Df Pr(>Chisq)
-## scale(Temp_mean, center = T, scale = T)    1.3193  1     0.2507
-## scale(DTR, center = T, scale = T)          0.1272  1     0.7214
-## scale(RH_mean, center = T, scale = T)      0.7523  1     0.3857
-## scale(Temp_min, center = T, scale = T)     0.9333  1     0.3340
-## scale(RH_min, center = T, scale = T)       0.1057  1     0.7451
-## scale(Temp_max, center = T, scale = T)             0           
-## scale(hoursAbove31, center = T, scale = T) 0.0930  1     0.7605
-## scale(hoursBelow16, center = T, scale = T) 0.9743  1     0.3236
-```
+![](dengueInfections_files/figure-html/unnamed-chunk-6-1.png)<!-- -->![](dengueInfections_files/figure-html/unnamed-chunk-6-2.png)<!-- -->![](dengueInfections_files/figure-html/unnamed-chunk-6-3.png)<!-- -->![](dengueInfections_files/figure-html/unnamed-chunk-6-4.png)<!-- -->
 
 ```r
 #check performance
-preds <- predict(object=BodyEnv, testGLM[,predVs], type='response')
-auc <- roc(testGLM[,respV], preds)
+preds <- predict(object=BodyEnv, test[,predVs], type='response')
+aucGLM <- roc(test[,respV], preds)
 ```
 
-The only variable that is even somewhat significant is mean Temperature (p=0.03). The other variables are also highly correlated, which makes it difficult to see which is having the largest effect. This does perform about the same as the `GBM` and `glmnet` models, with an auc of 0.5505669.
+The only variable that is even somewhat significant is mean RH(p=0.04 and mean Temp (0.05). The other variables are also highly correlated, which makes it difficult to see which is having the largest effect. This does perform about the same as the `GBM` and `glmnet` models, with an auc of 0.5356009. It's AIC is 297.4205384
 
 #### Model Selection using a priori variable selection
 
@@ -2613,134 +1200,85 @@ First, I will try to do model selection based on what variables the earlier lass
 
 
 ```r
-respV <- "Body"
-predVs <- c("Temp_mean","RH_mean","Temp_min","RH_min", "Temp_max", "DTR", "hoursAbove31", "hoursBelow16", "site")
-
-#create dataframe without NAs
-myCols <- c(respV, predVs)
-modDF <- seasonInf %>%
-  dplyr::select(one_of(myCols)) 
-modDF <- na.omit(modDF)
-modDF[,respV] <- as.factor(modDF[,respV])
-
-
-#split into testing and training
-set.seed(8675309)
-inds <- createDataPartition(modDF[,respV], p=.7, list=F, times=1)
-trainGLM <- modDF[inds,]
-testGLM <- modDF[-inds,]
-
-BodyEnv <- lme4::glmer(Body~ 
+BodyEnvMS <- glm(Body~ 
                          scale(Temp_mean, center=T, scale=T) 
                        + scale(DTR, center=T, scale=T) 
                        + scale(RH_mean, center=T, scale=T) 
-                       + scale(Temp_min, center=T, scale=T) 
-                       + #scale(RH_min, center=T, scale=T) 
-                       + #scale(Temp_max, center=T, scale=T)
-                       + #scale(hoursAbove31, center=T, scale=T)
-                       + #scale(hoursBelow16, center=T, scale=T)
-                       + (1|site) , 
-                          data=trainGLM,
+                       + scale(Temp_min, center=T, scale=T), 
+                       #+ scale(RH_min, center=T, scale=T) 
+                       #+ scale(Temp_max, center=T, scale=T)
+                       #+ scale(hoursAbove31, center=T, scale=T)
+                       #+ scale(hoursBelow16, center=T, scale=T), 
+                          data=train,
                           family=binomial(link="logit"))
 
-summary(BodyEnv)
+summary(BodyEnvMS)
 ```
 
 ```
-## Generalized linear mixed model fit by maximum likelihood (Laplace
-##   Approximation) [glmerMod]
-##  Family: binomial  ( logit )
-## Formula: 
-## Body ~ scale(Temp_mean, center = T, scale = T) + scale(DTR, center = T,  
-##     scale = T) + scale(RH_mean, center = T, scale = T) + scale(Temp_min,  
-##     center = T, scale = T) + ++++(1 | site)
-##    Data: trainGLM
 ## 
-##      AIC      BIC   logLik deviance df.resid 
-##    294.6    315.0   -141.3    282.6      216 
+## Call:
+## glm(formula = Body ~ scale(Temp_mean, center = T, scale = T) + 
+##     scale(DTR, center = T, scale = T) + scale(RH_mean, center = T, 
+##     scale = T) + scale(Temp_min, center = T, scale = T), family = binomial(link = "logit"), 
+##     data = train)
 ## 
-## Scaled residuals: 
-##     Min      1Q  Median      3Q     Max 
-## -1.8650 -0.8155 -0.5555  0.9068  1.6668 
+## Deviance Residuals: 
+##     Min       1Q   Median       3Q      Max  
+## -1.7316  -1.0098  -0.7334   1.0956   1.6305  
 ## 
-## Random effects:
-##  Groups Name        Variance Std.Dev.
-##  site   (Intercept) 0        0       
-## Number of obs: 222, groups:  site, 9
-## 
-## Fixed effects:
+## Coefficients:
 ##                                         Estimate Std. Error z value
 ## (Intercept)                              -0.1011     0.1423  -0.710
-## scale(Temp_mean, center = T, scale = T) -19.0866     9.3785  -2.035
-## scale(DTR, center = T, scale = T)        -0.2624     2.0267  -0.129
-## scale(RH_mean, center = T, scale = T)     8.6199     2.7211   3.168
-## scale(Temp_min, center = T, scale = T)   11.3341     6.5575   1.728
+## scale(Temp_mean, center = T, scale = T) -19.0866     9.3937  -2.032
+## scale(DTR, center = T, scale = T)        -0.2624     2.0282  -0.129
+## scale(RH_mean, center = T, scale = T)     8.6199     2.7226   3.166
+## scale(Temp_min, center = T, scale = T)   11.3341     6.5681   1.726
 ##                                         Pr(>|z|)   
 ## (Intercept)                              0.47761   
-## scale(Temp_mean, center = T, scale = T)  0.04184 * 
-## scale(DTR, center = T, scale = T)        0.89696   
-## scale(RH_mean, center = T, scale = T)    0.00154 **
-## scale(Temp_min, center = T, scale = T)   0.08391 . 
+## scale(Temp_mean, center = T, scale = T)  0.04217 * 
+## scale(DTR, center = T, scale = T)        0.89704   
+## scale(RH_mean, center = T, scale = T)    0.00155 **
+## scale(Temp_min, center = T, scale = T)   0.08441 . 
 ## ---
 ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 ## 
-## Correlation of Fixed Effects:
-##                              (Intr) scale(Temp_men,cntr=T,scl=T) s(Dc=Ts=T
-## scale(Temp_men,cntr=T,scl=T) -0.008                                       
-## s(DTRc=Ts=T                  -0.003 -0.639                                
-## s(RH_c=Ts=T                   0.018 -0.616                       -0.192   
-## scale(Temp_min,cntr=T,scl=T)  0.006 -0.993                        0.697   
-##                              s(Rc=Ts=T
-## scale(Temp_men,cntr=T,scl=T)          
-## s(DTRc=Ts=T                           
-## s(RH_c=Ts=T                           
-## scale(Temp_min,cntr=T,scl=T)  0.533
-```
-
-```r
-plot(BodyEnv)
-```
-
-![](dengueInfections_files/figure-html/GLMER with a priori variable selection-1.png)<!-- -->
-
-```r
-Anova(BodyEnv)
-```
-
-```
-## Analysis of Deviance Table (Type II Wald chisquare tests)
+## (Dispersion parameter for binomial family taken to be 1)
 ## 
-## Response: Body
-##                                           Chisq Df Pr(>Chisq)   
-## scale(Temp_mean, center = T, scale = T)  4.1418  1   0.041836 * 
-## scale(DTR, center = T, scale = T)        0.0168  1   0.896964   
-## scale(RH_mean, center = T, scale = T)   10.0352  1   0.001536 **
-## scale(Temp_min, center = T, scale = T)   2.9875  1   0.083911 . 
-## ---
-## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+##     Null deviance: 307.11  on 221  degrees of freedom
+## Residual deviance: 282.59  on 217  degrees of freedom
+## AIC: 292.59
+## 
+## Number of Fisher Scoring iterations: 4
 ```
+
+```r
+plot(BodyEnvMS)
+```
+
+![](dengueInfections_files/figure-html/GLM with a priori variable selection-1.png)<!-- -->![](dengueInfections_files/figure-html/GLM with a priori variable selection-2.png)<!-- -->![](dengueInfections_files/figure-html/GLM with a priori variable selection-3.png)<!-- -->![](dengueInfections_files/figure-html/GLM with a priori variable selection-4.png)<!-- -->
 
 ```r
 #check performance
-preds <- predict(object=BodyEnv, testGLM[,predVs], type='response')
-auc <- roc(testGLM[,respV], preds)
+preds <- predict(object=BodyEnvMS, test[,predVs], type='response')
+aucGLMMS <- roc(test[,respV], preds)
+AIC(BodyEnvMS)
+```
+
+```
+## [1] 292.5908
 ```
 
 
+The BIC value of this is 309.6042119 compare to 324.6419575 for the one without variable selection.  It's AUC value is . This really isn't much different than the other one with all of the variables. The AUC and AIC values are the same, and the BIC value only decreases because of parsimony (i.e. it penalizes having more variables).
 
-## Try Out on Percentages
+### Stats Summary
 
-Rather than treating each individual as a sample, I am going to try for % of infected mosquitoes per site.
+So what do we learn from this big mess of stats?  On the body (which is all we've done so far), a model consisting of these environmental variables does not predict infection very well.  We get some variable importance from the GBM, but in the GLM there are no significant predictor variables. However, we did get a strong effect of season and land use on body infection in the section above.  To me, this means that we are seeing a difference, but it isn't being measured by the variables we collected. There may be other things, then, that are influencing a mosquito's ability to become infected.  A potential idea is that this may such an indirect effect of temperature that we don't see it. Specifically, I am thinking of the fact that emergence and survival was different across land use and season, and that this could impact 1) resource availability to those that survive and 2) overall "quality" of the mosquitoes that do survive to adulthood.
 
+#### "Final" Model to Use
 
-```r
-#this isn't grouping appropriately and I don't know why...
-seasonInfPC <- seasonInf %>%
-  group_by(block, site) %>%
-  summarise(mBody=mean(Body, na.rm=T)) %>%
-  mutate(mHead=mean(Head, na.rm=T)) %>%
-  mutate(mSal=mean(Saliva, na.rm=T)) %>%
-  dplyr::select(-Individual, -DPI, -Body, -Head, -Saliva, - Wing) %>%
-  ungroup()
-  distinct(site, .keep_all=T)
-```
+The GLM with the a priori variable selection performs the best (as judged by AUC and AIC). No variables come out as significant, but I think we can make the argument that these variables were ranked as important by the glmnet and GBM model, so do have an effect, just not a clear significant one. 
+
+Conclusion: Something else is going on at these times (most likely related to climate) that we are just not measuring appropriately.
+

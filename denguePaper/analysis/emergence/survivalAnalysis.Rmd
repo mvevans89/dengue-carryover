@@ -1,51 +1,559 @@
 ---
 title: "Survival Analyses"
 author: "Michelle Evans"
-date: "January 21, 2017"
+date: ""
 output: html_document
 ---
 
 This is the document exploring larval survival for the 2016 Athens Field Project (both seasons).
 
 ```{r setup, echo=F}
-library(tidyr)
-library(xtable)
-library(dplyr)
+knitr::opts_chunk$set(cache=TRUE)
+knitr::opts_chunk$set(message=FALSE)
+knitr::opts_chunk$set(warning=FALSE)
+knitr::opts_chunk$set(echo=FALSE)
 ```
 
+```{r load packages}
+library(xtable)
+library(dplyr)
+library(ggplot2)
+library(lme4)
+library(MASS)
+library(car)
+library(survival)
+```
 
-#Basic Survival Analyses
+# Notebook of Tasks Done
+
+* overall survival per tray by Class and Block using a linear mixed model (this could probably also be a logistic regression) (2017-04-05)
+* survival curves using Cox PH: PH Assumptions were very violated, even when turning `Class` into a time dependent variable. Decided against this method (2017-04-10)
+* creating individual regression curves for each tray, and then using the growth rate as response variables in a mixed-model (2017-04-16)
+
+
+# Data Visualization
 
 ```{r data load and sort}
 emergAug <- read.csv("../../data/emergence/raw/AugustEmergence.csv")
 emergAug$block <- "summer"
-emergOct <- read.csv("../../data/emergence/raw/SeptemberEmergence.csv")
+
+emergOct <- read.csv("../../data/emergence/raw/OctoberEmergence.csv")
 emergOct$block <- "fall"
+#drop U3T1 in fall because it was eaten by ants
+emergOct <- filter(emergOct, Tray_Code!="U3T1")
 
 emergAll <- rbind(emergOct, emergAug)
 #expand so each mosquito gets one row
 emergExp <- emergAll[rep(seq.int(1,nrow(emergAll)), emergAll$Num_Emerge),
                       c(11, 2,4,5,6:9)]
 sum(emergAll$Num_Emerge)==nrow(emergExp) #quick check this worked
+```
+
+Investigate tray level survival for some basic box plots. Note, we are only including female survival because that is what contributes to disease and population growth.
+
+```{r tray level}
+#get survival per tray
+survSumm <- emergExp %>%
+  filter(Sex=="F") %>%
+  group_by(block, Tray_Code) %>%
+  mutate(percSurv=n()/50) %>%
+  ungroup() %>%
+  dplyr::select(block, Class, Site_Code, Tray_Code, percSurv)
+survSumm <- unique(survSumm)
+
+#box plot by site
+ggplot(data=survSumm, aes(x=Site_Code, y=percSurv)) +
+  geom_boxplot() +
+  facet_wrap(~block)
+```
+
+Possible outliers are S1T4 and R1T3.
+
+```{r}
+ggplot(data=survSumm, aes(x=Class, y=percSurv)) +
+  geom_boxplot() +
+  facet_wrap(~block)
+```
+
+In general, I would say survival is more likely in urban in the fall and less likely in urban in the summer, although this is slight. There is no difference between rural and suburban.
+
+# Mixed Model Emergence Percentages
+
+```{r}
+mixMortality <- lmer(percSurv ~  Class + block + Class:block + (1|Site_Code), data=survSumm)
+summary(mixMortality)
+anova(mixMortality)
+Anova(mixMortality, test.statistic = "F") #with car loaded
+plot(mixMortality)
+qqnorm(resid(mixMortality))
+```
+
+Block and Class had a significant effect. With higher survival in the summer than the fall.
+
+I tried it dropping outliers S1T4 and R1T3, and it wasn't any better.
+
+# Development Rates
+
+We can also look at the time to development (i.e. emergence day) for block and class.
+
+```{r}
+emergExpF <- filter(emergExp, Sex=="F")
+ggplot(data=emergExpF, aes(x=Site_Code, y=Exp_Day)) +
+  geom_boxplot() +
+  facet_wrap(~block)
+```
+
+It took much longer in the fall than in the summer for mosquitoes to emerge, implying they were developing more slowly. To get at the rate, we need to to plot this as a logistic regression (or survival curve).
+
+# Survival Analysis
+
+## Format Data
+
+Using `emergExp`, in which each mosquito has its own row, we then fillIn rows for mosquitoes which did not emerge. Again, assuming 50 F per tray.
+
+```{r fillIn function}
+fillIn <- function(df, endDay, totalMosq=50){
+  #' Fill In Emergence Dates
+  #' this function fills in for those mosquitoes that did not emerge so we do not have data for, it gives them an observation/event of 0 on the last day we found a mosquito emerged
+  #' @param df the data frame you wish to fill in, in our case by pot
+  #' @param endDay the last day of emergence
+  #' @param totalMosq estimated starting number of mosquitoes per pot
+  #' @returns dataframe with census data filled in for mosquitoes that did not emerge
+  toRep <- df[1,]
+  toRep$Exp_Day <- endDay
+  toRep$event <- 0
+  if(nrow(df)<totalMosq){
+    toAdd <- toRep[rep(1, (totalMosq-nrow(df))),]
+    allTest <- rbind(df, toAdd)
+  } else {
+    toAdd <- NA
+    allTest <- NA
+  }
+  return(allTest)
+}
+```
+
+
+```{r apply FillIn function}
+applyFill <- function(season, allData=emergExp){
+  #' Apply FillIn function
+  #' @param season "fall" or "summer"
+  #' @param allData full dataframe with row for each mosquito that emerged
+  #' @returns censused data for the full season
+  tempList <- list()
+  tempDF <- allData
+  tempDF <- tempDF[tempDF$Sex=="F",]
+  tempDF <- tempDF[tempDF$block==season,]
+  tempDF$event <- 1 #add emergence event
+  for (i in 1:length(unique(tempDF$Tray_Code))){ 
+    df <- tempDF[tempDF$Tray_Code==unique(tempDF$Tray_Code)[i],]
+    endDay <- max(tempDF$Exp_Day)
+    tempList[[i]] <- fillIn(df=df, endDay=endDay)
+  }
+  allSurv <- do.call(rbind.data.frame, tempList)
+  return(allSurv)
+}
+```
+
+```{r}
+summerSurv <- applyFill(season="summer")
+fallSurv <- applyFill(season="fall")
+allSurv <- rbind(summerSurv, fallSurv)
+```
+
+```{r combine with climate data, eval=F}
+#create summarised climate data by Tray_Code and Exp_Day
+climate <- read.csv("../../data/microclimate/clean/2016TrialsAdultCleaned.csv", stringsAsFactors = F)
+```
+
+```{r}
+#format data to get cumulative values
+
+#need to add a value for every day
+days <- expand.grid(block=c("fall", "summer"), Tray_Code=unique(allSurv$Tray_Code), Exp_Day=seq(0,44))
+days$Site_Code <- NA
+for (i in 1:9){
+  days$Site_Code[substring(days$Tray_Code,1,2) == levels(allSurv$Site_Code)[i]] <- levels(allSurv$Site_Code)[i]
+}
+days$Class <- NA
+for (i in 1:3){
+  days$Class[substring(days$Site_Code,1,1)==toupper(substring(levels(allSurv$Class)[i],1,1))] <- levels(allSurv$Class)[i]
+}
+
+allSurvDays <- merge(allSurv, days, by=c("block", "Tray_Code", "Exp_Day", "Site_Code", "Class"), all.x=T, all.y=T)
+allSurvDays$event[is.na(allSurvDays$event)] <- 0 #add events=0
+
+logEmerge <- allSurvDays %>%
+  group_by(block, Site_Code, Tray_Code, Class) %>%
+  arrange(block,Tray_Code,Exp_Day) %>%
+  dplyr::mutate(emg=cumsum(event)) %>%
+  group_by(block, Site_Code, Tray_Code, Class, Exp_Day) %>%
+  summarise(CumEmerge=max(emg)) %>%
+  ungroup()
+
+logEmergeBasic <- allSurv %>%
+  group_by(block, Site_Code, Tray_Code, Class) %>%
+  arrange(block,Tray_Code,Exp_Day) %>%
+  dplyr::mutate(emg=cumsum(event)) %>%
+  group_by(block, Site_Code, Tray_Code, Class, Exp_Day) %>%
+  summarise(CumEmerge=max(emg)) %>%
+  ungroup()
 
 ```
 
-For now, we just kind of want an average survival by class and block.
+## Logistic Growth (Emergence) Curves
 
-```{r format}
-survSumm <- emergExp %>%
-  group_by(block, Tray_Code) %>%
-  mutate(percSurv=n()/100) %>%
-  ungroup() %>%
-  group_by(Class, block) %>%
-  mutate(SurvMean = mean(percSurv)) %>%
-  mutate(Survse = (sd(percSurv)/sqrt(12))) %>%
-  ungroup()
-survSumm <- survSumm[,c('block','Class',"SurvMean", "Survse")]
-survSumm <- unique(survSumm)
+Our survival curves violated all of the Cox PH assumptions, even when correcting for them by turning `class` into a time-dependent covariate. So I am trying another approach of plotting logistic growth curves for each Tray, then using the rate from this curve in a mixed model as the response variable.
 
-#or read in mixed model results from below
-survSumm <- read.csv("../../data/emergence/clean/survivalMixedModel.csv")
+Quick Visualization by Site:
+
+```{r}
+ggplot(data=logEmerge[logEmerge$block=="summer",], aes(x=Exp_Day, y=CumEmerge, group=Tray_Code)) +
+  geom_line() +
+  facet_wrap(~Site_Code) +
+  ggtitle("Summer Emergence")
+```
+
+```{r}
+ggplot(data=logEmerge[logEmerge$block=="fall",], aes(x=Exp_Day, y=CumEmerge, group=Tray_Code)) +
+  geom_line() +
+  facet_wrap(~Site_Code) +
+  ggtitle("Fall Emergence")
+```
+
+The fall emergence has some crazy curves. It is not particularly surprising that a bunch of PH hazards were violated by this.
+
+## Logistic Curves
+
+I'm going to use the logistic growth equation for this:
+
+$$ y = \frac{Asymp}{1 + e^{\frac{xmid - x}{scal}}} $$
+
+Where $Asymp$  is the carrying capacity (asymptote) and $scal$ is $1/r$, with $r$ being the intrinsic growth rate.
+
+
+```{r logistic growth function}
+getlogGrowth <- function(season, tray, dataSource=logEmerge, viz=F){
+  test <- dataSource %>%
+    filter(block==season, Tray_Code==tray) 
+    #group_by(Exp_Day, block, Site_Code) %>%
+    #summarise(CumEmerge = sum(CumEmerge)) #this sums up emergence per site
+  lastDay <- min(test$Exp_Day[test$CumEmerge==max(test$CumEmerge, na.rm=T)], na.rm=T)
+  test<- filter(test, Exp_Day<=lastDay+1)
+  firstDay <- min(test$Exp_Day[test$CumEmerge>0], na.rm=T)
+  test <- filter(test, Exp_Day>=firstDay)
+  modelTest <- nls(CumEmerge ~SSlogis(Exp_Day, Asym, xmid, scal), data=test)
+  if (viz==T){
+  plot(CumEmerge ~ Exp_Day, test, xlim=c(0,max(test$Exp_Day)), ylim=c(0,(max(test$CumEmerge)+10)))
+  with(test, lines(seq(1,max(test$Exp_Day)), predict(modelTest, data.frame(Exp_Day=seq(1,max(test$Exp_Day))))))
+  mtext(paste0(season, ": ", tray))
+  with(test, plot(Exp_Day, residuals(modelTest), type="b"))#residuals
+  }
+  modelRes <- nlsResiduals(modelTest)
+  if (viz==T){
+  par(mar=rep(2,4))
+  plot(modelRes)
+  }
+  resTest <- test.nlsResiduals(modelRes)
+  return(list(Tray_Code=tray, nlsMod=modelTest, resids=resTest))
+}
+```
+
+Now run the function over each tray:
+
+```{r}
+summerMods <- list()
+season <- "summer"
+for (j in 1:length(unique(logEmerge$Tray_Code[logEmerge$block==season]))){
+  tray <- unique(logEmerge$Tray_Code[logEmerge$block==season])[j]
+  if (tray %in% c("S1T4", "U3T4")){
+    summerMods[[j]] <- list(Tray_Code=tray)
+    next
+  } 
+  summerMods[[j]] <- getlogGrowth(season=season, tray=tray, dataSource = logEmergeBasic, viz=F)
+  #names(summerMods[[j]]) <- c(NA, "model", "residuals")
+}
+#unlist into dataframe
+modelResultsSumm <- matrix(NA, nrow=length(summerMods), ncol=3)
+for (i in 1:length(summerMods)){
+  temp <- summerMods[[i]]
+  if (temp$Tray_Code %in% c("S1T4", "U3T4")) next
+  #modelResultsSumm$Tray_Code[i] <- temp$Tray_Code
+  modelResultsSumm[i,1] <- coef(temp$nlsMod)[[1]]
+  modelResultsSumm[i,2] <- coef(temp$nlsMod)[[2]]
+  modelResultsSumm[i,3] <- coef(temp$nlsMod)[[3]]
+}
+modelResultsSumm <- as.data.frame(modelResultsSumm)
+colnames(modelResultsSumm) <- c("Asym", "xmid", "scale")
+modelResultsSumm$Tray_Code <- NA
+for (i in 1:nrow(modelResultsSumm)){
+  temp <- summerMods[[i]]
+  modelResultsSumm$Tray_Code[i] <- as.character(temp$Tray_Code)
+}
+# add site and class
+modelResultsSumm$Site_Code <- NA
+for (i in 1:9){
+  modelResultsSumm$Site_Code[substring(modelResultsSumm$Tray_Code,1,2) == levels(allSurv$Site_Code)[i]] <- levels(allSurv$Site_Code)[i]
+}
+modelResultsSumm$Class <- NA
+for (i in 1:3){
+  modelResultsSumm$Class[substring(modelResultsSumm$Site_Code,1,1)==toupper(substring(levels(allSurv$Class)[i],1,1))] <- levels(allSurv$Class)[i]
+}
+modelResultsSumm$r <- 1/modelResultsSumm$scale
+modelResultsSumm$Class <- as.factor(modelResultsSumm$Class)
+modelResultsSumm$Site_Code <- as.factor(modelResultsSumm$Site_Code)
+modelResultsSumm$block <- as.factor("summer")
+```
+
+Do the same for fall:
+
+```{r}
+fallMods <- list()
+season <- "fall"
+for (j in 1:length(unique(logEmerge$Tray_Code[logEmerge$block==season]))){
+
+  tray <- unique(logEmerge$Tray_Code[logEmerge$block==season])[j]
+  if (tray %in% c("R2T2","R2T3", "R2T4", "R3T1", "S1T4", "S2T3", "S2T4", "U1T2", "U1T4", "U3T1", "U3T4")) { #drops ones with too few emergence that don't converge
+  #if (tray %in% c("R2T2","R2T3", "R2T4", "R3T1", "S1T4", "S2T3", "S2T4", "U1T2", "U1T4", "U3T1", "U3T4", "S2T2", "U1T3")) { #for logEmerge dataset
+    fallMods[[j]] <- list(Tray_Code=tray)
+    next
+  }
+  fallMods[[j]] <- getlogGrowth(season=season, tray=tray, dataSource=logEmergeBasic, viz=F)
+  #names(fallMods[[j]]) <- c(NA, "model", "residuals")
+}
+```
+
+```{r}
+#unlist into dataframe
+modelResultsFall <- matrix(NA, nrow=length(fallMods), ncol=3)
+for (i in 1:length(fallMods)){
+  #if (i %in% c(7,8,9, 16, 18, 19, 20, 27, 28, 33, 36)) next
+  temp <- fallMods[[i]]
+  if (temp$Tray_Code %in% c("R2T2","R2T3", "R2T4", "R3T1", "S1T4", "S2T3", "S2T4", "U1T2", "U1T4", "U3T1", "U3T4")) next
+  #if (temp$Tray_Code %in% c("R2T2","R2T3", "R2T4", "R3T1", "S1T4", "S2T3", "S2T4", "U1T2", "U1T4", "U3T1", "U3T4", "S2T2", "U1T3")) next #for logEmerge dataset
+  #modelResultsFall$Tray_Code[i] <- temp$Tray_Code
+  modelResultsFall[i,1] <- coef(temp$nlsMod)[[1]]
+  modelResultsFall[i,2] <- coef(temp$nlsMod)[[2]]
+  modelResultsFall[i,3] <- coef(temp$nlsMod)[[3]]
+}
+modelResultsFall <- as.data.frame(modelResultsFall)
+colnames(modelResultsFall) <- c("Asym", "xmid", "scale")
+modelResultsFall$Tray_Code <- NA
+for (i in 1:nrow(modelResultsFall)){
+  temp <- fallMods[[i]]
+  modelResultsFall$Tray_Code[i] <- as.character(temp$Tray_Code)
+}
+# add site and class
+modelResultsFall$Site_Code <- NA
+for (i in 1:9){
+  modelResultsFall$Site_Code[substring(modelResultsFall$Tray_Code,1,2) == levels(allSurv$Site_Code)[i]] <- levels(allSurv$Site_Code)[i]
+}
+modelResultsFall$Class <- NA
+for (i in 1:3){
+  modelResultsFall$Class[substring(modelResultsFall$Site_Code,1,1)==toupper(substring(levels(allSurv$Class)[i],1,1))] <- levels(allSurv$Class)[i]
+}
+rm(i)
+modelResultsFall$r <- 1/modelResultsFall$scale
+modelResultsFall$Class <- as.factor(modelResultsFall$Class)
+modelResultsFall$Site_Code <- as.factor(modelResultsFall$Site_Code)
+modelResultsFall$block <- as.factor("fall")
+```
+
+Merge them together:
+
+```{r}
+modelResultsAll <- rbind(modelResultsFall, modelResultsSumm)
+```
+
+
+Quick Visualization:
+
+```{r}
+ggplot(data=modelResultsAll, aes(x=Site_Code,y=r)) +
+  geom_boxplot() +
+  facet_grid(~block)
+ggplot(data=modelResultsAll, aes(x=Class,y=r)) +
+  geom_boxplot() +
+  facet_grid(~block)
+```
+
+Then I use a mixed effects model to look at the effect of class and block on emergence rates:
+
+```{r}
+mod <- lmer(r~ Class + block + Class:block + (1|Site_Code), data=modelResultsAll)
+summary(mod)
+Anova(mod)
+plot(resid(mod)~fitted(mod)) #residuals seem fine
+abline(lm(resid(mod)~fitted(mod)), col="red")
+qqnorm(resid(mod))
+```
+
+It works and all of the residuals check out!
+
+### Plots  & Tables to Make
+
+Emergence curves based on the logistic growth curves: A darker mean curve + the whole range of curves produced through fitted models with 95% CI levels, with actual points in the background (for each class), then facetted by season
+
+Steps: get predicted values along a gradient for each tray, then get quantiles for each timestep and find min and max along them. Plot those as background polygons, with mean line between.
+
+```{r}
+xrange=seq(0,45)
+season="fall"
+
+for (i in 1:length(fallMods)){
+  mod <- fallMods[[i]]$nlsMod
+    if (fallMods[[i]]$Tray_Code %in% c("R2T2","R2T3", "R2T4", "R3T1", "S1T4", "S2T3", "S2T4", "U1T2", "U1T4", "U3T1", "U3T4")) next
+  toAdd <- cbind(fallMods[[i]]$Tray_Code, xrange,predict(mod, data.frame(Exp_Day=xrange)))
+  if (i==1) {
+    fallPreds <- toAdd
+  } else fallPreds <- rbind(fallPreds, toAdd)
+}
+#bind with Tray_Code
+fallPreds <- as.data.frame(fallPreds)
+fallPreds$Tray_Code <- levels(logEmerge$Tray_Code)[fallPreds[,1]]
+fallPreds$Class <- NA
+for (i in 1:3){
+  fallPreds$Class[substring(fallPreds$Tray_Code,1,1)==toupper(substring(levels(allSurv$Class)[i],1,1))] <- levels(allSurv$Class)[i]
+}
+
+# get upper and lower CI levels for each
+fallPredsCI <- fallPreds %>%
+  dplyr::select(-Tray_Code, - V1) %>%
+  group_by(Class, xrange) %>%
+  summarise_each(funs(low95=quantile(V3, 0.05, na.rm=T), high95=quantile(V3, 0.95, na.rm=T), med=median(V3, na.rm=T)))
+
+fallPreds$V3 <- fallPreds$V3/50*100
+```
+
+```{r}
+ggplot(data=fallPreds, aes(x=xrange, group=Class, color=Class)) +
+  # geom_line(aes(y=low95, col=Class), lty=2) +
+  # geom_line(aes(y=high95, col=Class), lty=2) +
+  stat_summary(geom="ribbon", fun.y="mean", fun.ymin="min", fun.ymax="max", aes(y=V3, fill=Class), alpha=0.2, lwd=0) +
+  stat_summary(geom="line", fun.y="mean", aes(y=V3, col=Class), lwd=2) +
+  geom_jitter(data=logEmergeBasic[logEmergeBasic$block=="fall",], aes(x=Exp_Day, y=CumEmerge*2, col=Class), size=1, alpha=0.5) +
+  theme_gdocs() +
+  scale_color_manual(values=c("rural"="dodgerblue", "suburban"="gray20", "urban"="maroon")) + 
+  scale_fill_manual(values=c("rural"="dodgerblue", "suburban"="gray20", "urban"="maroon")) + 
+  xlab("Days") +
+  ylab("Percent Emerged") +
+  ylim(0,100) +
+  ggtitle("Fall Emergence Curves")
+```
+
+And now for summer:
+
+```{r}
+xrange=seq(0,45)
+season="summer"
+#summerPreds <- data.frame(matrix(NA, nrow=length(summerMods)*51, ncol=4))
+for (i in 1:length(summerMods)){
+  mod <- summerMods[[i]]$nlsMod
+    if (summerMods[[i]]$Tray_Code %in% c("S1T4", "U3T4")) next
+  toAdd <- cbind(summerMods[[i]]$Tray_Code, xrange,predict(mod, data.frame(Exp_Day=xrange)))
+  if (i==1) {
+    summerPreds <- toAdd
+  } else summerPreds <- rbind(summerPreds, toAdd)
+}
+#bind with Tray_Code
+summerPreds <- as.data.frame(summerPreds)
+summerPreds$Tray_Code <- levels(logEmerge$Tray_Code)[summerPreds[,1]]
+summerPreds$Class <- NA
+for (i in 1:3){
+  summerPreds$Class[substring(summerPreds$Tray_Code,1,1)==toupper(substring(levels(allSurv$Class)[i],1,1))] <- levels(allSurv$Class)[i]
+}
+
+summerPreds$V3 <- summerPreds$V3*2
+```
+
+```{r}
+ggplot(data=summerPreds, aes(x=xrange, group=Class, color=Class)) +
+  # geom_line(aes(y=low95, col=Class), lty=2) +
+  # geom_line(aes(y=high95, col=Class), lty=2) +
+  stat_summary(geom="ribbon", fun.y="mean", fun.ymin="min", fun.ymax="max", aes(y=V3, fill=Class), alpha=0.2, lwd=0) +
+  stat_summary(geom="line", fun.y="mean", aes(y=V3, col=Class), lwd=2) +
+  geom_jitter(data=logEmergeBasic[logEmergeBasic$block=="summer",], aes(x=Exp_Day, y=CumEmerge*2, col=Class), size=1, alpha=0.5) +
+  theme_gdocs() +
+  scale_color_manual(values=c("rural"="dodgerblue", "suburban"="gray20", "urban"="maroon")) + 
+  scale_fill_manual(values=c("rural"="dodgerblue", "suburban"="gray20", "urban"="maroon")) + 
+  xlab("Days") +
+  ylab("Percent Emerged") +
+  ylim(0,100) +
+  ggtitle("Summer Emergence Curves")
+```
+
+
+Table of survival and emergence rate per land class with SE and p-values
+
+
+
+
+
+## Cox PH Model
+
+http://socserv.mcmaster.ca/jfox/Books/Companion/appendix/Appendix-Nonlinear-Regression.pdf
+
+Now calculate Cox PH Models with climate data
+
+
+
+
+
+### Fall
+
+```{r}
+fallNaive <- coxph(Surv(Exp_Day, event) ~ Class, method="breslow", data=fallSurv)
+fallfit <- survfit(Surv(Exp_Day, event) ~ Class, data=fallSurv)
+plot(fallfit, lty=1:3)
+```
+
+```{r}
+plot(cox.zph(fallNaive))
+```
+
+This doesn't meet the assumptions and so probably needs to be messed around with re: 
+
+https://courses.nus.edu.sg/course/stacar/internet/st3242/handouts/notes4.pdf and https://courses.nus.edu.sg/course/stacar/internet/st3242/handouts/notes5.pdf
+
+
+### Summer
+```{r}
+summNaive <- coxph(Surv(Exp_Day, event) ~ Class, method="breslow", data=summerSurv)
+summNaive
+summfit <- survfit(Surv(Exp_Day, event) ~ Class, data=summerSurv)
+plot(summfit, lty=1:3)
+plot(cox.zph(summNaive))
+```
+
+One option is using an extended Cox model, where we split the time:
+
+```{r}
+summSplit <- survSplit(summerSurv, cut=c(18), end="Exp_Day", event="event", start="start")
+summSplit$gt <- (summSplit$start==18)+0
+coxph(Surv(start,Exp_Day, event) ~ Class, data=summSplit)
+summSplit$Class <- (summSplit$Class=="rural")+0
+expandedSumm <- coxph(Surv(start,Exp_Day, event) ~ Class + gt:Class, data=summSplit)
+cox.zph(expandedSumm)
+```
+
+
+#Deprecated
+
+
+
+```{r, eval=F}
+getPopGrowth <- function(season, site, dataSource=logEmerge){
+  test <- logEmergeBasic %>%
+    filter(block==season, Tray_Code==tray)
+  test$CumEmerge <- test$CumEmerge + 1
+  popGrowth <- CumEmerge ~ K/(1+((K-1)*exp(-r*Exp_Day)))
+  Inits <- list(K=max(test$CumEmerge), r=0.3)
+  testModel2 <- nls(formula=popGrowth, data=test, start=Inits)
+  res2 <- nlsResiduals(testModel2)
+  par(mar=rep(2,4))
+  plot(res2)
+  test.nlsResiduals(res2)
+}
 ```
 
 ```{r plot}
@@ -178,87 +686,7 @@ model <- lm(percSurv~Temp_mean, data=survClim)
 
 ```
 
-#Deprecated
-
-We fill in days for those that did not emerge, so that they are left-censored.
-```{r fillIn function}
-#' this function fills in for those mosquitoes that did not emerge so we do not have data for, it gives them an observation/event of 0 on the last day we found a mosquito emerged
-#' @param df the data frame you wish to fill in, in our case by tray
-#' @param endDay the maximum day of emergence in the experiment
-fillIn <- function(df, endDay){
-  toRep <- df[1,]
-  toRep$Exp_Day <- endDay
-  toRep$event <- 0
-  if(nrow(df)<30){
-    toAdd <- toRep[rep(1, (30-nrow(df))),]
-    allTest <- rbind(df, toAdd)
-  } else {
-    toAdd <- NA
-    allTest <- NA
-  }
-  return(allTest)
-}
-
-```
-
-```{r fill in dates, eval=T}
-
-#create a list to fill
-summerlist <- list()
-#run the fillIn function on it
-for (i in 1:length(unique(summerExpanded$Pot_ID))){ 
-  df <- summerExpanded[summerExpanded$Pot_ID==unique(summerExpanded$Pot_ID)[i],]
-  endDay <- max(summer$Exp_Day)
-  summerlist[[i]] <- fillIn(df=df, endDay=endDay)
-}
-summerSurv <- do.call(rbind.data.frame, summerlist)
-
-####----- do the same for fall
-
-falllist <- list()
-
-#run the fillIn function on it
-for (i in 1:length(unique(fallExpanded$Pot_ID))){ 
-  df <- fallExpanded[fallExpanded$Pot_ID==unique(fallExpanded$Pot_ID)[i],]
-  endDay <- max(fall$Exp_Day)
-  falllist[[i]] <- fillIn(df=df, endDay=endDay)
-}
-fallSurv <- do.call(rbind.data.frame, falllist)
-#remove random NA rows
-fallSurv <- fallSurv[!is.na(fallSurv$Pot_ID),]
-
-```
-
-```{r summer survival, warnings=F}
-#create color vector based on pot IDs and Class
-#colors <- aggregate(summer, list(summer$Pot_ID, summer$Class), mean)[,1:2]
-#rural, suburban, urban
-colorvec <- c("dodgerblue", "black", "maroon")
-# summerFit <- with(summerExpanded, survfit(Surv(Exp_Day, event) ~ Class))
-# plot(summerFit, col=colorvec)
-# mtext("Summer Emergence (Not Filled)")
-
-summerFit2 <- with(summerSurv, survfit(Surv(Exp_Day, event) ~ Class))
-plot(summerFit2, col=colorvec)
-mtext("Summer Emergence (Filled In)")
-
-```
-
-This is definitely a viable option. Try for fall...
-
-```{r fall survival}
-# fallFit <- with(fallExpanded, survfit(Surv(Exp_Day, event) ~ Class))
-# plot(fallFit, col=colorvec)
-# mtext("Fall Emergence (Not Filled)")
-
-fallFit2 <- with(fallSurv, survfit(Surv(Exp_Day, event) ~ Class))
-plot(fallFit2, col=colorvec)
-mtext("Fall Emergence (Filled In)")
-```
-
-I think it is better to fill in for those that do not emerge (`fallSurv`, `summerSurv`), otherwise we can't get an asymptote becuase we do not know the number that *should* emerge.
-
-# Cox PH Model
+## Cox PH Model
 
 We can use [Cox proportional hazard](https://rpubs.com/daspringate/survival) to see if the rate of emergence differs by land use class.  In this equation, we use PotID & SiteID as a cluster because cluster is a type of indicator for correlated observations. 
 
@@ -425,7 +853,7 @@ plot(summfit, main= "Summer Survival", fun="event")
 ```
 
 
-# Emergence Plots
+## Emergence Plots
 
 These are emergence plots based on the models we use, using the means for the covariates and changing the class:
 
