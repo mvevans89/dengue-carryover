@@ -1467,7 +1467,7 @@ ggplot(data=seasonInfSite, aes(x=Temp_max, y=DTR)) +
 ggplot(data=seasonInfSite, aes(x=Temp_min, y=DTR)) +
   geom_point(aes(color=Body, shape=class, size=Body))
 
-ggplot(data=seasonInfSite, aes(x=hoursBelow16, y=Body))+
+ggplot(data=seasonInfSite, aes(x=Temp_mean, y=Body))+
   geom_point(aes(color=class, shape=block), size=4) + 
   scale_color_manual(values=c(colRural, colSuburban, colUrban)) +
   theme_base() +
