@@ -781,7 +781,7 @@ Based on the results of Test 1, we only see a difference in infection at 21 dpi 
 
 ### Load and Format Microclimate Data
 
-```{r clean climate data, echo=FALSE, eval=F}
+```{r clean climate data, echo=FALSE, eval=T}
 climate <- read.csv('../../data/microclimate/clean/2016TrialsAdult.csv')[,-1]
 #toss out ridiculous levels
 climate <- climate[climate$Temp<75,]
@@ -813,11 +813,6 @@ rm(inds)
 
 #save cleaned climate for other analyses
 #write.csv(climate, file='../../data/microclimate/clean/2016TrialsAdultCleaned.csv', row.names = F)
-```
-
-
-```{r load climate data, eval=T}
-climate <- read.csv("../../data/microclimate/clean/2016TrialsAdultCleaned.csv")
 ```
 
 ```{r investigate individual data logger data, eval=F, echo=F}
@@ -1375,6 +1370,9 @@ ggplot(data=seasonInfSite, aes_string(x=vars[1], y=vars[9])) +
   geom_point(aes(color=Body, shape=class, size=Body))
 ```
 
+
+Using glmnet to make a regression:
+
 ```{r}
 respV <- "Body"
 predVs <- c("Temp_mean","RH_mean","Temp_min","RH_min", "Temp_max", "DTR", "hoursAbove31", "hoursBelow16")
@@ -1390,29 +1388,47 @@ modDF <- na.omit(modDF)
 #levels(modDF[,respV]) <- c("no", "yes")
 
 
-#split into testing and training
-set.seed(8675309)
-inds <- createDataPartition(modDF[,respV], p=.7, list=F, times=1)
-train <- modDF[inds,]
-test <- modDF[-inds,]
+#split into testing and training - Don't do because only have 18 values
+# set.seed(8675309)
+# inds <- createDataPartition(modDF[,respV], p=.7, list=F, times=1)
+# train <- modDF[inds,]
+# test <- modDF[-inds,]
 
 ##glmnet
-glmControl <- trainControl(method='cv', number=3, returnResamp='none', preProcOptions = c("center", "corr", "scale")) #3 cd levels
+glmControl <- trainControl(method='LOOCV', 
+                           #number=17,
+                           returnResamp='none'
+                           #preProcOptions = c("center", "corr", "scale")
+                           ) 
 set.seed(8675309)
-glmModel <- train(seasonInfSite[, predVs], seasonInfSite[, respV], 
-                  method='glmnet',  
-                  #metric = "Accuracy", 
+glmModel <- train(modDF[, predVs[-c(4,2)]], modDF[, respV], 
+                  method='glmnet',
                   trControl=glmControl)
 
 plot(varImp(glmModel,scale=F))
 glmModel$results
 
-#check performance
-preds <- predict(object=glmModel, seasonInfSite[,predVs])
-plot(preds~seasonInfSite[,respV])
+glmModel$finalModel
+
 ```
 
-This provides me with an apriori idea of which variables are important. I will then use this in a `glm` model.
+The best way to judge importance of the variables could be to drop out each and look at model performance.
+
+First Run:
+- Dropping Temp_min has no effect on performance
+- Dropping RH_min improves performance
+- Dropping Temp_max improves, but not as much as RH_min
+- Dropping Hours above 31 improves performance (as much as RH_min)
+- Dropping Hours below 16 greatly decreases performance
+
+Decision (1): 
+- Drop  RH_min from the model - RMSE of 15.94, R2 of 0.3955
+
+Second Run:
+- Dropping Temp_mean drops performance
+- Dropping Temp_min improves performance(RMSE=0.1533)
+- 
+
 
 ### Test 3: Winglength
 
