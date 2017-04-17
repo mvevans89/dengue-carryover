@@ -1399,16 +1399,15 @@ glmControl <- trainControl(method='LOOCV',
                            #number=17,
                            returnResamp='none'
                            #preProcOptions = c("center", "corr", "scale")
-                           ) 
+                           )
 set.seed(8675309)
-glmModel <- train(modDF[, predVs[-c(4,2)]], modDF[, respV], 
+glmModel <- train(modDF[, predVs[-c(4,2,7,8)]], modDF[, respV], 
                   method='glmnet',
                   trControl=glmControl)
 
 plot(varImp(glmModel,scale=F))
 glmModel$results
-
-glmModel$finalModel
+coef(glmModel$finalModel, glmModel$bestTune$lambda)
 
 ```
 
@@ -1427,7 +1426,62 @@ Decision (1):
 Second Run:
 - Dropping Temp_mean drops performance
 - Dropping Temp_min improves performance(RMSE=0.1533)
-- 
+- RH_mean has no impact
+- Temp_max has no impact
+- Dropping DTR improves performance (RMSE=0.1582)
+- Droping Hours above 31 greatly improves performance (RMSE=15.06)
+- Hours Below 16 decreases
+
+Decions (2):
+- Drop Hours Above 31 (RMSE=15.06, R2=0.4403)
+
+Third Run:
+- RH_mean improves performance (RMSE=0.1484)
+- all the rest decrease performance
+
+Decision (3): 
+- Drop RH_mean (RMSE=0.1484, R2=0.428)
+- Adding back HoursAbove31 decreases performance
+
+Fourth Run
+- Everything is important
+
+Final Model: Temp_mean, Temp_min, Temp_max, DTR (RMSE=0.1416, R2=0.4727)
+
+#### Visualization of Important Variables
+
+```{r}
+par(mfrow=c(3,3))
+ggplot(data=seasonInfSite, aes(x=Temp_mean, y=Temp_min)) +
+  geom_point(aes(color=Body, shape=class, size=Body))
+ggplot(data=seasonInfSite, aes(x=Temp_mean, y=hoursBelow16)) +
+  geom_point(aes(color=Body, shape=class, size=Body))
+ggplot(data=seasonInfSite, aes(x=Temp_mean, y=DTR)) +
+  geom_point(aes(color=Body, shape=class, size=Body))
+ggplot(data=seasonInfSite, aes(x=Temp_mean, y=Temp_max)) +
+  geom_point(aes(color=Body, shape=class, size=Body))
+ggplot(data=seasonInfSite, aes(x=DTR, y=hoursBelow16)) +
+  geom_point(aes(color=Body, shape=class, size=Body))
+ggplot(data=seasonInfSite, aes(x=Temp_max, y=DTR)) +
+  geom_point(aes(color=Body, shape=class, size=Body)) #this is especially cool
+ggplot(data=seasonInfSite, aes(x=Temp_min, y=DTR)) +
+  geom_point(aes(color=Body, shape=class, size=Body))
+
+ggplot(data=seasonInfSite, aes(x=hoursBelow16, y=Body))+
+  geom_point(aes(color=class, shape=block), size=4) + 
+  scale_color_manual(values=c(colRural, colSuburban, colUrban)) +
+  theme_base() +
+  ylab("Prop. Body Infection")
+```
+
+```{r 3D Chart}
+library(plotly)
+
+plot_ly(seasonInfSite, x=~Temp_mean, y=~Temp_min, z=~Body, color=~class, colors=c(colRural, colSuburban, colUrban)) %>%
+  add_markers()
+```
+
+Need a plot of temp_mean and body infection (scattler plots with SE bars)
 
 
 ### Test 3: Winglength
