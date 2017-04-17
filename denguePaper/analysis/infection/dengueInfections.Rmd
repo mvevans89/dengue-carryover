@@ -35,13 +35,11 @@ library(GGally)
 library(dplyr)
 ```
 
-```{r set color scheme}
+```{r}
 colR <- colRural <- "dodgerblue"
 colS <- colSuburban <- "gray80"
 colU <- colUrban <- "maroon"
 ```
-
-# Load and Format
 
 ```{r}
 formatData <- function(month){
@@ -90,37 +88,102 @@ formatData <- function(month){
   
   return(monthDf)
 }
-```
 
-```{r load and format data}
-#warning messages about NAs are fine
 august <- formatData("august")
 oct <- formatData("october")
 ```
 
-First, lets create a table of the percentages for an overview:
+```{r}
+seasons <- rbind(august,oct)
+seasons$block <- as.factor(c(rep("summer", nrow(august)), rep("fall", nrow(oct))))
 
-```{r summary table}
-augustSumm <- august %>%
+seasonSumm <- seasons %>%
+  filter(DPI==21) %>%
   #drop individual
-  select(-Individual) %>%
-  group_by(DPI, site, class) %>%
+  select(-Individual, -site, -Wing, -DPI) %>%
+  group_by(block, class) %>%
   summarise_each(funs(mean(.,na.rm=T),sd(.,na.rm=T),se=(sd(., na.rm=T)/sqrt(n())))) %>%
   ungroup()
-
-#print(xtable(augustSumm), type="html")
-augustSumm
-
-octSumm <- oct %>%
-  #drop individual
-  select(-Individual) %>%
-  group_by(DPI, site, class) %>%
-  summarise_each(funs(mean(.,na.rm=T),sd(.,na.rm=T),se=(sd(., na.rm=T)/sqrt(n())))) %>%
-  ungroup()
-
-#print(xtable(octSumm), type="html")
-octSumm
 ```
+
+```{r}
+seasonPlot <- function(bodyPart, summTable=seasonSumm){
+  cols <- c(1,2,grep(bodyPart, colnames(summTable)))
+  tempLarge <- summTable[,cols]
+  colnames(tempLarge)[3:5] <- c("mean", "sd", "se")
+    
+  tempMean <- tempLarge %>%
+    select(-sd,-se) %>%
+    spread(block, mean) %>%
+    select(-class)
+  
+  #put summer before fall
+  tempMean <- tempMean[,c(2,1)]
+
+  
+  rownames(tempMean) <- levels(tempLarge$class)
+  tempMean <- t(as.matrix(tempMean))
+  
+  colvec <- c(rep(colRural,2), rep(colSuburban,2), 
+                            rep(colUrban,2))
+  
+  barCenters <- barplot(tempMean, 
+                      beside=T,
+                      col=colvec,
+                      density = c(40,NA),
+                      names.arg=colnames(tempMean),
+                      ylim=c(0,0.80),
+                      #main = paste0("Dengue ", bodyPart," Infections"),
+                      ylab = "Proportion Infected"
+                      )
+  
+  tempSE <- tempLarge %>%
+    select(-sd,-mean) %>%
+    spread(block, se) %>%
+    select(-class)
+  
+   #put summer before fall
+  tempSE <- tempSE[,c(2,1)]
+  
+   tempSE <- t(tempSE)
+  
+  #add se bars
+  segments(barCenters, tempMean - tempSE , barCenters,
+         tempMean + tempSE, lwd = 1.5)
+  
+  arrows(barCenters, tempMean - tempSE , barCenters,
+         tempMean + tempSE,
+         lwd = 1.5, 
+         angle = 90,
+         code = 3, length = 0.03)
+  
+  #legend("topright", legend=c("Summer", "Fall"), density = c(40,NA),
+       #bty = "n", col = "gray80")
+}
+```
+
+```{r, echo=T}
+#pdf(file="../figures/forMS/seasonInfections.pdf", width = 8, height=12, family="sans")
+par(mfrow=c(3,1), las=1)
+#pdf(file="../figures/seasonBody.pdf", width = 8, height=4, family="sans")
+seasonPlot(bodyPart="Body")
+mtext("Body")
+#dev.off()
+
+#pdf(file="../figures/seasonHead.pdf", width = 8, height=4, family="sans")
+seasonPlot(bodyPart="Head")
+mtext("Head")
+#dev.off()
+
+#pdf(file="../figures/seasonSaliva.pdf", width = 8, height=4, family="sans")
+seasonPlot(bodyPart="Saliva")
+mtext("Saliva")
+#dev.off()
+```
+
+
+
+
 
 # Exploratory Visualizations
 
@@ -472,77 +535,6 @@ seasonPlot(bodyPart="Saliva")
 mtext("Saliva")
 dev.off()
 ```
-
-```{r efficiency plot function, eval=FALSE, include=F}
-effPlot <- function(rawTable){
-  #format data
-  tempLarge <- rawTable %>%
-    filter(DPI=="21") %>%
-    group_by(site,class) %>%
-    mutate(bodyEff=mean(Body, na.rm=T))%>%
-    ungroup() %>%
-    filter(Body==1) %>%
-    group_by(site,class) %>%
-    mutate(headEff=mean(Head, na.rm=T))%>%
-    ungroup() %>%
-    filter(Head==1)%>%
-    group_by(site,class) %>%
-    mutate(salEff=mean(Saliva, na.rm=T))%>%
-    select(site, class, bodyEff, headEff, salEff) %>%
-    ungroup()
-  tempLarge <- unique(tempLarge)
-  #get mean and se
-  temp <- tempLarge %>%
-    select(-site) %>%
-    group_by(class) %>%
-    summarise_each(funs(mean(.,na.rm=T),se=(sd(., na.rm=T)/sqrt(n())))) %>%
-    ungroup()
-  
-  tempMean <- as.matrix(temp[,2:4])
-  rownames(tempMean) <- levels(temp$class)
-  tempMean <- t(tempMean)
- 
-  colvec <- c(rep(colRural,3), rep(colSuburban,3), 
-                            rep(colUrban,3))
-  #plot
-  barCenters <- barplot(tempMean, 
-                      beside=T,
-                      col=colvec,
-                      density = c(20,60,NA),
-                      names.arg=colnames(tempMean),
-                      ylim=c(0,1),
-                      ylab = "Relative Efficiency"
-                      )
-
-  tempSE <- as.matrix(temp[,5:7])
-  
-  tempSE <- t(tempSE)
-  
-  #add se bars
-  segments(barCenters, tempMean - tempSE , barCenters,
-         tempMean + tempSE, lwd = 1.5)
-  
-  arrows(barCenters, tempMean - tempSE , barCenters,
-         tempMean + tempSE,
-         lwd = 1.5, 
-         angle = 90,
-         code = 3, length = 0.03)
-  
-  #legend("topright", legend=c("9 dpi","14 dpi", "21 dpi"), density = c(10,40,NA),
-       #bty = "n", col = "gray80")
-}
-```
-
-```{r plot effiency, eval=FALSE, include=F}
-pdf(file="../figures/augEff.pdf", width = 8, height=4, family="sans")
-effPlot(rawTable=august)
-dev.off()
-
-pdf(file="../figures/octEff.pdf", width = 8, height=4, family="sans")
-effPlot(rawTable=oct)
-dev.off()
-```
-
 
 
 # Statistical Analysis
@@ -1534,3 +1526,99 @@ envVarPlot("Wing")
 
 
 Really seems like warmer sites (urban), had larger mosquitoes, and therefore lower infection of body and heads. And then, when it comes to Saliva, it really doesn't matter.
+
+
+# Deprecated
+
+```{r summary table}
+augustSumm <- august %>%
+  #drop individual
+  select(-Individual) %>%
+  group_by(DPI, site, class) %>%
+  summarise_each(funs(mean(.,na.rm=T),sd(.,na.rm=T),se=(sd(., na.rm=T)/sqrt(n())))) %>%
+  ungroup()
+
+#print(xtable(augustSumm), type="html")
+augustSumm
+
+octSumm <- oct %>%
+  #drop individual
+  select(-Individual) %>%
+  group_by(DPI, site, class) %>%
+  summarise_each(funs(mean(.,na.rm=T),sd(.,na.rm=T),se=(sd(., na.rm=T)/sqrt(n())))) %>%
+  ungroup()
+
+#print(xtable(octSumm), type="html")
+octSumm
+```
+
+```{r efficiency plot function, eval=FALSE, include=F}
+effPlot <- function(rawTable){
+  #format data
+  tempLarge <- rawTable %>%
+    filter(DPI=="21") %>%
+    group_by(site,class) %>%
+    mutate(bodyEff=mean(Body, na.rm=T))%>%
+    ungroup() %>%
+    filter(Body==1) %>%
+    group_by(site,class) %>%
+    mutate(headEff=mean(Head, na.rm=T))%>%
+    ungroup() %>%
+    filter(Head==1)%>%
+    group_by(site,class) %>%
+    mutate(salEff=mean(Saliva, na.rm=T))%>%
+    select(site, class, bodyEff, headEff, salEff) %>%
+    ungroup()
+  tempLarge <- unique(tempLarge)
+  #get mean and se
+  temp <- tempLarge %>%
+    select(-site) %>%
+    group_by(class) %>%
+    summarise_each(funs(mean(.,na.rm=T),se=(sd(., na.rm=T)/sqrt(n())))) %>%
+    ungroup()
+  
+  tempMean <- as.matrix(temp[,2:4])
+  rownames(tempMean) <- levels(temp$class)
+  tempMean <- t(tempMean)
+ 
+  colvec <- c(rep(colRural,3), rep(colSuburban,3), 
+                            rep(colUrban,3))
+  #plot
+  barCenters <- barplot(tempMean, 
+                      beside=T,
+                      col=colvec,
+                      density = c(20,60,NA),
+                      names.arg=colnames(tempMean),
+                      ylim=c(0,1),
+                      ylab = "Relative Efficiency"
+                      )
+
+  tempSE <- as.matrix(temp[,5:7])
+  
+  tempSE <- t(tempSE)
+  
+  #add se bars
+  segments(barCenters, tempMean - tempSE , barCenters,
+         tempMean + tempSE, lwd = 1.5)
+  
+  arrows(barCenters, tempMean - tempSE , barCenters,
+         tempMean + tempSE,
+         lwd = 1.5, 
+         angle = 90,
+         code = 3, length = 0.03)
+  
+  #legend("topright", legend=c("9 dpi","14 dpi", "21 dpi"), density = c(10,40,NA),
+       #bty = "n", col = "gray80")
+}
+```
+
+```{r plot effiency, eval=FALSE, include=F}
+pdf(file="../figures/augEff.pdf", width = 8, height=4, family="sans")
+effPlot(rawTable=august)
+dev.off()
+
+pdf(file="../figures/octEff.pdf", width = 8, height=4, family="sans")
+effPlot(rawTable=oct)
+dev.off()
+```
+
