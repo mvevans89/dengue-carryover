@@ -132,7 +132,7 @@ sitePlot <- function(summTable, dpi, bodyPart){
 temp <- summTable[summTable$DPI==dpi,cols]
 colnames(temp)[4:6] <- c("mean", "sd", "se")
   barCenters <- barplot(temp$mean, 
-          col=c("gray80", "dodgerblue", "maroon")[temp$class],
+          col=c(colRural, colSuburban, colUrban)[temp$class],
           names.arg=temp$site,
           ylim=c(0,max(temp$mean+0.2)),
           main = paste0(bodyPart, " Infection (", dpi, "dpi)")
@@ -355,29 +355,29 @@ octclassSumm
 ```
 
 ```{r plot by class, eval=FALSE, echo=FALSE}
-#pdf(file="../figures/augustHeadClass.pdf", width = 8, height=6, family="sans")
+pdf(file="../figures/forMS/augustHeadClass.pdf", width = 8, height=6, family="sans")
 besidePlot(summTable=augustclassSumm, bodyPart="Head", byclass=T)
-#dev.off()
+dev.off()
 
-#pdf(file="../figures/augustBodyClass.pdf", width = 8, height=6, family="sans")
+pdf(file="../figures/forMS/augustBodyClass.pdf", width = 8, height=6, family="sans")
 besidePlot(summTable=augustclassSumm, bodyPart="Body", byclass=T)
-#dev.off()
+dev.off()
 
-#pdf(file="../figures/augustSalivaClass.pdf", width = 8, height=6, family="sans")
+pdf(file="../figures/forMS/augustSalivaClass.pdf", width = 8, height=6, family="sans")
 besidePlot(summTable=augustclassSumm, bodyPart="Saliva", byclass=T)
-#dev.off()
+dev.off()
 
-#pdf(file="../figures/octoberHeadClass.pdf", width = 8, height=6, family="sans")
+pdf(file="../figures/forMS/octoberHeadClass.pdf", width = 8, height=6, family="sans")
 besidePlotOct(summTable=octclassSumm, bodyPart="Head", byclass=T)
-#dev.off()
+dev.off()
 
-#pdf(file="../figures/octoberBodyClass.pdf", width = 8, height=6, family="sans")
+pdf(file="../figures/forMS/octoberBodyClass.pdf", width = 8, height=6, family="sans")
 besidePlotOct(summTable=octclassSumm, bodyPart="Body", byclass=T)
-#dev.off()
+dev.off()
 
-#pdf(file="../figures/octoberSalivaClass.pdf", width = 8, height=6, family="sans")
+pdf(file="../figures/forMS/octoberSalivaClass.pdf", width = 8, height=6, family="sans")
 besidePlotOct(summTable=octclassSumm, bodyPart="Saliva", byclass=T)
-#dev.off()
+dev.off()
 
 ```
 
@@ -424,9 +424,9 @@ seasonPlot <- function(bodyPart, summTable=seasonSumm){
                       col=colvec,
                       density = c(40,NA),
                       names.arg=colnames(tempMean),
-                      ylim=c(0,0.80)
+                      ylim=c(0,0.80),
                       #main = paste0("Dengue ", bodyPart," Infections"),
-                      #ylab = "Percent Infected")
+                      ylab = "Proportion Infected"
                       )
   
   tempSE <- tempLarge %>%
@@ -454,8 +454,9 @@ seasonPlot <- function(bodyPart, summTable=seasonSumm){
 }
 ```
 
-```{r seasonal plots, eval=T, echo=FALSE}
-par(mfrow=c(1,3))
+```{r seasonal plots, eval=F, echo=FALSE}
+pdf(file="../figures/forMS/seasonInfections.pdf", width = 8, height=12, family="sans")
+par(mfrow=c(3,1), las=1)
 #pdf(file="../figures/seasonBody.pdf", width = 8, height=4, family="sans")
 seasonPlot(bodyPart="Body")
 mtext("Body")
@@ -469,7 +470,7 @@ mtext("Head")
 #pdf(file="../figures/seasonSaliva.pdf", width = 8, height=4, family="sans")
 seasonPlot(bodyPart="Saliva")
 mtext("Saliva")
-#dev.off()
+dev.off()
 ```
 
 ```{r efficiency plot function, eval=FALSE, include=F}
@@ -780,7 +781,7 @@ Based on the results of Test 1, we only see a difference in infection at 21 dpi 
 
 ### Load and Format Microclimate Data
 
-```{r load climate data, echo=FALSE}
+```{r clean climate data, echo=FALSE, eval=F}
 climate <- read.csv('../../data/microclimate/clean/2016TrialsAdult.csv')[,-1]
 #toss out ridiculous levels
 climate <- climate[climate$Temp<75,]
@@ -812,6 +813,11 @@ rm(inds)
 
 #save cleaned climate for other analyses
 #write.csv(climate, file='../../data/microclimate/clean/2016TrialsAdultCleaned.csv', row.names = F)
+```
+
+
+```{r load climate data, eval=T}
+climate <- read.csv("../../data/microclimate/clean/2016TrialsAdultCleaned.csv")
 ```
 
 ```{r investigate individual data logger data, eval=F, echo=F}
