@@ -389,7 +389,7 @@ ggplot(data=seasons[seasons$DPI=="21",], aes(factor(class))) +
   facet_wrap(~block) +
   ggtitle("21 dpi Head Across Seasons")
 #model
-mixModelseasonsHead21 <- lme4::glmer(Head~class + block + (1|site), 
+mixModelseasonsHead21 <- lme4::glmer(Head~class + block + block*class + (1|site), 
                           data=seasons[seasons$DPI=="21",],
                           family=binomial(link="logit"))
 #get a summary
@@ -409,7 +409,7 @@ ggplot(data=seasons[seasons$DPI=="21",], aes(factor(class))) +
   facet_wrap(~block) + 
   ggtitle("21 dpi Saliva across Seasons")
 #model
-mixModelseasonsSaliva21 <- lme4::glmer(Saliva~class + block + (1|site), 
+mixModelseasonsSaliva21 <- lme4::glmer(Saliva~class + block + block*class + (1|site), 
                           data=seasons[seasons$DPI=="21",],
                           family=binomial(link="logit"))
 #get a summary
@@ -824,7 +824,7 @@ Decision (3):
 - Adding back HoursAbove31 decreases performance
 
 Fourth Run
-- Everything is important
+-
 
 Final Model: Temp_mean, Temp_min, Temp_max, DTR (RMSE=0.1416, R2=0.4727)
 
@@ -862,6 +862,86 @@ plot_ly(seasonInfSite, x=~Temp_mean, y=~Temp_min, z=~Body, color=~class, colors=
 ```
 
 Need a plot of temp_mean and body infection (scattler plots with SE bars)
+```{r}
+png(file="../figures/forMS/bodyInfxMeanTemp.png", width = 4, height=4, units="in", res=500, family="sans")
+ggplot(data=seasonInfSite, aes(x=Temp_mean, y=Body))+
+  geom_point(aes(color=class, shape=block), size=4) + 
+  scale_color_manual(values=c(colRural, colSuburban, colUrban)) +
+  theme_base() +
+  ylab("Prop. Body Infection")+
+  xlab("Mean Daily Temperature (C)")
+dev.off()
+```
+
+
+```{r}
+png(file="../figures/forMS/bodyInfxMinTemp.png", width = 4, height=4, units="in", res=500, family="sans")
+ggplot(data=seasonInfSite, aes(x=Temp_min, y=Body))+
+  geom_point(aes(color=class, shape=block), size=4) + 
+  scale_color_manual(values=c(colRural, colSuburban, colUrban)) +
+  theme_base() +
+  ylab("Prop. Body Infection") +
+  xlab("Minimum Daily Temperature (C)")
+dev.off()
+```
+
+#### Head Infection Glmnet
+
+```{r}
+respV <- "Head"
+predVs <- c("Temp_mean","RH_mean","Temp_min","RH_min", "Temp_max", "DTR", "hoursAbove31", "hoursBelow16")
+
+hist(seasonInfSite$Head)
+
+#create dataframe without NAs
+myCols <- c(respV, predVs)
+modDF <- seasonInfSite %>%
+  dplyr::select(one_of(myCols)) 
+modDF <- na.omit(modDF)
+#modDF[,respV] <- as.factor(modDF[,respV])
+#levels(modDF[,respV]) <- c("no", "yes")
+
+
+#split into testing and training - Don't do because only have 18 values
+# set.seed(8675309)
+# inds <- createDataPartition(modDF[,respV], p=.7, list=F, times=1)
+# train <- modDF[inds,]
+# test <- modDF[-inds,]
+
+##glmnet
+glmControl <- trainControl(method='LOOCV', 
+                           #number=17,
+                           returnResamp='none'
+                           #preProcOptions = c("center", "corr", "scale")
+                           )
+set.seed(8675309)
+glmModel <- train(modDF[, predVs[-c(3,4,6,8,7)]], modDF[, respV], 
+                  method='glmnet',
+                  trControl=glmControl)
+
+plot(varImp(glmModel,scale=F))
+glmModel$results
+coef(glmModel$finalModel, glmModel$bestTune$lambda)
+```
+
+The initial model drops Temp_min, RH_min, DTR, and hoursBelow16. RMSE=0.15908
+
+Now we can use stepwise regression to look further:
+
+First Pass
+- Temp_mean increases RMSE
+- RH_mean increases RMSE
+- Temp_max increases RMSE
+- hoursAbove31 drops RMSE
+
+Decision
+- drop hoursabove31 (RMSE=0.1525, R2=0.4310)
+
+Second Pass
+- all variables increase RMSE when dropped
+
+Final Model: Temp_max, Temp_mean, RH_mean (RMSE=0.1525, R2=0.4310)
+
 
 
 ### Test 3: Winglength
