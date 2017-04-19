@@ -760,7 +760,7 @@ predVs <- c("Temp_mean","RH_mean","Temp_min","RH_min", "Temp_max", "DTR", "hours
 hist(seasonInfSite$Body)
 
 #create dataframe without NAs
-myCols <- c(respV, predVs)
+myCols <- c(respV, predVs, "block")
 modDF <- seasonInfSite %>%
   dplyr::select(one_of(myCols)) 
 modDF <- na.omit(modDF)
@@ -777,11 +777,18 @@ modDF <- na.omit(modDF)
 ##glmnet
 glmControl <- trainControl(method='LOOCV', 
                            #number=17,
-                           returnResamp='none'
-                           #preProcOptions = c("center", "corr", "scale")
+                           returnResamp='none',
+                           preProcOptions = c("center", "corr", "scale")
                            )
+#bodyPreds <- predVs[-c(4,2,7,8)]
+bodyFx <- as.formula(Body~ Temp_mean*block + 0)
+x <- model.matrix(bodyFx, modDF,
+                  contrasts.arg = list(block=contrasts(modDF$block, contrasts=F))
+                  )
 set.seed(8675309)
-glmModel <- train(modDF[, predVs[-c(4,2,7,8)]], modDF[, respV], 
+glmModel <- train(x,
+  #modDF[,c('Temp_mean','Temp_min','Temp_max', 'DTR', 'block')], 
+                  modDF[, respV], 
                   method='glmnet',
                   trControl=glmControl)
 
@@ -828,6 +835,8 @@ Fourth Run
 
 Final Model: Temp_mean, Temp_min, Temp_max, DTR (RMSE=0.1416, R2=0.4727)
 
+Note that I have also tried adding in block as a covariate (both alone and an interaction), and it was always dropped.
+
 #### Visualization of Important Variables
 
 ```{r}
@@ -863,7 +872,7 @@ plot_ly(seasonInfSite, x=~Temp_mean, y=~Temp_min, z=~Body, color=~class, colors=
 
 Need a plot of temp_mean and body infection (scattler plots with SE bars)
 ```{r}
-png(file="../figures/forMS/bodyInfxMeanTemp.png", width = 4, height=4, units="in", res=500, family="sans")
+png(file="../figures/forMS/bodyInfxMeanTemp.png", width = 6, height=4, units="in", res=500, family="sans")
 ggplot(data=seasonInfSite, aes(x=Temp_mean, y=Body))+
   geom_point(aes(color=class, shape=block), size=4) + 
   scale_color_manual(values=c(colRural, colSuburban, colUrban)) +
@@ -875,7 +884,7 @@ dev.off()
 
 
 ```{r}
-png(file="../figures/forMS/bodyInfxMinTemp.png", width = 4, height=4, units="in", res=500, family="sans")
+png(file="../figures/forMS/bodyInfxMinTemp.png", width = 6, height=3, units="in", res=500, family="sans")
 ggplot(data=seasonInfSite, aes(x=Temp_min, y=Body))+
   geom_point(aes(color=class, shape=block), size=4) + 
   scale_color_manual(values=c(colRural, colSuburban, colUrban)) +
@@ -919,7 +928,7 @@ glmModel <- train(modDF[, predVs[-c(3,4,6,8,7)]], modDF[, respV],
                   method='glmnet',
                   trControl=glmControl)
 
-plot(varImp(glmModel,scale=F))
+plot(varImp(glmModel,scale=T))
 glmModel$results
 coef(glmModel$finalModel, glmModel$bestTune$lambda)
 ```
@@ -941,6 +950,82 @@ Second Pass
 - all variables increase RMSE when dropped
 
 Final Model: Temp_max, Temp_mean, RH_mean (RMSE=0.1525, R2=0.4310)
+
+```{r}
+png(file="../figures/forMS/headInfxMaxTemp.png", width = 6, height=4, units="in", res=500, family="sans")
+ggplot(data=seasonInfSite, aes(x=Temp_max, y=Head))+
+  geom_point(aes(color=class, shape=block), size=4) + 
+  scale_color_manual(values=c(colRural, colSuburban, colUrban)) +
+  theme_base() +
+  ylab("Prop. Head Infection")+
+  xlab("Maximum Daily Temperature (C)")
+dev.off()
+```
+
+#### Saliva Infection
+
+I don't know if it necessarily worth it to consider saliva infection since there was no general trend found in the class and season model, but I will give it a shot.
+
+```{r}
+png(file="../figures/forMS/salivaInfxMaxTemp.png", width = 6, height=4, units="in", res=500, family="sans")
+ggplot(data=seasonInfSite, aes(x=Temp_max, y=Saliva))+
+  geom_point(aes(color=class, shape=block), size=4) + 
+  scale_color_manual(values=c(colRural, colSuburban, colUrban)) +
+  theme_base() +
+  ylab("Prop. Saliva Infection")+
+  xlab("Maximum Daily Temperature (C)")
+dev.off()
+```
+
+```{r}
+respV <- "Saliva"
+predVs <- c("Temp_mean","RH_mean","Temp_min","RH_min", "Temp_max", "DTR", "hoursAbove31", "hoursBelow16")
+
+hist(seasonInfSite$Saliva)
+
+#create dataframe without NAs
+myCols <- c(respV, predVs)
+modDF <- seasonInfSite %>%
+  dplyr::select(one_of(myCols)) 
+modDF <- na.omit(modDF)
+#modDF[,respV] <- as.factor(modDF[,respV])
+#levels(modDF[,respV]) <- c("no", "yes")
+
+
+#split into testing and training - Don't do because only have 18 values
+# set.seed(8675309)
+# inds <- createDataPartition(modDF[,respV], p=.7, list=F, times=1)
+# train <- modDF[inds,]
+# test <- modDF[-inds,]
+
+##glmnet
+glmControl <- trainControl(method='LOOCV', 
+                           #number=17,
+                           returnResamp='none'
+                           #preProcOptions = c("center", "corr", "scale")
+                           )
+set.seed(8675309)
+glmModel <- train(modDF[, predVs[-c(3,4,6,8,7)]], modDF[, respV], 
+                  method='glmnet',
+                  trControl=glmControl)
+
+plot(varImp(glmModel,scale=T))
+glmModel$results
+coef(glmModel$finalModel, glmModel$bestTune$lambda)
+```
+
+Glmnet drops four variables, leaving Temp_mean, RH_mean, Temp_max, and hoursAbove31. (RMSE=0.1620)
+
+First run:
+- Dropping tmax improves model (RMSE=0.1602)
+- dropping hoursabove31 greatly improves model (RMSE=0.1525)
+
+Decision: Drop hoursabove31
+
+Second run: This is the best performing model
+
+Final model: Temp_max, Temp_mean, RH_mean  (RMSE=0.1525, R2=0.4310)
+
 
 
 
