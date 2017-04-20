@@ -689,7 +689,7 @@ line_fn <- function(data, mapping, ...){
     geom_smooth(method=lm, fill="blue", color="blue", ...)
   p
 }
-ggpairs(seasonInfSite, 8:16,lower = list(continuous = line_fn))
+ggpairs(seasonInfSite, 10:18,lower = list(continuous = line_fn))
 ```
 
 Now pair-wise plots of variables, based on some of the output of the GBM and glmnet from above:
@@ -700,7 +700,7 @@ vars <- colnames(seasonInfSite)[8:16]
 ggplot(data=seasonInfSite, aes_string(x=vars[1], y=vars[2])) +
   geom_point(aes(color=Body, shape=class, size=Body))
 ggplot(data=seasonInfSite, aes_string(x=vars[1], y=vars[3])) +
-  geom_point(aes(color=Body, shape=class, size=Body))
+  geom_point(aes(color=Body_mean, shape=class, size=Body_mean))
 ggplot(data=seasonInfSite, aes_string(x=vars[1], y=vars[4])) +
   geom_point(aes(color=Body, shape=class, size=Body))
 ggplot(data=seasonInfSite, aes_string(x=vars[1], y=vars[5])) +
@@ -814,21 +814,28 @@ lmerMod3 <- lmer(Body_mean~ Temp_mean_mean*Temp_min_mean + (1|block), data=modDF
 lmerMod4 <- lmer(Body_mean~ Temp_mean_mean + (1|block), data=modDF)
 lmerMod5 <- lmer(Body_mean~ Temp_mean_mean*Temp_min_mean+Temp_max_mean + (1|block), data=modDF)
 lmerMod6 <- lmer(Body_mean~ Temp_mean_mean*Temp_min_mean*Temp_max_mean + (1|block), data=modDF)
+lmerMod7 <- lmer(Body_mean~ Temp_min_mean + (1|block), data=modDF)
+lmerMod8 <- lmer(Body_mean~ Temp_max_mean + (1|block), data=modDF) #intercept error
 
-rsquared(list(lmerMod2, lmerMod3, lmerMod4, lmerMod5, lmerMod6)) #lmerMod5 is the best for Rsquared and AIC
+piecewiseSEM::rsquared(list( lmerMod4, lmerMod7)) #lmerMod4 is the best
 
-summary(lmerMod5)
-Anova(lmerMod5)
-plot(lmerMod5)
+MuMIn::r.squaredGLMM(lmerMod4)
+summary(lmerMod4)
+Anova(lmerMod4)
+plot(lmerMod4)
 
+finalBody <- lmerMod4
 
 #check predictive R2
-preds <- predict(lmerMod5)
+preds <- predict(lmerMod4)
 plot(preds, modDF$Body_mean)
 abline(a=0, b=1)
+cor(preds, modDF$Body_mean)
 ```
 
-Based on this, I think I will choose to use an lmer. This is reasonable becaause the relationship does seem to be linear, especially once the block is set as a random effect.
+Based on this, I think I will choose to use an lmer. This is reasonable because the relationship does seem to be linear, especially once the block is set as a random effect.
+
+The final model was chosen based on maximizing the $r^2$, which in this case also minimized AIC value. It includes mean temperature and block as a random factor.
 
 #### Visualization of Important Variables
 
@@ -846,7 +853,7 @@ dev.off()
 ```
 
 
-```{r}
+```{r, eval=F}
 png(file="../figures/forMS/bodyInfxMinTemp.png", width = 6, height=3, units="in", res=500, family="sans")
 ggplot(data=seasonInfSite, aes(x=Temp_min_mean, y=Body_mean))+
     geom_errorbar(aes(ymin=Body_mean-Body_se, ymax=Body_mean+Body_se), color="gray20", width=0.1) +
@@ -859,7 +866,7 @@ ggplot(data=seasonInfSite, aes(x=Temp_min_mean, y=Body_mean))+
 dev.off()
 ```
 
-```{r}
+```{r, eval=F}
 png(file="../figures/forMS/bodyInfxMaxTemp.png", width = 6, height=3, units="in", res=500, family="sans")
 ggplot(data=seasonInfSite, aes(x=Temp_max_mean, y=Body_mean))+
     geom_errorbar(aes(ymin=Body_mean-Body_se, ymax=Body_mean+Body_se), color="gray20", width=0.1) +
@@ -930,31 +937,60 @@ Second Pass
 
 Final Model: Temp_max, Temp_mean, RH_mean (RMSE=0.1525, R2=0.4310)
 
+** Second step:lmer**
+
+For the lmer, I am only looking at one temp variable becuase they are all so correlated. I will explore variables with those combined with mean RH.
+
 ```{r}
-png(file="../figures/forMS/headInfxMaxTemp.png", width = 6, height=4, units="in", res=500, family="sans")
-ggplot(data=seasonInfSite, aes(x=Temp_max, y=Head))+
+respV <- "Head_mean"
+predVs <- c("Temp_mean_mean","RH_mean_mean","Temp_min_mean","RH_min_mean", "Temp_max_mean", "DTR_mean", "hoursAbove31_mean", "hoursBelow16_mean")
+
+#create dataframe without NAs
+myCols <- c(respV, predVs, "block")
+modDF <- seasonInfSite %>%
+  dplyr::select(one_of(myCols)) 
+modDF <- na.omit(modDF)
+
+lmerMod1 <- lmer(Head_mean~ Temp_max_mean + (1|block), data=modDF) #intercept error
+lmerMod2 <- lmer(Head_mean~ Temp_mean_mean + (1|block), data=modDF) #highest R2
+lmerMod3 <- lmer(Head_mean~ RH_mean_mean + (1|block), data=modDF)
+lmerMod4 <- lmer(Head_mean~ Temp_mean_mean*RH_mean_mean+ (1|block), data=modDF) #lowest AIC
+lmerMod5 <- lmer(Head_mean~ Temp_max_mean*RH_mean_mean+ (1|block), data=modDF)
+
+piecewiseSEM::rsquared(list(lmerMod2, lmerMod3, lmerMod4, lmerMod5)) 
+
+MuMIn::r.squaredGLMM(lmerMod2)
+summary(lmerMod2)
+Anova(lmerMod2)
+plot(lmerMod2)
+
+finalHead <- lmerMod2
+
+#check predictive R2
+preds <- predict(finalHead)
+plot(preds, modDF$Head_mean)
+abline(a=0, b=1)
+cor(preds, modDF$Head_mean)
+```
+
+Chose the final model based on the best fit (marginal $R^2$). It includes mean temperature and block as a random effect.
+
+```{r}
+png(file="../figures/forMS/headInfxMeanTemp.png", width = 6, height=4, units="in", res=500, family="sans")
+ggplot(data=seasonInfSite, aes(x=Temp_mean_mean, y=Head_mean))+
+   geom_errorbar(aes(ymin=Head_mean-Head_se, ymax=Head_mean+Head_se), color="gray20", width=0.1) +
+  geom_errorbarh(aes(xmin=Temp_mean_mean-Temp_mean_se, xmax=Temp_mean_mean+Temp_mean_se), color="gray20", height=0.05) +
   geom_point(aes(color=class, shape=block), size=4) + 
   scale_color_manual(values=c(colRural, colSuburban, colUrban)) +
   theme_base() +
   ylab("Prop. Head Infection")+
-  xlab("Maximum Daily Temperature (C)")
+  xlab("Mean Daily Temperature (C)")
 dev.off()
 ```
 
 #### Saliva Infection
 
 I don't know if it necessarily worth it to consider saliva infection since there was no general trend found in the class and season model, but I will give it a shot.
-
-```{r}
-png(file="../figures/forMS/salivaInfxMaxTemp.png", width = 6, height=4, units="in", res=500, family="sans")
-ggplot(data=seasonInfSite, aes(x=Temp_max, y=Saliva))+
-  geom_point(aes(color=class, shape=block), size=4) + 
-  scale_color_manual(values=c(colRural, colSuburban, colUrban)) +
-  theme_base() +
-  ylab("Prop. Saliva Infection")+
-  xlab("Maximum Daily Temperature (C)")
-dev.off()
-```
 
 ```{r}
 respV <- "Saliva"
@@ -1005,7 +1041,55 @@ Second run: This is the best performing model
 
 Final model: Temp_max, Temp_mean, RH_mean  (RMSE=0.1525, R2=0.4310)
 
+**Second pass: lmer**
 
+```{r}
+respV <- "Saliva_mean"
+predVs <- c("Temp_mean_mean","RH_mean_mean","Temp_min_mean","RH_min_mean", "Temp_max_mean", "DTR_mean", "hoursAbove31_mean", "hoursBelow16_mean")
+
+#create dataframe without NAs
+myCols <- c(respV, predVs, "block")
+modDF <- seasonInfSite %>%
+  dplyr::select(one_of(myCols)) 
+modDF <- na.omit(modDF)
+
+lmerMod1 <- lmer(Saliva_mean~ Temp_max_mean + (1|block), data=modDF) #highest marginal r2
+lmerMod2 <- lmer(Saliva_mean~ Temp_mean_mean + (1|block), data=modDF)
+lmerMod3 <- lmer(Saliva_mean~ RH_mean_mean + (1|block), data=modDF) #intercept error
+lmerMod4 <- lmer(Saliva_mean~ Temp_mean_mean*RH_mean_mean+ (1|block), data=modDF) 
+lmerMod5 <- lmer(Saliva_mean~ Temp_max_mean*RH_mean_mean+ (1|block), data=modDF)
+
+piecewiseSEM::rsquared(list(lmerMod1, lmerMod2, lmerMod4, lmerMod5)) 
+
+finalSaliva <- lmerMod1
+
+MuMIn::r.squaredGLMM(finalSaliva)
+summary(finalSaliva)
+Anova(finalSaliva)
+plot(finalSaliva)
+
+#check predictive R2
+preds <- predict(finalSaliva)
+plot(preds, modDF$Saliva_mean)
+abline(a=0, b=1)
+cor(preds, modDF$Saliva_mean)
+```
+
+The best fitting model is based on the maximum temperature, but the effect is not significant. We can conclude, therefore that Saliva infection was not impacted by temperature.
+
+```{r}
+
+png(file="../figures/forMS/salivaInfxMaxTemp.png", width = 6, height=4, units="in", res=500, family="sans")
+ggplot(data=seasonInfSite, aes(x=Temp_max_mean, y=Saliva_mean))+
+  geom_errorbar(aes(ymin=Saliva_mean-Saliva_se, ymax=Saliva_mean+Saliva_se), color="gray20", width=0.1) +
+  geom_errorbarh(aes(xmin=Temp_max_mean-Temp_max_se, xmax=Temp_max_mean+Temp_max_se), color="gray20", height=0.05) +
+  geom_point(aes(color=class, shape=block), size=4) + 
+  scale_color_manual(values=c(colRural, colSuburban, colUrban)) +
+  theme_base() +
+  ylab("Prop. Saliva Infection")+
+  xlab("Maximum Daily Temperature (C)")
+dev.off()
+```
 
 
 ### Test 3: Winglength
