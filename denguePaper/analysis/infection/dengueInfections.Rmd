@@ -524,6 +524,7 @@ octClim <- climate %>%
 #calculate hours above a set Tmax and below a set Tmin based on Mordecai et al min and max r0, min=16C, max= 31 C
 
 #calculate percent of time above and below temperatures
+
 octBelow16 <- climate %>%
   dplyr::select(-Date) %>%
   filter(Day >= as.Date("2016-09-26","%Y-%m-%d")) %>%
@@ -561,44 +562,15 @@ octClim <- merge(octClim, octAbove31, by="Tray_ID", all.x=T)
 octClim$hoursAbove31[is.na(octClim$hoursAbove31)] <- 0
 octClim$hoursBelow16[is.na(octClim$hoursBelow16)] <- 0
 
-
-#merge climate and infection data
-test <- merge(octInf, octClim, by.x="Tray_Code", by.y="Tray_ID", all.x=T)
-
-#replace missing tray data with mean of the site values
-meanU2 <- test %>%
-  filter(Site_Code=="U2") %>%
-  summarise_each(funs(mean(.,na.rm=T)), Temp_mean:hoursAbove31)
-missingInds <- which(is.na(test$Temp_mean))
-test[missingInds, 12:ncol(test)] <- meanU2
-
-#weight contribution of each tray based on how many mosquitoes emerged from it that were infected
-
-#function multiplies value by number of mosquitoes emerged
-emergWeight <- function(envVar, noEmerg){
-  newVal <- envVar * noEmerg
-  return(newVal)
-}
-
-#function that divides by the total emerged per site
-cumDivide <- function(envVar, cumul){
-  newVal <- sum(envVar)/cumul
-  return(newVal)
-}
+##new method of weighting climate by expanded infection
+octInfExp <- octInf[rep(seq.int(1,nrow(octInf)), octInf$Num_Emerge),]
+test <- merge(octInfExp, octClim, by.x="Tray_Code", by.y="Tray_ID", all.x=T)
 
 octEnvVar <- test %>%
   dplyr::select(-Tray_Code,-Site, -Tray, - Class, - Month, - Day, - Exp_Day, - Sex) %>%
-  rowwise() %>%
-  #multiply by number per tray
-  mutate_each(funs(emergWeight(., Num_Emerge)), -Site_Code, -block) %>%
-  group_by(Site_Code, block) %>%
-  #sum and divide by cumulative emergence
-  mutate(cumEmerge = sum(Num_Emerge)) %>%
-  mutate_each(funs(cumDivide(.,cumEmerge)), -Site_Code, -block) %>%
-  ungroup() %>%
-  dplyr::select(-cumEmerge, -Num_Emerge) %>%
-  #get unique values per site
-  distinct(Site_Code, .keep_all=T)
+  group_by(block,Site_Code) %>%
+  summarise_each(funs(mean(.,na.rm=T),se=(sd(., na.rm=T)/sqrt(n())))) 
+
   
 rm(test) #clear unused temporary dataframe
 ```
@@ -656,28 +628,17 @@ augClim <- merge(augClim, augAbove31, by="Tray_ID", all.x=T)
 augClim$hoursAbove31[is.na(augClim$hoursAbove31)] <- 0
 augClim$hoursBelow16 <- 0
 
-test <- merge(augInf, augClim, by.x="Tray_Code", by.y="Tray_ID")
-
-#replace missing tray data with mean of the site values
-meanU2 <- test %>%
-  filter(Site_Code=="U2") %>%
-  summarise_each(funs(mean(.,na.rm=T)), Temp_mean:hoursAbove31)
-missingInds <- which(is.na(test$Temp_mean))
-test[missingInds, 12:ncol(test)] <- meanU2
+##new method of weighting climate by expanded infection
+augInfExp <- augInf[rep(seq.int(1,nrow(augInf)), augInf$Num_Emerge),]
+test <- merge(augInfExp, augClim, by.x="Tray_Code", by.y="Tray_ID", all.x=T)
 
 augEnvVar <- test %>%
   dplyr::select(-Tray_Code,-Site, -Tray, - Class, - Month, - Day, - Exp_Day, - Sex) %>%
-  rowwise() %>%
-  #multiply by number per tray
-  mutate_each(funs(emergWeight(., Num_Emerge)), -Site_Code, -block) %>%
-  group_by(Site_Code, block) %>%
-  #sum and divide by cumulative emergence
-  mutate(cumEmerge = sum(Num_Emerge)) %>%
-  mutate_each(funs(cumDivide(.,cumEmerge)), -Site_Code, -block) %>%
-  ungroup() %>%
-  dplyr::select(-cumEmerge, -Num_Emerge) %>%
-  #get unique values per site
-  distinct(Site_Code, .keep_all=T)
+  group_by(block,Site_Code) %>%
+  summarise_each(funs(mean(.,na.rm=T),se=(sd(., na.rm=T)/sqrt(n())))) 
+
+rm(test)
+
 ```
 
 ```{r, echo=FALSE}
