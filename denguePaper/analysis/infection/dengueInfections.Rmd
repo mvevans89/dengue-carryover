@@ -24,7 +24,7 @@ knitr::opts_chunk$set(warning=FALSE)
 * Infection Statistical Analysis *
 - GBM on individual level infection: did not work becuase the climate data was aggregated to the site level (Early April 2017)
 - glmnet for variable selection with site level infection rates: this worked fairly well, but I also noticed strong differences across block (season). This inspired me to then try a mixed-model which could have block as a random effect (mid-April 2017)
-- lmer model: informed by variable selection from glmnet. It is informed in that all of the variables are extremely correlated, but mean_temp came out as important. And I think it makes the most sense to focus on that for now.
+- lmer model: informed by variable selection from glmnet. It is informed in that all of the variables are extremely correlated, but mean_temp came out as important. And I think it makes the most sense to focus on that for now. (April 20 2017)
 
 ```{r}
 library(xtable)
@@ -439,7 +439,7 @@ Based on the results of Test 1, we only see a difference in infection at 21 dpi 
 ### Load and Format Microclimate Data
 
 ```{r clean climate data, echo=FALSE, eval=T}
-climate <- read.csv('../../data/microclimate/clean/2016TrialsAdult.csv')[,-1]
+climate <- read.csv('data/microclimate/clean/2016TrialsAdult.csv')[,-1]
 #toss out ridiculous levels
 climate <- climate[climate$Temp<75,]
 #format date
@@ -816,8 +816,9 @@ lmerMod5 <- lmer(Body_mean~ Temp_mean_mean*Temp_min_mean+Temp_max_mean + (1|bloc
 lmerMod6 <- lmer(Body_mean~ Temp_mean_mean*Temp_min_mean*Temp_max_mean + (1|block), data=modDF)
 lmerMod7 <- lmer(Body_mean~ Temp_min_mean + (1|block), data=modDF)
 lmerMod8 <- lmer(Body_mean~ Temp_max_mean + (1|block), data=modDF) #intercept error
+lmerMod9 <- lmer(Body_mean~ Temp_mean_mean + (Temp_mean_mean|block), data=modDF)
 
-piecewiseSEM::rsquared(list( lmerMod4, lmerMod7)) #lmerMod4 is the best
+piecewiseSEM::rsquared(list( lmerMod4, lmerMod9)) #lmerMod4 is the best
 
 MuMIn::r.squaredGLMM(lmerMod4)
 summary(lmerMod4)
