@@ -18,6 +18,14 @@ knitr::opts_chunk$set(message=FALSE)
 knitr::opts_chunk$set(warning=FALSE)
 ```
 
+# Lab Notebook of Tried Things
+
+
+* Infection Statistical Analysis *
+- GBM on individual level infection: did not work becuase the climate data was aggregated to the site level (Early April 2017)
+- glmnet for variable selection with site level infection rates: this worked fairly well, but I also noticed strong differences across block (season). This inspired me to then try a mixed-model which could have block as a random effect (mid-April 2017)
+- lmer model: informed by variable selection from glmnet. It is informed in that all of the variables are extremely correlated, but mean_temp came out as important. And I think it makes the most sense to focus on that for now.
+
 ```{r}
 library(xtable)
 library(tidyr)
@@ -33,6 +41,8 @@ library(corrplot)
 library(glmnet)
 library(GGally)
 library(dplyr)
+library(ggthemes)
+library(piecewiseSEM)
 ```
 
 ```{r}
@@ -567,7 +577,7 @@ octInfExp <- octInf[rep(seq.int(1,nrow(octInf)), octInf$Num_Emerge),]
 test <- merge(octInfExp, octClim, by.x="Tray_Code", by.y="Tray_ID", all.x=T)
 
 octEnvVar <- test %>%
-  dplyr::select(-Tray_Code,-Site, -Tray, - Class, - Month, - Day, - Exp_Day, - Sex) %>%
+  dplyr::select(-Tray_Code,-Site, -Tray, - Class, - Month, - Day, - Exp_Day, - Sex, -Num_Emerge) %>%
   group_by(block,Site_Code) %>%
   summarise_each(funs(mean(.,na.rm=T),se=(sd(., na.rm=T)/sqrt(n())))) 
 
@@ -633,7 +643,7 @@ augInfExp <- augInf[rep(seq.int(1,nrow(augInf)), augInf$Num_Emerge),]
 test <- merge(augInfExp, augClim, by.x="Tray_Code", by.y="Tray_ID", all.x=T)
 
 augEnvVar <- test %>%
-  dplyr::select(-Tray_Code,-Site, -Tray, - Class, - Month, - Day, - Exp_Day, - Sex) %>%
+  dplyr::select(-Tray_Code,-Site, -Tray, - Class, - Month, - Day, - Exp_Day, - Sex, -Num_Emerge) %>%
   group_by(block,Site_Code) %>%
   summarise_each(funs(mean(.,na.rm=T),se=(sd(., na.rm=T)/sqrt(n())))) 
 
@@ -659,21 +669,15 @@ When plotting environmental variables against each other, I realized why it was 
 ```{r create dataframe of site-aggregated infections}
 seasonSite <- seasons %>%
   filter(DPI=="21") %>%
-  dplyr::select(-Individual, -DPI) %>%
+  dplyr::select(-Individual, -DPI, - Wing) %>%
   dplyr::group_by(block, class, site) %>%
-  summarise_each(funs(mean(.,na.rm=T)))
+  summarise_each(funs(mean(.,na.rm=T), se=(sd(., na.rm=T)/sqrt(n()))))
 
 #group with temperature data
 seasonInfSite <- merge(seasonSite, rbind(augEnvVar,octEnvVar), by.x=c("block", "site"), by.y=c("block", "Site_Code"))
 ```
 
 Now for some visualization:
-
-```{r}
-envVarPlot("Body", dataset=seasonInfSite)
-envVarPlot("Head", dataset=seasonInfSite)
-envVarPlot("Saliva", dataset=seasonInfSite)
-```
 
 Correlation plots:
 
@@ -685,14 +689,14 @@ line_fn <- function(data, mapping, ...){
     geom_smooth(method=lm, fill="blue", color="blue", ...)
   p
 }
-ggpairs(seasonInfSite, 8:ncol(seasonInfSite),lower = list(continuous = line_fn))
+ggpairs(seasonInfSite, 8:16,lower = list(continuous = line_fn))
 ```
 
 Now pair-wise plots of variables, based on some of the output of the GBM and glmnet from above:
 
 ```{r}
 par(mfrow=c(3,3))
-vars <- colnames(seasonInfSite)[-c(1:7)]
+vars <- colnames(seasonInfSite)[8:16]
 ggplot(data=seasonInfSite, aes_string(x=vars[1], y=vars[2])) +
   geom_point(aes(color=Body, shape=class, size=Body))
 ggplot(data=seasonInfSite, aes_string(x=vars[1], y=vars[3])) +
@@ -715,8 +719,8 @@ ggplot(data=seasonInfSite, aes_string(x=vars[1], y=vars[9])) +
 Using glmnet to make a regression:
 
 ```{r}
-respV <- "Body"
-predVs <- c("Temp_mean","RH_mean","Temp_min","RH_min", "Temp_max", "DTR", "hoursAbove31", "hoursBelow16")
+respV <- "Body_mean"
+predVs <- c("Temp_mean_mean","RH_mean_mean","Temp_min_mean","RH_min_mean", "Temp_max_mean", "DTR_mean", "hoursAbove31_mean", "hoursBelow16_mean")
 
 hist(seasonInfSite$Body)
 
@@ -741,14 +745,10 @@ glmControl <- trainControl(method='LOOCV',
                            returnResamp='none',
                            preProcOptions = c("center", "corr", "scale")
                            )
-#bodyPreds <- predVs[-c(4,2,7,8)]
-bodyFx <- as.formula(Body~ Temp_mean*block + 0)
-x <- model.matrix(bodyFx, modDF,
-                  contrasts.arg = list(block=contrasts(modDF$block, contrasts=F))
-                  )
+bodyPreds <- predVs[-c(4,2,7,8)]
+
 set.seed(8675309)
-glmModel <- train(x,
-  #modDF[,c('Temp_mean','Temp_min','Temp_max', 'DTR', 'block')], 
+glmModel <- train(modDF[,predVs], 
                   modDF[, respV], 
                   method='glmnet',
                   trControl=glmControl)
@@ -756,7 +756,6 @@ glmModel <- train(x,
 plot(varImp(glmModel,scale=F))
 glmModel$results
 coef(glmModel$finalModel, glmModel$bestTune$lambda)
-
 ```
 
 The best way to judge importance of the variables could be to drop out each and look at model performance.
@@ -798,44 +797,47 @@ Final Model: Temp_mean, Temp_min, Temp_max, DTR (RMSE=0.1416, R2=0.4727)
 
 Note that I have also tried adding in block as a covariate (both alone and an interaction), and it was always dropped.
 
+**Second Statistical Test: Just a plain old lmer**
+
+```{r}
+respV <- "Body_mean"
+predVs <- c("Temp_mean_mean","RH_mean_mean","Temp_min_mean","RH_min_mean", "Temp_max_mean", "DTR_mean", "hoursAbove31_mean", "hoursBelow16_mean")
+
+#create dataframe without NAs
+myCols <- c(respV, predVs, "block")
+modDF <- seasonInfSite %>%
+  dplyr::select(one_of(myCols)) 
+modDF <- na.omit(modDF)
+
+lmerMod2 <- lmer(Body_mean~ Temp_mean_mean+Temp_min_mean + (1|block), data=modDF)
+lmerMod3 <- lmer(Body_mean~ Temp_mean_mean*Temp_min_mean + (1|block), data=modDF)
+lmerMod4 <- lmer(Body_mean~ Temp_mean_mean + (1|block), data=modDF)
+lmerMod5 <- lmer(Body_mean~ Temp_mean_mean*Temp_min_mean+Temp_max_mean + (1|block), data=modDF)
+lmerMod6 <- lmer(Body_mean~ Temp_mean_mean*Temp_min_mean*Temp_max_mean + (1|block), data=modDF)
+
+rsquared(list(lmerMod2, lmerMod3, lmerMod4, lmerMod5, lmerMod6)) #lmerMod5 is the best for Rsquared and AIC
+
+summary(lmerMod5)
+Anova(lmerMod5)
+plot(lmerMod5)
+
+
+#check predictive R2
+preds <- predict(lmerMod5)
+plot(preds, modDF$Body_mean)
+abline(a=0, b=1)
+```
+
+Based on this, I think I will choose to use an lmer. This is reasonable becaause the relationship does seem to be linear, especially once the block is set as a random effect.
+
 #### Visualization of Important Variables
 
 ```{r}
-par(mfrow=c(3,3))
-ggplot(data=seasonInfSite, aes(x=Temp_mean, y=Temp_min)) +
-  geom_point(aes(color=Body, shape=class, size=Body))
-ggplot(data=seasonInfSite, aes(x=Temp_mean, y=hoursBelow16)) +
-  geom_point(aes(color=Body, shape=class, size=Body))
-ggplot(data=seasonInfSite, aes(x=Temp_mean, y=DTR)) +
-  geom_point(aes(color=Body, shape=class, size=Body))
-ggplot(data=seasonInfSite, aes(x=Temp_mean, y=Temp_max)) +
-  geom_point(aes(color=Body, shape=class, size=Body))
-ggplot(data=seasonInfSite, aes(x=DTR, y=hoursBelow16)) +
-  geom_point(aes(color=Body, shape=class, size=Body))
-ggplot(data=seasonInfSite, aes(x=Temp_max, y=DTR)) +
-  geom_point(aes(color=Body, shape=class, size=Body)) #this is especially cool
-ggplot(data=seasonInfSite, aes(x=Temp_min, y=DTR)) +
-  geom_point(aes(color=Body, shape=class, size=Body))
-
-ggplot(data=seasonInfSite, aes(x=Temp_mean, y=Body))+
-  geom_point(aes(color=class, shape=block), size=4) + 
-  scale_color_manual(values=c(colRural, colSuburban, colUrban)) +
-  theme_base() +
-  ylab("Prop. Body Infection")
-```
-
-```{r 3D Chart}
-library(plotly)
-
-plot_ly(seasonInfSite, x=~Temp_mean, y=~Temp_min, z=~Body, color=~class, colors=c(colRural, colSuburban, colUrban)) %>%
-  add_markers()
-```
-
-Need a plot of temp_mean and body infection (scattler plots with SE bars)
-```{r}
 png(file="../figures/forMS/bodyInfxMeanTemp.png", width = 6, height=4, units="in", res=500, family="sans")
-ggplot(data=seasonInfSite, aes(x=Temp_mean, y=Body))+
-  geom_point(aes(color=class, shape=block), size=4) + 
+ggplot(data=seasonInfSite, aes(x=Temp_mean_mean, y=Body_mean))+
+  geom_errorbar(aes(ymin=Body_mean-Body_se, ymax=Body_mean+Body_se), color="gray20", width=0.1) +
+  #geom_errorbarh(aes(xmin=Temp_mean_mean-Temp_mean_se, xmax=Temp_mean_mean+Temp_mean_se, y=Body_mean),color="gray20", height=0.05) + #not enough error to see
+  geom_point(aes(color=class, shape=block), size=4.5) + 
   scale_color_manual(values=c(colRural, colSuburban, colUrban)) +
   theme_base() +
   ylab("Prop. Body Infection")+
@@ -846,7 +848,9 @@ dev.off()
 
 ```{r}
 png(file="../figures/forMS/bodyInfxMinTemp.png", width = 6, height=3, units="in", res=500, family="sans")
-ggplot(data=seasonInfSite, aes(x=Temp_min, y=Body))+
+ggplot(data=seasonInfSite, aes(x=Temp_min_mean, y=Body_mean))+
+    geom_errorbar(aes(ymin=Body_mean-Body_se, ymax=Body_mean+Body_se), color="gray20", width=0.1) +
+  geom_errorbarh(aes(xmin=Temp_min_mean-Temp_min_se, xmax=Temp_min_mean+Temp_min_se), color="gray20", height=0.05) +
   geom_point(aes(color=class, shape=block), size=4) + 
   scale_color_manual(values=c(colRural, colSuburban, colUrban)) +
   theme_base() +
@@ -854,6 +858,20 @@ ggplot(data=seasonInfSite, aes(x=Temp_min, y=Body))+
   xlab("Minimum Daily Temperature (C)")
 dev.off()
 ```
+
+```{r}
+png(file="../figures/forMS/bodyInfxMaxTemp.png", width = 6, height=3, units="in", res=500, family="sans")
+ggplot(data=seasonInfSite, aes(x=Temp_max_mean, y=Body_mean))+
+    geom_errorbar(aes(ymin=Body_mean-Body_se, ymax=Body_mean+Body_se), color="gray20", width=0.1) +
+  geom_errorbarh(aes(xmin=Temp_max_mean-Temp_max_se, xmax=Temp_max_mean+Temp_max_se), color="gray20", height=0.05) +
+  geom_point(aes(color=class, shape=block), size=4) + 
+  scale_color_manual(values=c(colRural, colSuburban, colUrban)) +
+  theme_base() +
+  ylab("Prop. Body Infection") +
+  xlab("Maximum Daily Temperature (C)")
+dev.off()
+```
+
 
 #### Head Infection Glmnet
 
