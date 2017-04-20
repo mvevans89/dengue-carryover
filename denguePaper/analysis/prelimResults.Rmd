@@ -14,23 +14,421 @@ knitr::opts_chunk$set(warning=FALSE)
 
 This document goes over the main results from the 2016 Athens Dengue Field Project.
 
+```{r load packages and colors}
+library(xtable)
+library(tidyr)
+library(ggplot2) 
+library(lme4) #mixed models
+library(car)
+library(MASS)
+library(gridExtra) #for facet grids later
+library(gbm)
+library(caret)
+library(pROC)
+library(corrplot)
+library(glmnet)
+library(GGally)
+library(dplyr)
+library(ggthemes)
+library(piecewiseSEM)
+
+colR <- colRural <- "dodgerblue"
+colS <- colSuburban <- "gray80"
+colU <- colUrban <- "maroon"
+```
+
+```{r data loading and formatting}
+formatData <- function(month){
+  #' format infection data
+  #' @params month (ie. "august")
+  #' @returns dataframe of properly formatted data
+  #adjust wingLength
+  monthDf <- read.csv(paste0("../data/infections/raw/", month,"Dengue.csv"))
+  #convert wingLength and drop extra columns
+  monthDf$Wing <- monthDf$WingLength*monthDf$conversion..mm.bar.
+  monthDf <- select(monthDf, -WingLength, -conversion..mm.bar.)
+  
+  #dpi as factor
+  monthDf$DPI <- as.factor(monthDf$DPI)
+  
+  #add in class and site
+  monthDf$site <- as.factor(substr(as.character(monthDf$Individual), 1, 2))
+  monthDf$class <- NULL
+  for (i in 1:nrow(monthDf)){
+    if (substr(monthDf$site[i], 1,1)=="R"){
+    monthDf$class[i] <- "Rural"
+    } else if (substr(monthDf$site[i], 1,1)=="S"){
+    monthDf$class[i] <- "Suburban"
+    } else if (substr(monthDf$site[i], 1,1)=="U"){
+    monthDf$class[i] <- "Urban"
+    }
+  }
+  monthDf$class <- as.factor(monthDf$class)
+  
+  #convert Y and N to 1 and 0 for statistics
+  levels(monthDf$Body) <- c("NA", 0, 1)
+  monthDf$Body <- as.numeric(as.character(monthDf$Body))
+  levels(monthDf$Saliva) <- c("NA", 0, 1)
+  monthDf$Saliva <- as.numeric(as.character(monthDf$Saliva))
+  # august had no contaminated heads, so different corrections
+  if (month=="august"){
+    levels(monthDf$Head) <- c(0, 1)
+  } else levels(monthDf$Head) <- c("NA",0, 1)
+  monthDf$Head <- as.numeric(as.character(monthDf$Head))
+  
+  ##Fix false negatievs
+  #adjust so that if saliva is positive, so is head
+  #ddjust so that is head is positive, so is body
+  monthDf$Head[monthDf$Saliva>0] <- 1
+  monthDf$Body[monthDf$Head>0] <- 1
+  
+  return(monthDf)
+}
+
+august <- formatData("august")
+oct <- formatData("october")
+seasons <- rbind(august,oct)
+seasons$block <- as.factor(c(rep("summer", nrow(august)), rep("fall", nrow(oct))))
+
+seasonSumm <- seasons %>%
+  filter(DPI==21) %>%
+  #drop individual
+  select(-Individual, -site, -Wing, -DPI) %>%
+  group_by(block, class) %>%
+  summarise_each(funs(mean(.,na.rm=T),sd(.,na.rm=T),se=(sd(., na.rm=T)/sqrt(n())))) %>%
+  ungroup()
+```
+
+```{r season plot function}
+seasonPlot <- function(bodyPart, summTable=seasonSumm){
+  cols <- c(1,2,grep(bodyPart, colnames(summTable)))
+  tempLarge <- summTable[,cols]
+  colnames(tempLarge)[3:5] <- c("mean", "sd", "se")
+    
+  tempMean <- tempLarge %>%
+    select(-sd,-se) %>%
+    spread(block, mean) %>%
+    select(-class)
+  
+  #put summer before fall
+  tempMean <- tempMean[,c(2,1)]
+
+  
+  rownames(tempMean) <- levels(tempLarge$class)
+  tempMean <- t(as.matrix(tempMean))
+  
+  colvec <- c(rep(colRural,2), rep(colSuburban,2), 
+                            rep(colUrban,2))
+  
+  barCenters <- barplot(tempMean, 
+                      beside=T,
+                      col=colvec,
+                      density = c(40,NA),
+                      names.arg=colnames(tempMean),
+                      ylim=c(0,0.80)
+                      )
+  
+  tempSE <- tempLarge %>%
+    select(-sd,-mean) %>%
+    spread(block, se) %>%
+    select(-class)
+  
+   #put summer before fall
+  tempSE <- tempSE[,c(2,1)]
+  
+   tempSE <- t(tempSE)
+  
+  #add se bars
+  segments(barCenters, tempMean - tempSE , barCenters,
+         tempMean + tempSE, lwd = 1.5)
+  
+  arrows(barCenters, tempMean - tempSE , barCenters,
+         tempMean + tempSE,
+         lwd = 1.5, 
+         angle = 90,
+         code = 3, length = 0.03)
+  
+  #legend("topright", legend=c("Summer", "Fall"), density = c(40,NA),
+       #bty = "n", col = "gray80")
+}
+```
+
+
 # Infection Dynamics
 
 **Methods Overview**: Mosquitoes were reared at 9 sites (3 rural, 3 surburban, 3 urban) and brought back to the lab to infect with dengue. Mosquitoes were reared in four trays at each site, but pooled by site for infections because there were not enough numbers. At 21 days post infection, they were processed to test for infection (body), dissemination (head), and infectiousness (saliva). This was repeated in the fall and summer. Climate data reported was averaged at the site level over the larval rearing period, and weighted to account for the amount of time mosquitoes spent in each tray.
 
 ## Infection by Class and Season
 
+
 The first analysis was to determine how infection dynamics differed by class (rural, suburban, or urban) & season (summer or fall).
 
-![Infection dynamics in the body, head, and saliva across class and season. Bars represent the proportion infected per class with standard error bars](figures/forMS/seasonInfections.png)
+```{r season by class infection plot, fig.width=4, fig.height=6}
+#png(file="../figures/forMS/seasonInfections.png", width = 4, height=6, units="in", res=500, family="sans")
+par(mfrow=c(3,1), las=1, par(mar=c(5.1,6.1,4.1,2.1)))
+seasonPlot(bodyPart="Body")
+par(xpd=T)
+legend(x=7.5, y=1.0, legend=c("Summer", "Fall"), density = c(40,NA),
+       bty = "n", col = "gray80", cex=1.1)
+mtext("Body")
+
+
+
+seasonPlot(bodyPart="Head")
+mtext("Head")
+par(las=0)
+mtext("Proportion Infected", side=2, line=3)
+
+
+
+par(las=1)
+seasonPlot(bodyPart="Saliva")
+mtext("Saliva")
+#dev.off()
+```
 
 A binomial generalized linear mixed-effects model was fit to the data, with class and season and their interaction as fixed effects and site as a random effect. To test for significance, we calculated an analysis of variance table using a Type II Wald chisquare test for the fixed effects. Both class and season had significant effects on body and head infections, however there was no effect of either on saliva infection.
 
+```{r seasonal infection stats}
+#model #there was no interaction of class and block
+mixModelseasonsBody21 <- lme4::glmer(Body~class + block + (1|site), 
+                          data=seasons[seasons$DPI=="21",],
+                          family=binomial(link="logit"))
+Body21Aov <- car::Anova(mixModelseasonsBody21)
+
+mixModelseasonsHead21 <- lme4::glmer(Head~class + block + block*class + (1|site), 
+                          data=seasons[seasons$DPI=="21",],
+                          family=binomial(link="logit"))
+Head21Aov <- car::Anova(mixModelseasonsHead21)
+mixModelseasonsSaliva21 <- lme4::glmer(Saliva~class + block + block*class + (1|site), 
+                          data=seasons[seasons$DPI=="21",],
+                          family=binomial(link="logit"))
+Head21Aov <- car::Anova((mixModelseasonsSaliva21))
+```
+
 We found that infection in the body and head was significantly lower in the summer than the fall. Although there was a trend towards higher infection in the saliva in the summer, this was not significant (p=0.05676).  Land class also influence infection of both the body and head, with urban mosquitoes having lower rates of infection than rural and suburban mosquitoes. Saliva infections were unaffected by land class, however.
+```{r seasonal infection tables, results='asis', eval=T}
+knitr::kable(Body21Aov)
+```
+
 
 As both the summer season and urban land classes had the highest temperatures in their respecitive groups, this suggests that these differences in vector competence may be due to differences in temperature in the larval environment.
 
 ## Infection and Microclimate
+
+```{r load and format microclimate data}
+climate <- read.csv('../data/microclimate/clean/2016TrialsAdult.csv')[,-1]
+#toss out ridiculous levels
+climate <- climate[climate$Temp<75,]
+#format date
+climate$Date <- strptime(climate$Date, format="%Y-%m-%d %H:%M:%S")
+#draw out day
+climate$Day <- as.Date(climate$Date)
+
+# add tray id to climate data
+trayID <- read.csv("../data/microclimate/trayLoggerID.csv") #read in IDs
+climate <- merge(climate, trayID, by="Pot_ID")
+
+#fix duplicates for R1T1
+climate <- unique(climate)
+
+#U2T2 and U1T2 are missing data
+# range(climate[climate$Tray_ID=="U2T2", 'Date']) 
+# range(climate[climate$Tray_ID=="U1T2", 'Date']) 
+
+#drop U2T2 becuase it only has data until August 5th
+inds <- which(climate$Tray_ID=="U2T2")
+climate <- climate[-inds,]
+rm(inds)
+
+#U2T4 wasn't working right, reporting temps above 40C in October
+inds <- which(climate$Tray_ID=="U2T4")
+climate <- climate[-inds,]
+rm(inds)
+
+```
+
+```{r load emergence data,echo=FALSE}
+augEmerg <- read.csv("../data/emergence/raw/AugustEmergence.csv")
+augEmerg$block <- as.factor("summer")
+octEmerg <- read.csv("../data/emergence/raw/OctoberEmergence.csv")
+octEmerg$block <- as.factor("fall")
+
+allEmerg <- rbind(augEmerg, octEmerg)
+```
+
+```{r standardize and correct for emergence, echo=FALSE}
+#filter out only days when infected mosquitoes were in the trays
+octInf <- octEmerg %>%
+  filter(Sex=="F") %>%
+  filter((Site_Code %in% c("U3", "R3") & Day <= 21) |
+           (Site_Code %in% c("U2", "U1", "S3") & Day <= 20) |
+           (Site_Code %in% c("S1", "S2", "R1", "R2") & Day <= 24))
+
+augInf <- augEmerg %>%
+  filter(Sex=="F") %>%
+    filter((Site_Code %in% c("U2", "U1", "S3", "R1") & Day <= 14) |
+           (Site_Code %in% c("S1", "S2", "R2", "R3", "U3") & Day <= 17))
+```
+
+```{r process october climate, message=F, echo=FALSE}
+
+octClim <- climate %>%
+  dplyr::select(-Date) %>%
+  filter(Day >= as.Date("2016-09-26","%Y-%m-%d")) %>%
+  #filter out appropriate days
+  filter((Site_ID %in% c("U3", "R3") & Day <= "2016-10-21") |
+           (Site_ID %in% c("U2", "U1", "S3") & Day <= "2016-10-20") |
+           (Site_ID %in% c("S1", "S2", "R1", "R2") & Day <= "2016-10-24")) %>%
+  dplyr::select(-Site_ID, -Pot_ID, -Class) %>%
+  #get daily averages by Tray
+  group_by(Tray_ID, Day) %>%
+  summarise_each(funs(mean(., na.rm=T), min(., na.rm=T), max(., na.rm=T))) %>%
+  #calculate DTR
+  mutate(DTR=Temp_max-Temp_min) %>%
+  #get overall average over study period per tray (average daily values)
+  ungroup() %>%
+  dplyr::select(-Day) %>%
+  group_by(Tray_ID) %>%
+  summarise_each(funs(mean))
+
+#calculate hours above a set Tmax and below a set Tmin based on Mordecai et al min and max r0, min=16C, max= 31 C
+
+#calculate percent of time above and below temperatures
+
+octBelow16 <- climate %>%
+  dplyr::select(-Date) %>%
+  filter(Day >= as.Date("2016-09-26","%Y-%m-%d")) %>%
+  #filter out appropriate days
+  filter((Site_ID %in% c("U3", "R3") & Day <= "2016-10-21") |
+           (Site_ID %in% c("U2", "U1", "S3") & Day <= "2016-10-20") |
+           (Site_ID %in% c("S1", "S2", "R1", "R2") & Day <= "2016-10-24")) %>%
+  filter(Temp<16) %>%
+  group_by(Tray_ID) %>%
+  dplyr::summarise(Tcount=n()) %>%
+  mutate(hoursBelow16=Tcount/6) %>%
+  select(-Tcount)
+
+
+
+octAbove31 <- climate %>%
+  dplyr::select(-Date) %>%
+  filter(Day >= as.Date("2016-09-26","%Y-%m-%d")) %>%
+  #filter out appropriate days
+  filter((Site_ID %in% c("U3", "R3") & Day <= "2016-10-21") |
+           (Site_ID %in% c("U2", "U1", "S3") & Day <= "2016-10-20") |
+           (Site_ID %in% c("S1", "S2", "R1", "R2") & Day <= "2016-10-24")) %>%
+  filter(Temp>31) %>%
+  group_by(Tray_ID) %>%
+  summarise(Tcount=n()) %>%
+  mutate(hoursAbove31=Tcount/6) %>%
+  select(-Tcount)
+
+
+#merge climate variables together
+octClim <- merge(octClim, octBelow16, by="Tray_ID", all.x=T)
+octClim <- merge(octClim, octAbove31, by="Tray_ID", all.x=T)
+
+#add 0s
+octClim$hoursAbove31[is.na(octClim$hoursAbove31)] <- 0
+octClim$hoursBelow16[is.na(octClim$hoursBelow16)] <- 0
+
+##new method of weighting climate by expanded infection
+octInfExp <- octInf[rep(seq.int(1,nrow(octInf)), octInf$Num_Emerge),]
+test <- merge(octInfExp, octClim, by.x="Tray_Code", by.y="Tray_ID", all.x=T)
+
+octEnvVar <- test %>%
+  dplyr::select(-Tray_Code,-Site, -Tray, - Class, - Month, - Day, - Exp_Day, - Sex, -Num_Emerge) %>%
+  group_by(block,Site_Code) %>%
+  summarise_each(funs(mean(.,na.rm=T),se=(sd(., na.rm=T)/sqrt(n())))) 
+
+  
+rm(test) #clear unused temporary dataframe
+```
+
+```{r august climate formatting, message=F, echo=FALSE}
+##repeat above for August
+augClim <- climate %>%
+  dplyr::select(-Date) %>%
+  filter(Day >= as.Date("2016-08-01","%Y-%m-%d")) %>%
+    filter((Site_ID %in% c("U2", "U1", "S3", "R1") & Day <= "2016-08-14") |
+           (Site_ID %in% c("S1", "S2", "R2", "R3", "U3") & Day <= "2016-08-17")) %>%
+  dplyr::select(-Site_ID, -Pot_ID, -Class) %>%
+  #get daily averages by Tray
+  group_by(Tray_ID, Day) %>%
+  summarise_each(funs(mean(., na.rm=T), min(., na.rm=T), max(., na.rm=T))) %>%
+  #calculate DTR
+  mutate(DTR=Temp_max-Temp_min) %>%
+  #get overall average over study period per tray (average daily values)
+  ungroup() %>%
+  dplyr::select(-Day) %>%
+  group_by(Tray_ID) %>%
+  summarise_each(funs(mean))
+
+#calculate hours above a set Tmax and below a set Tmin based on Mordecai et al min and max r0, min=16C, max= 31 C
+
+#calculate number of hours above and below temperatures
+#there are no hours below 16 in august
+# augBelow16 <- climate %>%
+#   dplyr::select(-Date) %>%
+#   filter(Day >= as.Date("2016-08-01","%Y-%m-%d")) %>%
+#     filter((Site_ID %in% c("U2", "U1", "S3", "R1") & Day <= "2016-08-14") |
+#            (Site_ID %in% c("S1", "S2", "R2", "R3", "U3") & Day <= "2016-08-17")) %>%
+#   filter(Temp<16) %>%
+#   group_by(Tray_ID) %>%
+#   summarise(Tcount=n()) %>%
+#   mutate(hoursBelow16=Tcount/6) %>%
+#   select(-Tcount)
+
+augAbove31 <- climate %>%
+  dplyr::select(-Date) %>%
+  filter(Day >= as.Date("2016-08-01","%Y-%m-%d")) %>%
+  filter((Site_ID %in% c("U2", "U1", "S3", "R1") & Day <= "2016-08-14") |
+           (Site_ID %in% c("S1", "S2", "R2", "R3", "U3") & Day <= "2016-08-17")) %>%
+  filter(Temp>31) %>%
+  group_by(Tray_ID) %>%
+  dplyr::summarise(Tcount=n()) %>%
+  mutate(hoursAbove31=Tcount/6) %>%
+  select(-Tcount)
+
+
+#merge climate variables together
+augClim <- merge(augClim, augAbove31, by="Tray_ID", all.x=T)
+
+#add 0s
+augClim$hoursAbove31[is.na(augClim$hoursAbove31)] <- 0
+augClim$hoursBelow16 <- 0
+
+##new method of weighting climate by expanded infection
+augInfExp <- augInf[rep(seq.int(1,nrow(augInf)), augInf$Num_Emerge),]
+test <- merge(augInfExp, augClim, by.x="Tray_Code", by.y="Tray_ID", all.x=T)
+
+augEnvVar <- test %>%
+  dplyr::select(-Tray_Code,-Site, -Tray, - Class, - Month, - Day, - Exp_Day, - Sex, -Num_Emerge) %>%
+  group_by(block,Site_Code) %>%
+  summarise_each(funs(mean(.,na.rm=T),se=(sd(., na.rm=T)/sqrt(n())))) 
+
+rm(test)
+
+```
+
+```{r, echo=FALSE}
+#merge the summer and fall into one dataframe
+oct$block <- as.factor("fall")
+august$block <- as.factor("summer")
+seasonInf <- merge(rbind(oct, august[august$DPI=="21",]), rbind(augEnvVar,octEnvVar), by.x=c("block", "site"), by.y=c("block", "Site_Code"))
+```
+
+```{r create dataframe of site-aggregated infections}
+seasonSite <- seasons %>%
+  filter(DPI=="21") %>%
+  dplyr::select(-Individual, -DPI, - Wing) %>%
+  dplyr::group_by(block, class, site) %>%
+  summarise_each(funs(mean(.,na.rm=T), se=(sd(., na.rm=T)/sqrt(n()))))
+
+#group with temperature data
+seasonInfSite <- merge(seasonSite, rbind(augEnvVar,octEnvVar), by.x=c("block", "site"), by.y=c("block", "Site_Code"))
+```
 
 Based on our findings above, we wanted to investigate if these patterns across season and class could be driven by microclimate, and how.
 
@@ -38,17 +436,44 @@ Becuase our experimental design was somewhat limited by the number of mosquitoes
 
 The original starting set of variables were the average daily mean, minimum, and maximum temperature and relative humidity per site, daily temperature range, and  the average number of hours below 16C and above 31C. These temperature values were chosen based on thresholds from the Mordecai et al 2017 model of temperature dependence of dengue infections. Because maximum relative humidity is 100% for all sites, this variable was dropped. This resulted in eight total environmental covariates. Becuase temperature and relative humidity are so dependent on each other, this resulted in high correlations amongst the covariates.
 
-To select covariates, I used a lasso regression in the `glmnet` package to conduct a stepwise regression selection process based on the RMSE.  At each step, the variable whose omission resulted in the greatest drop in RMSE was dropped from the model.  As the selection process continued, previously dropped variables were again included in the model at each step to determine any effect on RMSE, and if this increased the error, were left out of the final model. Model selection ended when the dropping of any of the included variables did not decrease the RMSE of the overall model.
+To select covariates, I used a lasso regression in the `glmnet` package to conduct a stepwise regression selection process based on the RMSE.  At each step, the variable whose omission resulted in the greatest drop in RMSE was dropped from the model.  As the selection process continued, previously dropped variables were again included in the model at each step to determine any effect on RMSE, and if this increased the error, were left out of the final model. Variable selection ended when the dropping of any of the included variables did not decrease the RMSE of the overall model.
+
+Because most of these variables were still highly correlated ($\rho>0.9$), I then further selected models to eliminate collinearity amongst covariates. For this stage, I chose to use a linear mixed model because many of the exploratory visualizations were clearly linear, but with a strong random effect of season, which I could include in a mixed model. I modeled all variables individually and with an interaction term between another, if the correlation between the variables was less than 0.75. Models were chosen based on that which minimized the AICc and maximized the marginal $r^2$.
 
 ### Body Infection
 
-The final model included mean, minimum, and maximum temperatures and daily temperature range. The most important variable was mean temperature (Figure 2). Given the high correlation between these variables, I think the only thing we can say with confidence is that temperature is playing a role in infection dynamics, however, with the relatively low $R^2$ of our model ($R^2 = 0.4434$), it is clearly not the only important factor. 
+LASSO regression identified mean, minimum, and maximum temperatures and daily temperature range as important variables, with mean temperature the most important. 
 
-![Variable importance plot from final body glmnet model. Importance values are scaled.](figures/varImp.png)
+```{r body inf x climate stats}
+respV <- "Body_mean"
+predVs <- c("Temp_mean_mean","RH_mean_mean","Temp_min_mean","RH_min_mean", "Temp_max_mean", "DTR_mean", "hoursAbove31_mean", "hoursBelow16_mean")
 
-The relationship between mean temperature and body infection is negative (Figure 3). Higher temperatures are correlated with lower body infection rates.  Additionally, the relationship seems qualitatively different over the seasons, with a stronger relationship in the summer than the fall. This may be because the summer temperatures are near the thermal optimum, where the effect of temperature is more pronounced.
+myCols <- c(respV, predVs, "block")
+modDF <- seasonInfSite %>%
+  dplyr::select(one_of(myCols)) 
+modDF <- na.omit(modDF)
 
-![Body infection across mean daily temperatures in the summer (triangle) and fall (circle) replicates. Colors represent land class.](figures/forMS/bodyInfxMeanTemp.png)
+finalBody <- lmer(Body_mean~ Temp_mean_mean + (1|block), data=modDF)
+```
+
+
+The final linear mixed model included mean temperature as a fixed effect. It had a marginal $r^2$ of `r  round(MuMIn::r.squaredGLMM(finalBody)[[1]],3)`. It also had the lowest AIC value out of all models.  
+
+The relationship between mean temperature and body infection is negative ($\beta$=`r round(coef(finalBody)$block$Temp_mean_mean[[1]], 3)`) and significant ($p<0.05$). Higher temperatures seem to be leading to lower body infection rates.  Additionally, the relationship seems qualitatively different over the seasons, with the season as a random intercept explaining nearly as much of the variance as the mean temperature ($r^2_{GLMM_c}$=`r  round(MuMIn::r.squaredGLMM(finalBody)[[2]],3)`. This may be because the summer temperatures are near the thermal optimum, where the effect of temperature is more pronounced.
+
+```{r body x meanT plot, fig.width=6, fig.height=4}
+#png(file="../figures/forMS/bodyInfxMeanTemp.png", width = 6, height=4, units="in", res=500, family="sans")
+par(family="sans")
+ggplot(data=seasonInfSite, aes(x=Temp_mean_mean, y=Body_mean))+
+  geom_errorbar(aes(ymin=Body_mean-Body_se, ymax=Body_mean+Body_se), color="gray20", width=0.1) +
+  #geom_errorbarh(aes(xmin=Temp_mean_mean-Temp_mean_se, xmax=Temp_mean_mean+Temp_mean_se, y=Body_mean),color="gray20", height=0.05) + #not enough error to see
+  geom_point(aes(color=class, shape=block), size=4.5) + 
+  scale_color_manual(values=c(colRural, colSuburban, colUrban)) +
+  theme_base() +
+  ylab("Prop. Body Infection")+
+  xlab("Mean Daily Temperature (C)")
+#dev.off()
+```
 
 ### Head Infection
 
