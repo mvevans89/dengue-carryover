@@ -1,7 +1,7 @@
 ---
 title: "Athens Dengue Data"
 author: "Michelle Evans"
-date: "April 17, 2017"
+date: ""
 output: pdf_document
 ---
 
@@ -156,7 +156,7 @@ seasonPlot <- function(bodyPart, summTable=seasonSumm){
 
 # Infection Dynamics
 
-**Methods Overview**: Mosquitoes were reared at 9 sites (3 rural, 3 surburban, 3 urban) and brought back to the lab to infect with dengue. Mosquitoes were reared in four trays at each site, but pooled by site for infections because there were not enough numbers. At 21 days post infection, they were processed to test for infection (body), dissemination (head), and infectiousness (saliva). This was repeated in the fall and summer. Climate data reported was averaged at the site level over the larval rearing period, and weighted to account for the amount of time mosquitoes spent in each tray.
+**Methods Overview**: Mosquitoes were reared at 9 sites (3 rural, 3 suburban, 3 urban) and brought back to the lab to infect with dengue. Mosquitoes were reared in four trays at each site, but pooled by site for infections because there were not enough numbers. At 21 days post infection, they were processed to test for infection (body), dissemination (head), and infectiousness (saliva). This was repeated in the fall and summer. Climate data reported was averaged at the site level over the larval rearing period, and weighted to account for the amount of time mosquitoes spent in each tray.
 
 ## Infection by Class and Season
 
@@ -187,7 +187,7 @@ mtext("Saliva")
 #dev.off()
 ```
 
-A binomial generalized linear mixed-effects model was fit to the data, with class and season and their interaction as fixed effects and site as a random effect. To test for significance, we calculated an analysis of variance table using a Type II Wald chisquare test for the fixed effects. Both class and season had significant effects on body and head infections, however there was no effect of either on saliva infection.
+A binomial generalized linear mixed-effects model was fit to the data, with class and season and their interaction as fixed effects and site as a random effect. To test for significance, we calculated an analysis of variance table using a Type II Wald chi square test for the fixed effects. Both class and season had significant effects on body and head infections, however there was no effect of either on saliva infection.
 
 ```{r seasonal infection stats}
 #model #there was no interaction of class and block
@@ -196,11 +196,11 @@ mixModelseasonsBody21 <- lme4::glmer(Body~class + block + (1|site),
                           family=binomial(link="logit"))
 Body21Aov <- car::Anova(mixModelseasonsBody21)
 
-mixModelseasonsHead21 <- lme4::glmer(Head~class + block + block*class + (1|site), 
+mixModelseasonsHead21 <- lme4::glmer(Head~class + block  + (1|site), 
                           data=seasons[seasons$DPI=="21",],
                           family=binomial(link="logit"))
 Head21Aov <- car::Anova(mixModelseasonsHead21)
-mixModelseasonsSaliva21 <- lme4::glmer(Saliva~class + block + block*class + (1|site), 
+mixModelseasonsSaliva21 <- lme4::glmer(Saliva~class + block  + (1|site), 
                           data=seasons[seasons$DPI=="21",],
                           family=binomial(link="logit"))
 Head21Aov <- car::Anova((mixModelseasonsSaliva21))
@@ -212,7 +212,7 @@ knitr::kable(Body21Aov)
 ```
 
 
-As both the summer season and urban land classes had the highest temperatures in their respecitive groups, this suggests that these differences in vector competence may be due to differences in temperature in the larval environment.
+As both the summer season and urban land classes had the highest temperatures in their respective groups, this suggests that these differences in vector competence may be due to differences in temperature in the larval environment.
 
 ## Infection and Microclimate
 
@@ -432,11 +432,11 @@ seasonInfSite <- merge(seasonSite, rbind(augEnvVar,octEnvVar), by.x=c("block", "
 
 Based on our findings above, we wanted to investigate if these patterns across season and class could be driven by microclimate, and how.
 
-Becuase our experimental design was somewhat limited by the number of mosquitoes emerging, we grouped infections by site, rather than tray. This means that the microclimate data used is the same for all mosquitoes across sites, and that we cannot use it to predict individual level infections in a meaningful way, as we did for land class and season.  Therefore, our response variable in this analysis is the proportion of infected mosquitoes by site. This greatly reduces our sample size to 18, and therefore our statistical power.
+Because our experimental design was somewhat limited by the number of mosquitoes emerging, we grouped infections by site, rather than tray. This means that the microclimate data used is the same for all mosquitoes across sites, and that we cannot use it to predict individual level infections in a meaningful way, as we did for land class and season.  Therefore, our response variable in this analysis is the proportion of infected mosquitoes by site. This greatly reduces our sample size to 18, and therefore our statistical power.
 
-The original starting set of variables were the average daily mean, minimum, and maximum temperature and relative humidity per site, daily temperature range, and  the average number of hours below 16C and above 31C. These temperature values were chosen based on thresholds from the Mordecai et al 2017 model of temperature dependence of dengue infections. Because maximum relative humidity is 100% for all sites, this variable was dropped. This resulted in eight total environmental covariates. Becuase temperature and relative humidity are so dependent on each other, this resulted in high correlations amongst the covariates.
+The original starting set of variables were the average daily mean, minimum, and maximum temperature and relative humidity per site, daily temperature range, and  the average number of hours below 16C and above 31C. These temperature values were chosen based on thresholds from the Mordecai et al 2017 model of temperature dependence of dengue infections. Because maximum relative humidity is 100% for all sites, this variable was dropped. This resulted in eight total environmental covariates. Because temperature and relative humidity are so dependent on each other, this resulted in high correlations amongst the covariates.
 
-To select covariates, I used a lasso regression in the `glmnet` package to conduct a stepwise regression selection process based on the RMSE.  At each step, the variable whose omission resulted in the greatest drop in RMSE was dropped from the model.  As the selection process continued, previously dropped variables were again included in the model at each step to determine any effect on RMSE, and if this increased the error, were left out of the final model. Variable selection ended when the dropping of any of the included variables did not decrease the RMSE of the overall model.
+To select covariates, I used a lasso regression in the `glmnet` package to conduct a step wise regression selection process based on the RMSE.  At each step, the variable whose omission resulted in the greatest drop in RMSE was dropped from the model.  As the selection process continued, previously dropped variables were again included in the model at each step to determine any effect on RMSE, and if this increased the error, were left out of the final model. Variable selection ended when the dropping of any of the included variables did not decrease the RMSE of the overall model.
 
 Because most of these variables were still highly correlated ($\rho>0.9$), I then further selected models to eliminate collinearity amongst covariates. For this stage, I chose to use a linear mixed model because many of the exploratory visualizations were clearly linear, but with a strong random effect of season, which I could include in a mixed model. I modeled all variables individually and with an interaction term between another, if the correlation between the variables was less than 0.75. Models were chosen based on that which minimized the AICc and maximized the marginal $r^2$.
 
@@ -459,7 +459,7 @@ finalBody <- lmer(Body_mean~ Temp_mean_mean + (1|block), data=modDF)
 
 The final linear mixed model included mean temperature as a fixed effect. It had a marginal $r^2$ of `r  round(MuMIn::r.squaredGLMM(finalBody)[[1]],3)`. It also had the lowest AIC value out of all models.  
 
-The relationship between mean temperature and body infection is negative ($\beta$=`r round(coef(finalBody)$block$Temp_mean_mean[[1]], 3)`) and significant ($p<0.05$). Higher temperatures seem to be leading to lower body infection rates.  Additionally, the relationship seems qualitatively different over the seasons, with the season as a random intercept explaining nearly as much of the variance as the mean temperature ($r^2_{GLMM_c}$=`r  round(MuMIn::r.squaredGLMM(finalBody)[[2]],3)`. This may be because the summer temperatures are near the thermal optimum, where the effect of temperature is more pronounced.
+The relationship between mean temperature and body infection is negative ($\beta$=`r round(coef(finalBody)$block$Temp_mean_mean[[1]], 3)`) and significant ($p<0.05$). Higher temperatures seem to be leading to lower body infection rates.  Additionally, the relationship seems qualitatively different over the seasons, with the season as a random intercept explaining nearly as much of the variance as the mean temperature ($r^2_{GLMM_c}$=`r  round(MuMIn::r.squaredGLMM(finalBody)[[2]],3)`). This may be because the summer temperatures are near the thermal optimum, where the effect of temperature is more pronounced.
 
 ```{r body x meanT plot, fig.width=6, fig.height=4}
 #png(file="../figures/forMS/bodyInfxMeanTemp.png", width = 6, height=4, units="in", res=500, family="sans")
@@ -471,25 +471,68 @@ ggplot(data=seasonInfSite, aes(x=Temp_mean_mean, y=Body_mean))+
   scale_color_manual(values=c(colRural, colSuburban, colUrban)) +
   theme_base() +
   ylab("Prop. Body Infection")+
-  xlab("Mean Daily Temperature (C)")
+  xlab("Mean Daily Temperature (C)") +  
+  ggtitle("Infection Rates and Mean Temp.")
 #dev.off()
 ```
 
 ### Head Infection
 
-The final model included maximum and mean temperature and mean relative humidity. The most important variable was maximum temperature (Figure 4), however the difference in variable importance was less than in the Body regression. Although the mean relative humidity is included in this model, it is relatively unimportant.  This leads me to conclude that temperature is also the main driver in this model, as it was for body infection.
+LASSO regression identified maximum temperature, mean temperature, and mean relative humidity as important variables.
 
-![Variable importance plot from final head glmnet model. Importance values are scaled.](figures/varImpHead.png)
+```{r}
+respV <- "Head_mean"
+predVs <- c("Temp_mean_mean","RH_mean_mean","Temp_min_mean","RH_min_mean", "Temp_max_mean", "DTR_mean", "hoursAbove31_mean", "hoursBelow16_mean")
 
-As above, we found that head infection rates decreased with increasing temperatures, particularly the maximum temperature (Figure 5). Again, the relationship differs slightly across the seasons.
+#create dataframe without NAs
+myCols <- c(respV, predVs, "block")
+modDF <- seasonInfSite %>%
+  dplyr::select(one_of(myCols)) 
+modDF <- na.omit(modDF)
 
-![Head infection across maximum daily temperatures in the summer (triangle) and fall (circle) replicates. Colors represent land class.](figures/forMS/headInfxMaxTemp.png)
+finalHead <- lmer(Head_mean~ Temp_mean_mean + (1|block), data=modDF)
+```
+
+The final linear mixed model included mean temperature as a fixed effect. It had a marginal $r^2$ of `r  round(MuMIn::r.squaredGLMM(finalHead)[[1]],3)`. It only had the second lowest AIC value out of the models, however the marginal $r^2$ of the model with the lowest AIC, which included mean temperature and relative humidity and their interaction, was much lower than that of the final model, and included additional variables.
+
+Similar to body infections, the relationship between mean temperature and head infection rates was negative ($\beta$=`r round(coef(finalHead)$block$Temp_mean_mean[[1]], 3)`). The effect of mean temperature was significant ($p<0.05$),  as measured using a Type II Wald chi square test. Again, much of the variation was explained by the random effect of season, resulting in a conditional $r^2$ of `r  round(MuMIn::r.squaredGLMM(finalHead)[[2]],3)`.
+
+```{r head x meanT plot,  fig.width=6, fig.height=4}
+#png(file="../figures/forMS/headInfxMeanTemp.png", width = 6, height=4, units="in", res=500, family="sans")
+par(family="sans")
+ggplot(data=seasonInfSite, aes(x=Temp_mean_mean, y=Head_mean))+
+   geom_errorbar(aes(ymin=Head_mean-Head_se, ymax=Head_mean+Head_se), color="gray20", width=0.1) +
+  #geom_errorbarh(aes(xmin=Temp_mean_mean-Temp_mean_se, xmax=Temp_mean_mean+Temp_mean_se), color="gray20", height=0.05) +
+  geom_point(aes(color=class, shape=block), size=4) + 
+  scale_color_manual(values=c(colRural, colSuburban, colUrban)) +
+  theme_base() +
+  ylab("Prop. Head Infection")+
+  xlab("Mean Daily Temperature (C)")+
+  ggtitle("Dissemination Rates and Mean Temp.")
+#dev.off()
+```
+
 
 ### Saliva Infection
 
-While saliva had no significant differences across land class, there was a slight trend towards higher saliva in the summer, although not significant. Therefore, I thought it would be informative to also look at the effect of microclimate on saliva infection.  Using similar methods above, the final model included maximum temperature, mean temperature, and mean relative humidity (Figure 6).  Interestingly the relationship between temperature and saliva infection is contrary to that seen for body and head infection, that is, it is positive. At higher temperatures, saliva infection rates were higher, although the effect is not as large as those seen earlier (Figure 7).
+As noted above, there was no significant difference in saliva infection across land class or season. I went through similar steps as above to investigate the effect of microclimate on saliva infection.  Although the best fitting linear model did include maximum temperature, it was not significant. Plots of saliva infection across different environmental variables show no clear trends.
 
+```{r saliva x maxT plot, fig.width=6, fig.height=4}
+#png(file="../figures/forMS/salivaInfxMaxTemp.png", width = 6, height=4, units="in", res=500, family="sans")
+par(family="sans")
+ggplot(data=seasonInfSite, aes(x=Temp_max_mean, y=Saliva_mean))+
+  geom_errorbar(aes(ymin=Saliva_mean-Saliva_se, ymax=Saliva_mean+Saliva_se), color="gray20", width=0.05) +
+  geom_errorbarh(aes(xmin=Temp_max_mean-Temp_max_se, xmax=Temp_max_mean+Temp_max_se), color="gray20", height=0.05) +
+  geom_point(aes(color=class, shape=block), size=4) + 
+  scale_color_manual(values=c(colRural, colSuburban, colUrban)) +
+  theme_base() +
+  #theme(text=element_text(size=12)) +
+  ylab("Prop. Saliva Infection")+
+  xlab("Maximum Daily Temperature (C)") +
+  ggtitle("Infectious Rates and Mean Temp.")
+#dev.off()
+```
 
-![Variable importance plot from final head glmnet model. Importance values are scaled.](figures/varImpSaliva.png)
+# Emergence and Survival Results
 
-![Saliva infection across maximum daily temperatures in the summer (triangle) and fall (circle) replicates. Colors represent land class.](figures/forMS/salivaInfxMaxTemp.png)
+Mostly done, but not yet in a nice readable document.

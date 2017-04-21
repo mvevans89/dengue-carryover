@@ -818,10 +818,10 @@ lmerMod7 <- lmer(Body_mean~ Temp_min_mean + (1|block), data=modDF)
 lmerMod8 <- lmer(Body_mean~ Temp_max_mean + (1|block), data=modDF) #intercept error
 lmerMod9 <- lmer(Body_mean~ Temp_mean_mean + (Temp_mean_mean|block), data=modDF)
 
-piecewiseSEM::rsquared(list( lmerMod4, lmerMod9)) #lmerMod4 is the best
+piecewiseSEM::rsquared(list( lmerMod4)) #lmerMod4 is the best
 
 MuMIn::r.squaredGLMM(lmerMod4)
-summary(lmerMod4)
+summary(lmerMod10)
 Anova(lmerMod4)
 plot(lmerMod4)
 
