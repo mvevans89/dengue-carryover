@@ -5,6 +5,8 @@ date: "10/6/2016"
 output: html_document
 ---
 
+This file is old. I don't use it anymore.
+
 ```{r packages, message=F}
 library(dplyr)
 library(lme4)
