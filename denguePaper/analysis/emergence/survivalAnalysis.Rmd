@@ -29,6 +29,7 @@ library(survival)
 * overall survival per tray by Class and Block using a linear mixed model (this could probably also be a logistic regression) (2017-04-05)
 * survival curves using Cox PH: PH Assumptions were very violated, even when turning `Class` into a time dependent variable. Decided against this method (2017-04-10)
 * creating individual regression curves for each tray, and then using the growth rate as response variables in a mixed-model (2017-04-16)
+* attempting to use a `nls` formula within a lmer statistical model (similar to Shapiro et al. 2016)
 
 
 # Data Visualization
@@ -88,7 +89,7 @@ plot(mixMortality)
 qqnorm(resid(mixMortality))
 ```
 
-Block and Class had a significant effect. With higher survival in the summer than the fall.
+Block had a significant effect. With higher survival in the summer than the fall.
 
 I tried it dropping outliers S1T4 and R1T3, and it wasn't any better.
 
@@ -200,6 +201,37 @@ logEmergeBasic <- allSurv %>%
   ungroup()
 
 ```
+
+## Retry Survival with Different Distributions
+
+
+
+```{r}
+km.fit <- survfit(Surv(Exp_Day, event) ~ Class + block, data=allSurv, type="kaplan-meier", se.fit=T, conf.int=0.95)
+summary(km.fit)
+plot(km.fit, col=rep(c(1,2,3), each=2)) #note that urban switches from less emerging to more from summer to fall
+
+coxFit <- coxph(Surv(Exp_Day, event) ~ Class*block , data=allSurv)
+summary(coxFit)
+
+#Cox-snell Residuals: This looks bad
+r<-coxFit$residual
+rr<-allSurv$event-r
+fit<-survfit(Surv(rr,allSurv$event)~1)
+S<-fit$surv
+T<-fit$time
+plot(T,S,xlim=range(T),ylim=c(0,1),xlab="time",ylab="cox-snell residual values")
+t0<-seq(0,max(T),0.05)
+s0<-exp(-t0)
+lines(t0,s0)
+
+#Weibull
+weibFit <- survreg(Surv(Exp_Day, event) ~ Class*block , data=allSurv, dist="weibull")
+summary(weibFit)
+plot(weibFit)
+
+```
+
 
 ## Logistic Growth (Emergence) Curves
 
