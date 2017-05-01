@@ -218,7 +218,7 @@ As both the summer season and urban land classes had the highest temperatures in
 ## Infection and Microclimate
 
 ```{r load and format microclimate data}
-climate <- read.csv('denguePaper/data/microclimate/clean/2016TrialsAdult.csv')[,-1]
+climate <- read.csv('../data/microclimate/clean/2016TrialsAdult.csv')[,-1]
 #toss out ridiculous levels
 climate <- climate[climate$Temp<75,]
 #format date
@@ -227,7 +227,7 @@ climate$Date <- strptime(climate$Date, format="%Y-%m-%d %H:%M:%S")
 climate$Day <- as.Date(climate$Date)
 
 # add tray id to climate data
-trayID <- read.csv("denguePaper/data/microclimate/trayLoggerID.csv") #read in IDs
+trayID <- read.csv("../data/microclimate/trayLoggerID.csv") #read in IDs
 climate <- merge(climate, trayID, by="Pot_ID")
 
 #fix duplicates for R1T1
@@ -250,9 +250,9 @@ rm(inds)
 ```
 
 ```{r load emergence data,echo=FALSE}
-augEmerg <- read.csv("denguePaper/data/emergence/raw/AugustEmergence.csv")
+augEmerg <- read.csv("../data/emergence/raw/AugustEmergence.csv")
 augEmerg$block <- as.factor("summer")
-octEmerg <- read.csv("denguePaper/data/emergence/raw/OctoberEmergence.csv")
+octEmerg <- read.csv("../data/emergence/raw/OctoberEmergence.csv")
 octEmerg$block <- as.factor("fall")
 
 allEmerg <- rbind(augEmerg, octEmerg)
