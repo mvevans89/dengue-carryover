@@ -271,11 +271,11 @@ meltAll <- full_join(meltMean, meltSE, by=c("class", "block", "type")) %>%
 
 
 ```{r plot efficiency}
-ggplot(data=meltAll[order(meltAll$block, decreasing=T),], aes(x=class, group=block))+
+ggplot(data=meltAll[order(meltAll$block, decreasing=F),], aes(x=class, group=block))+
   geom_bar(stat="identity", aes(y=mean, alpha=factor(block), fill=factor(class)), color="gray20", position=position_dodge(width=-0.9))+
   facet_wrap(~type, nrow=3, dir="v") +
   scale_fill_manual(values=c(colRural, colSuburban, colU))+
-  scale_alpha_discrete(range=c(0.3,1), name="Season", labels=c("Summer", "Fall"))+
+  scale_alpha_discrete(range=c(0.3,1), name="Season", labels=c("Fall", "Summer"), guide=guide_legend(reverse=T))+
   geom_errorbar(aes(ymin=mean-SE, ymax=mean+SE), width=0.2, color="gray20", position =position_dodge(-0.9))+
   theme_base() + 
   xlab("Land Class") +
@@ -309,7 +309,7 @@ knitr::kable(Head21Aov)
 knitr::kable(Saliva21Aov)
 ```
 
-The two major obstacles to infectiousness are at the level of the body and the saliva.  Nearly all mosquitoes that have body infections also have disseminated infections, suggesting that midgut escape is uncontrolled. However, of the disseminated infections, not all result in salivary gland infections, suggesting there is a mechanism blocking the virus from spreading to the salivary glands.
+The two major obstacles to infectiousness are at the level of the body and the saliva.  Nearly all mosquitoes that have body infections also have disseminated infections, suggesting that midgut escape is relatively uncontrolled. However, of the disseminated infections, not all result in salivary gland infections, suggesting there is a mechanism blocking the virus from spreading to the salivary glands. The summer has a significantly higher efficiency than the fall season with regards to saliva, however, there is no difference in progression to disseminated infections.
 
 ## Infection and Microclimate
 
