@@ -215,6 +215,102 @@ knitr::kable(Head21Aov)
 
 As both the summer season and urban land classes had the highest temperatures in their respective groups, this suggests that these differences in vector competence may be due to differences in temperature in the larval environment.
 
+### Infection Efficiency
+
+We can also look at infection efficiency. This is similar to what proportion of mosquitoes proceed to having head infections, out of those that have body infections.
+
+```{r create efficiency data}
+bodyEff <- seasons %>%
+  filter(DPI==21) %>%
+  #drop individual
+  select(-Individual, -site, -Wing, -DPI) %>%
+  group_by(block, class) %>%
+  summarise_each(funs(bodyMean=mean(.,na.rm=T),bodySE=(sd(., na.rm=T)/sqrt(n()))), Body) %>%
+  ungroup()
+
+headEff <- seasons %>%
+  filter(DPI==21) %>%
+  filter(Body==1) %>%
+  #drop individual
+  select(-Individual, -site, -Wing, -DPI) %>%
+  group_by(block, class) %>%
+  summarise_each(funs(headMean=mean(.,na.rm=T),headSE=(sd(., na.rm=T)/sqrt(n()))), Head) %>%
+  ungroup()
+
+salEff <-  seasons %>%
+  filter(DPI==21) %>%
+  filter(Head==1) %>%
+  #drop individual
+  select(-Individual, -site, -Wing, -DPI) %>%
+  group_by(block, class) %>%
+  summarise_each(funs(salMean=mean(.,na.rm=T),salSE=(sd(., na.rm=T)/sqrt(n()))), Saliva) %>%
+  ungroup()
+
+#group together
+allEff <- full_join(bodyEff, headEff, by=c("block", "class"))
+allEff <- full_join(allEff, salEff, by=c("block", "class"))
+
+library(tidyr)
+meltMean <- allEff %>%
+  select(block, class, contains("Mean")) %>%
+  gather(key=variable, value=mean, -block, -class) 
+
+meltMean$type <- rep(c("Body", "Head", "Saliva"), each=6)
+  
+meltSE <- allEff %>%
+  select(block, class, contains("SE")) %>%
+  gather(variable, SE, -block, -class)
+
+meltSE$type <- rep(c("Body", "Head", "Saliva"), each=6)
+  
+meltAll <- full_join(meltMean, meltSE, by=c("class", "block", "type")) %>%
+  select(-variable.x, -variable.y)
+
+
+```
+
+
+```{r plot efficiency}
+ggplot(data=meltAll[order(meltAll$block, decreasing=T),], aes(x=class, group=block))+
+  geom_bar(stat="identity", aes(y=mean, alpha=factor(block), fill=factor(class)), color="gray20", position=position_dodge(width=-0.9))+
+  facet_wrap(~type, nrow=3, dir="v") +
+  scale_fill_manual(values=c(colRural, colSuburban, colU))+
+  scale_alpha_discrete(range=c(0.3,1), name="Season", labels=c("Summer", "Fall"))+
+  geom_errorbar(aes(ymin=mean-SE, ymax=mean+SE), width=0.2, color="gray20", position =position_dodge(-0.9))+
+  theme_base() + 
+  xlab("Land Class") +
+  ylab("Infection Efficiency") +
+  guides(fill=F) + 
+  theme(legend.title=element_text("Season"))
+  
+```
+
+```{r efficiency stats}
+#model #there was no interaction of class and block
+mixModelseasonsBody21 <- lme4::glmer(Body~class + block + (1|site), 
+                          data=seasons[seasons$DPI=="21",],
+                          family=binomial(link="logit"))
+Body21Aov <- car::Anova(mixModelseasonsBody21)
+
+mixModelseasonsHead21 <- lme4::glmer(Head~class + block  + (1|site), 
+                          data=seasons[seasons$DPI=="21" & seasons$Body==1,],
+                          family=binomial(link="logit"))
+Head21Aov <- car::Anova(mixModelseasonsHead21) #no effect
+
+mixModelseasonsSaliva21 <- lme4::glmer(Saliva~class + block  + (1|site), 
+                          data=seasons[seasons$DPI=="21" & seasons$Head==1,],
+                          family=binomial(link="logit"))
+Saliva21Aov <- car::Anova((mixModelseasonsSaliva21))
+```
+
+
+```{r efficiency infection tables, results='asis', eval=T}
+knitr::kable(Head21Aov)
+knitr::kable(Saliva21Aov)
+```
+
+The two major obstacles to infectiousness are at the level of the body and the saliva.  Nearly all mosquitoes that have body infections also have disseminated infections, suggesting that midgut escape is uncontrolled. However, of the disseminated infections, not all result in salivary gland infections, suggesting there is a mechanism blocking the virus from spreading to the salivary glands.
+
 ## Infection and Microclimate
 
 ```{r load and format microclimate data}
