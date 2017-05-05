@@ -286,7 +286,7 @@ ggplot(data=meltAll[order(meltAll$block, decreasing=F),], aes(x=class, group=blo
 ```
 
 ```{r efficiency stats}
-#model #there was no interaction of class and block
+#model 
 mixModelseasonsBody21 <- lme4::glmer(Body~class + block + (1|site), 
                           data=seasons[seasons$DPI=="21",],
                           family=binomial(link="logit"))
@@ -305,6 +305,7 @@ Saliva21Aov <- car::Anova((mixModelseasonsSaliva21))
 
 
 ```{r efficiency infection tables, results='asis', eval=T}
+knitr::kable(Body21Aov)
 knitr::kable(Head21Aov)
 knitr::kable(Saliva21Aov)
 ```
