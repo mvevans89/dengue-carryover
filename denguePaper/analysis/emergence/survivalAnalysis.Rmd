@@ -1,8 +1,10 @@
 ---
 title: "Survival Analyses"
 author: "Michelle Evans"
-date: ""
-output: html_document
+date: ''
+output:
+  pdf_document: default
+  html_document: default
 ---
 
 This is the document exploring larval survival for the 2016 Athens Field Project (both seasons).
@@ -22,6 +24,7 @@ library(lme4)
 library(MASS)
 library(car)
 library(survival)
+library(survminer)
 ```
 
 # Notebook of Tasks Done
@@ -69,8 +72,6 @@ ggplot(data=survSumm, aes(x=Site_Code, y=percSurv)) +
   facet_wrap(~block)
 ```
 
-Possible outliers are S1T4 and R1T3.
-
 ```{r}
 ggplot(data=survSumm, aes(x=Class, y=percSurv)) +
   geom_boxplot() +
@@ -81,18 +82,17 @@ In general, I would say survival is more likely in urban in the fall and less li
 
 # Mixed Model Emergence Percentages
 
-```{r}
+```{r, results='asis'}
 mixMortality <- lmer(percSurv ~  Class + block + Class:block + (1|Site_Code), data=survSumm)
-summary(mixMortality)
-anova(mixMortality)
-Anova(mixMortality, test.statistic = "F") #with car loaded
-plot(mixMortality)
-qqnorm(resid(mixMortality))
+#summary(mixMortality)
+#anova(mixMortality)
+emergAnova <- Anova(mixMortality, test.statistic = "F") #with car loaded
+#plot(mixMortality)
+#qqnorm(resid(mixMortality))
+knitr::kable(emergAnova)
 ```
 
 Block had a significant effect. With higher survival in the summer than the fall.
-
-I tried it dropping outliers S1T4 and R1T3, and it wasn't any better.
 
 # Development Rates
 
@@ -168,108 +168,65 @@ allSurv <- rbind(summerSurv, fallSurv)
 climate <- read.csv("../../data/microclimate/clean/2016TrialsAdultCleaned.csv", stringsAsFactors = F)
 ```
 
-```{r, eval=F}
-#format data to get cumulative values
+## Cox PH by Block and Season
 
-#need to add a value for every day
-days <- expand.grid(block=c("fall", "summer"), Tray_Code=unique(allSurv$Tray_Code), Exp_Day=seq(0,44))
-days$Site_Code <- NA
-for (i in 1:9){
-  days$Site_Code[substring(days$Tray_Code,1,2) == levels(allSurv$Site_Code)[i]] <- levels(allSurv$Site_Code)[i]
-}
-days$Class <- NA
-for (i in 1:3){
-  days$Class[substring(days$Site_Code,1,1)==toupper(substring(levels(allSurv$Class)[i],1,1))] <- levels(allSurv$Class)[i]
-}
+```{r KM fit and plot}
 
-allSurvDays <- merge(allSurv, days, by=c("block", "Tray_Code", "Exp_Day", "Site_Code", "Class"), all.x=T, all.y=T)
-allSurvDays$event[is.na(allSurvDays$event)] <- 0 #add events=0
+with (allSurv, table(event, block, Class))
 
-logEmerge <- allSurvDays %>%
-  group_by(block, Site_Code, Tray_Code, Class) %>%
-  arrange(block,Tray_Code,Exp_Day) %>%
-  dplyr::mutate(emg=cumsum(event)) %>%
-  group_by(block, Site_Code, Tray_Code, Class, Exp_Day) %>%
-  summarise(CumEmerge=max(emg)) %>%
-  ungroup()
+km.fit <- survfit(Surv(Exp_Day, event) ~ block + Class +cluster(Site_Code), data=allSurv, type="kaplan-meier", se.fit=T, conf.int=0.95)
+#summary(km.fit)
 
-logEmergeBasic <- allSurv %>%
-  group_by(block, Site_Code, Tray_Code, Class) %>%
-  arrange(block,Tray_Code,Exp_Day) %>%
-  dplyr::mutate(emg=cumsum(event)) %>%
-  group_by(block, Site_Code, Tray_Code, Class, Exp_Day) %>%
-  summarise(CumEmerge=max(emg)) %>%
-  ungroup()
+ggsurvplot(km.fit, 
+           data=allSurv, 
+           risk.table=F, 
+           pval=F, 
+           conf.int=T, 
+           ggtheme=theme_minimal()
+           #palette=rep(c(colRural,colSuburban, colUrban), 2),
+           #legend.labs=rep(c("Rural", "Suburban", "urban"), 2)
+           )
+
+#plot(km.fit, col=rep(c(1,2,3),2)) #note that urban switches from less emerging to more from summer to fall
+
 
 ```
 
-## Retry Survival with Different Distributions
+```{r, eval=F}
 
-
-
-```{r}
-
-km.fit <- survfit(Surv(Exp_Day, event) ~ block, data=allSurv, type="kaplan-meier", se.fit=T, conf.int=0.95)
-summary(km.fit)
-plot(km.fit, col=rep(c(1,2,3), each=2)) #note that urban switches from less emerging to more from summer to fall
-
-coxFit <- coxph(Surv(Exp_Day, event) ~ Class*block + block:Exp_Day , data=allSurv, method="breslow")
+coxFit <- coxph(Surv(Exp_Day, event) ~ Class*block + block:Exp_Day + cluster(Site_Code), data=allSurv, method="breslow")
 summary(coxFit)
 
 
 cox.zph(coxFit)
-plot(cox.zph(coxFit))
+#plot(cox.zph(coxFit))
 
-hist(allSurv$Exp_Day[allSurv$block=="summer"])
-hist(allSurv$Exp_Day[allSurv$block=="fall"])
-#their distributions are very different, may make sense to model them seperately
-
-summFit <- coxph(Surv(Exp_Day, event) ~ Class + Class:Exp_Day + cluster(Site_Code), 
-                 data=allSurv[allSurv$block=="summer",], 
-                 method="breslow")
-summary(summFit)
-cox.zph(summFit)
-plot(cox.zph(summFit))
-
-fallFit <- coxph(Surv(Exp_Day, event) ~ Class + Class:Exp_Day + cluster(Site_Code), 
-                 data=allSurv[allSurv$block=="fall",], 
-                 method="breslow")
-summary(fallFit)
-cox.zph(fallFit)
-plot(cox.zph(fallFit))
-
-#also test across blocks
-blockFit <- coxph(Surv(Exp_Day, event) ~ block + block:Exp_Day , data=allSurv, method="breslow")
-summary(blockFit)
-cox.zph(blockFit)
-plot(cox.zph(blockFit))
+# hist(allSurv$Exp_Day[allSurv$block=="summer"])
+# hist(allSurv$Exp_Day[allSurv$block=="fall"])
+# #their distributions are very different, may make sense to model them seperately
+# 
+# summFit <- coxph(Surv(Exp_Day, event) ~ Class + Class:Exp_Day + cluster(Site_Code), 
+#                  data=allSurv[allSurv$block=="summer",], 
+#                  method="breslow")
+# summary(summFit)
+# cox.zph(summFit)
+# plot(cox.zph(summFit))
+# 
+# fallFit <- coxph(Surv(Exp_Day, event) ~ Class + Class:Exp_Day + cluster(Site_Code), 
+#                  data=allSurv[allSurv$block=="fall",], 
+#                  method="breslow")
+# summary(fallFit)
+# cox.zph(fallFit)
+# plot(cox.zph(fallFit))
+# 
+# #also test across blocks
+# blockFit <- coxph(Surv(Exp_Day, event) ~ block + block:Exp_Day , data=allSurv, method="breslow")
+# summary(blockFit)
+# cox.zph(blockFit)
+# plot(cox.zph(blockFit))
 ```
 
 
-### Fall
+**Summary**: There is clearly an effect of season on emergence. Although it does seem that urban sites go from having lower emergence in the summer to higher in the fall, the survival models are not significantly different.
 
-```{r}
-fallNaive <- coxph(Surv(Exp_Day, event) ~ Class, method="breslow", data=fallSurv)
-fallfit <- survfit(Surv(Exp_Day, event) ~ Class, data=fallSurv)
-plot(fallfit, lty=1:3)
-```
-
-```{r}
-plot(cox.zph(fallNaive))
-```
-
-This doesn't meet the assumptions and so probably needs to be messed around with re: 
-
-https://courses.nus.edu.sg/course/stacar/internet/st3242/handouts/notes4.pdf and https://courses.nus.edu.sg/course/stacar/internet/st3242/handouts/notes5.pdf
-
-
-### Summer
-```{r}
-summNaive <- coxph(Surv(Exp_Day, event) ~ Class, method="breslow", data=summerSurv)
-summNaive
-summfit <- survfit(Surv(Exp_Day, event) ~ Class, data=summerSurv)
-plot(summfit, lty=1:3)
-plot(cox.zph(summNaive))
-```
-
-
+I think it makes the most sense to report on the survival statistics and show the curves, noting that the only significant differences are across season.
