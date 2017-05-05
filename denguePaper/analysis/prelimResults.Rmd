@@ -280,8 +280,8 @@ ggplot(data=meltAll[order(meltAll$block, decreasing=F),], aes(x=class, group=blo
   theme_base() + 
   xlab("Land Class") +
   ylab("Infection Efficiency") +
-  guides(fill=F) + 
-  theme(legend.title=element_text("Season"))
+  guides(fill=F)
+  #theme(legend.title=element_text("Season"))
   
 ```
 
