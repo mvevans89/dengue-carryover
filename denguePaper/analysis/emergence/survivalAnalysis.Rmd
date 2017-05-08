@@ -25,6 +25,7 @@ library(MASS)
 library(car)
 library(survival)
 library(survminer)
+library(ggthemes)
 ```
 
 # Notebook of Tasks Done
@@ -61,7 +62,7 @@ Investigate tray level survival for some basic box plots. Note, we are only incl
 survSumm <- emergExp %>%
   filter(Sex=="F") %>%
   group_by(block, Tray_Code) %>%
-  mutate(percSurv=n()/50) %>%
+  mutate(percSurv=n()) %>%
   ungroup() %>%
   dplyr::select(block, Class, Site_Code, Tray_Code, percSurv)
 survSumm <- unique(survSumm)
@@ -69,13 +70,21 @@ survSumm <- unique(survSumm)
 #box plot by site
 ggplot(data=survSumm, aes(x=Site_Code, y=percSurv)) +
   geom_boxplot() +
-  facet_wrap(~block)
+  facet_wrap(~block) +
+  theme_base() +
+  ylab("Number emerged (out of 50)")
 ```
 
 ```{r}
 ggplot(data=survSumm, aes(x=Class, y=percSurv)) +
   geom_boxplot() +
-  facet_wrap(~block)
+  facet_wrap(~block) +
+  theme_base() +
+  ylab("Number emerged (out of 50)")
+```
+
+```{r}
+with(survSumm, interaction.plot(x.factor=Class, trace.factor=block, response=percSurv, fun=mean, type="b", legend=T))
 ```
 
 In general, I would say survival is more likely in urban in the fall and less likely in urban in the summer, although this is slight. There is no difference between rural and suburban.
@@ -83,13 +92,30 @@ In general, I would say survival is more likely in urban in the fall and less li
 # Mixed Model Emergence Percentages
 
 ```{r, results='asis'}
-mixMortality <- lmer(percSurv ~  Class + block + Class:block + (1|Site_Code), data=survSumm)
-#summary(mixMortality)
+mixMortality <- lmer(percSurv ~  Class*block + (1|Site_Code), data=survSumm)
+summary(mixMortality)
 #anova(mixMortality)
 emergAnova <- Anova(mixMortality, test.statistic = "F") #with car loaded
 #plot(mixMortality)
 #qqnorm(resid(mixMortality))
-knitr::kable(emergAnova)
+knitr::kable(emergAnova, caption="LMEM of class * block on tray level emergence with site as a random effect")
+```
+
+I also reran this on data aggregated by site (becuase I was concerned that treating each tray as an observation was pseudo-replication), and found an even stronger effect of block larval survival. Note that this gets rid of site as a random effect, and basically becomes an ANOVA. TukeyHSD still finds block to be significant.
+
+```{r}
+siteSumm <- emergExp %>%
+  filter(Sex=="F") %>%
+  group_by(block, Site_Code) %>%
+  mutate(numSurv=n()) %>%
+  ungroup() %>%
+  dplyr::select(block, Class, Site_Code, numSurv)
+siteSumm <- unique(siteSumm)
+
+siteEmerg <- aov(numSurv ~  Class*block, data=siteSumm)
+summary(siteEmerg)
+#plot(siteEmerg)
+TukeyHSD(siteEmerg)
 ```
 
 Block had a significant effect. With higher survival in the summer than the fall.
@@ -101,11 +127,28 @@ We can also look at the time to development (i.e. emergence day) for block and c
 ```{r}
 emergExpF <- filter(emergExp, Sex=="F")
 ggplot(data=emergExpF, aes(x=Site_Code, y=Exp_Day)) +
-  geom_boxplot() +
-  facet_wrap(~block)
+  geom_violin() +
+  facet_wrap(~block) +  
+  theme_base() +
+  ylab("Emergence Day")
 ```
 
-It took much longer in the fall than in the summer for mosquitoes to emerge, implying they were developing more slowly. To get at the rate, we need to to plot this as a logistic regression (or survival curve).
+```{r}
+with(emergExpF, interaction.plot(x.factor=Class, trace.factor=block, response=Exp_Day, fun=mean, type="b", legend=T))
+```
+
+
+It took much longer in the fall than in the summer for mosquitoes to emerge, implying they were developing more slowly. In both seasons, however, mosquitoes in urban sites emerged more quickly.
+
+
+```{r}
+mixEmerge <- lmer(Exp_Day ~  Class*block + (1|Site_Code), data=emergExpF)
+plot(mixEmerge)
+summary(mixEmerge)
+knitr::kable(Anova(mixEmerge))
+```
+
+The day of emergence differed significantly across block (and nearly class). Mosquitoes in the summer emerged on average 14 days sooner than those in the fall. 
 
 # Survival Analysis
 
@@ -172,10 +215,10 @@ climate <- read.csv("../../data/microclimate/clean/2016TrialsAdultCleaned.csv", 
 
 ```{r KM fit and plot}
 
-with (allSurv, table(event, block, Class))
+with (allSurv, table(event, block, Site_Code))
 
 km.fit <- survfit(Surv(Exp_Day, event) ~ block + Class +cluster(Site_Code), data=allSurv, type="kaplan-meier", se.fit=T, conf.int=0.95)
-#summary(km.fit)
+summary(km.fit)
 
 ggsurvplot(km.fit, 
            data=allSurv, 
@@ -193,37 +236,38 @@ ggsurvplot(km.fit,
 ```
 
 ```{r, eval=F}
+allSurv$bins <- cut(allSurv$Exp_Day, breaks=c(10,12,14,21,42))
 
 coxFit <- coxph(Surv(Exp_Day, event) ~ Class*block + block:Exp_Day + cluster(Site_Code), data=allSurv, method="breslow")
 summary(coxFit)
 
 
 cox.zph(coxFit)
-#plot(cox.zph(coxFit))
+plot(cox.zph(coxFit))
 
-# hist(allSurv$Exp_Day[allSurv$block=="summer"])
-# hist(allSurv$Exp_Day[allSurv$block=="fall"])
-# #their distributions are very different, may make sense to model them seperately
-# 
-# summFit <- coxph(Surv(Exp_Day, event) ~ Class + Class:Exp_Day + cluster(Site_Code), 
-#                  data=allSurv[allSurv$block=="summer",], 
-#                  method="breslow")
-# summary(summFit)
-# cox.zph(summFit)
-# plot(cox.zph(summFit))
-# 
-# fallFit <- coxph(Surv(Exp_Day, event) ~ Class + Class:Exp_Day + cluster(Site_Code), 
-#                  data=allSurv[allSurv$block=="fall",], 
-#                  method="breslow")
-# summary(fallFit)
-# cox.zph(fallFit)
-# plot(cox.zph(fallFit))
-# 
-# #also test across blocks
-# blockFit <- coxph(Surv(Exp_Day, event) ~ block + block:Exp_Day , data=allSurv, method="breslow")
-# summary(blockFit)
-# cox.zph(blockFit)
-# plot(cox.zph(blockFit))
+hist(allSurv$Exp_Day[allSurv$block=="summer"])
+hist(allSurv$Exp_Day[allSurv$block=="fall"])
+#their distributions are very different, may make sense to model them seperately
+
+summFit <- coxph(Surv(Exp_Day, event) ~ Class + Class:Exp_Day + cluster(Site_Code),
+                 data=allSurv[allSurv$block=="summer",],
+                 method="breslow")
+summary(summFit)
+cox.zph(summFit)
+plot(cox.zph(summFit))
+
+fallFit <- coxph(Surv(Exp_Day, event) ~ Class + Class:Exp_Day + cluster(Site_Code),
+                 data=allSurv[allSurv$block=="fall",],
+                 method="breslow")
+summary(fallFit)
+cox.zph(fallFit)
+plot(cox.zph(fallFit))
+
+#also test across blocks
+blockFit <- coxph(Surv(Exp_Day, event) ~ block + block:Exp_Day , data=allSurv, method="breslow")
+summary(blockFit)
+cox.zph(blockFit)
+plot(cox.zph(blockFit))
 ```
 
 
