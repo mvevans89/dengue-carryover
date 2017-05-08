@@ -215,9 +215,9 @@ climate <- read.csv("../../data/microclimate/clean/2016TrialsAdultCleaned.csv", 
 
 ```{r KM fit and plot}
 
-with (allSurv, table(event, block, Site_Code))
+with (allSurv, table(event, block, Class))
 
-km.fit <- survfit(Surv(Exp_Day, event) ~ block + Class +cluster(Site_Code), data=allSurv, type="kaplan-meier", se.fit=T, conf.int=0.95)
+km.fit <- survfit(Surv(Exp_Day, event) ~ block + Class + cluster(Site_Code), data=allSurv, type="kaplan-meier", se.fit=T, conf.int=0.95)
 summary(km.fit)
 
 ggsurvplot(km.fit, 
@@ -228,9 +228,22 @@ ggsurvplot(km.fit,
            ggtheme=theme_minimal()
            #palette=rep(c(colRural,colSuburban, colUrban), 2),
            #legend.labs=rep(c("Rural", "Suburban", "urban"), 2)
-           )
+          )
 
-#plot(km.fit, col=rep(c(1,2,3),2)) #note that urban switches from less emerging to more from summer to fall
+
+  data <- eval(km.fit$call$data)
+  d <- surv_summary(km.fit, data=data)
+  d$emerge <- (1 - d$surv)*100
+  ggplot(data=d, aes(x=time, y=emerge, group=factor(strata)))+
+    geom_line(aes(color=Class))+
+    geom_ribbon(aes(ymin=(1-upper)*100, ymax=(1-lower)*100, fill=Class), alpha=0.4)+
+    scale_color_manual(values=c("dodgerblue", "gray80", "maroon"), labels=c("Rural", "Suburban", "Urban"))+
+    scale_fill_manual(values=c("dodgerblue", "gray80", "maroon"))+
+    theme_base()+
+    ylab("Percent of Females Emerged") +
+    xlab("Day")+
+    guides(color=F)+
+    ggtitle("Female Larval Emergence")
 
 
 ```
