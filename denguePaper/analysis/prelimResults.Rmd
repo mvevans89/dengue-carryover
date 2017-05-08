@@ -208,8 +208,8 @@ Saliva21Aov <- car::Anova((mixModelseasonsSaliva21))
 
 We found that infection in the body and head was significantly lower in the summer than the fall. Although there was a trend towards higher infection in the saliva in the summer, this was not significant (p=0.05676).  Land class also influence infection of both the body and head, with urban mosquitoes having lower rates of infection than rural and suburban mosquitoes. Saliva infections were unaffected by land class, however.
 ```{r seasonal infection tables, results='asis', eval=T}
-knitr::kable(Body21Aov)
-knitr::kable(Head21Aov)
+knitr::kable(Body21Aov, caption="Mixed model statistics for body level infections.")
+knitr::kable(Head21Aov, caption="Mixed model statistics for head infections.")
 ```
 
 
@@ -305,9 +305,9 @@ Saliva21Aov <- car::Anova((mixModelseasonsSaliva21))
 
 
 ```{r efficiency infection tables, results='asis', eval=T}
-knitr::kable(Body21Aov)
-knitr::kable(Head21Aov)
-knitr::kable(Saliva21Aov)
+knitr::kable(Body21Aov, caption="Significance of block and season on infection efficiency using a mixed effect model. This is identical to body infection above.")
+knitr::kable(Head21Aov, caption="Significance of block and season on dissemination efficiency using a mixed effect model.")
+knitr::kable(Saliva21Aov, caption="Significance of block and season on efficiency of salivary gland infections, using a mixed effect model.")
 ```
 
 The two major obstacles to infectiousness are at the level of the body and the saliva.  Nearly all mosquitoes that have body infections also have disseminated infections, suggesting that midgut escape is relatively uncontrolled. However, of the disseminated infections, not all result in salivary gland infections, suggesting there is a mechanism blocking the virus from spreading to the salivary glands. The summer has a significantly higher efficiency than the fall season with regards to saliva, however, there is no difference in progression to disseminated infections.
@@ -633,4 +633,136 @@ ggplot(data=seasonInfSite, aes(x=Temp_max_mean, y=Saliva_mean))+
 
 # Emergence and Survival Results
 
-Mostly done, but not yet in a nice readable document.
+In general, we found that larval emergence and survival differed significantly across season, but not across land class.
+
+```{r}
+emergAug <- read.csv("../data/emergence/raw/AugustEmergence.csv")
+emergAug$block <- "summer"
+
+emergOct <- read.csv("../data/emergence/raw/OctoberEmergence.csv")
+emergOct$block <- "fall"
+#drop U3T1 in fall because it was eaten by ants
+emergOct <- filter(emergOct, Tray_Code!="U3T1")
+
+emergAll <- rbind(emergOct, emergAug)
+#expand so each mosquito gets one row
+emergExp <- emergAll[rep(seq.int(1,nrow(emergAll)), emergAll$Num_Emerge),
+                      c(11, 2,4,5,6:9)]
+#sum(emergAll$Num_Emerge)==nrow(emergExp) #quick check this worked
+
+#get survival per tray
+survSumm <- emergExp %>%
+  filter(Sex=="F") %>%
+  group_by(block, Tray_Code) %>%
+  mutate(percSurv=n()) %>%
+  ungroup() %>%
+  dplyr::select(block, Class, Site_Code, Tray_Code, percSurv)
+survSumm <- unique(survSumm)
+```
+
+```{r fillIn function}
+fillIn <- function(df, endDay, totalMosq=50){
+  #' Fill In Emergence Dates
+  #' this function fills in for those mosquitoes that did not emerge so we do not have data for, it gives them an observation/event of 0 on the last day we found a mosquito emerged
+  #' @param df the data frame you wish to fill in, in our case by pot
+  #' @param endDay the last day of emergence
+  #' @param totalMosq estimated starting number of mosquitoes per pot
+  #' @returns dataframe with census data filled in for mosquitoes that did not emerge
+  toRep <- df[1,]
+  toRep$Exp_Day <- endDay
+  toRep$event <- 0
+  if(nrow(df)<totalMosq){
+    toAdd <- toRep[rep(1, (totalMosq-nrow(df))),]
+    allTest <- rbind(df, toAdd)
+  } else {
+    toAdd <- NA
+    allTest <- NA
+  }
+  return(allTest)
+}
+```
+
+```{r apply FillIn function}
+applyFill <- function(season, allData=emergExp){
+  #' Apply FillIn function
+  #' @param season "fall" or "summer"
+  #' @param allData full dataframe with row for each mosquito that emerged
+  #' @returns censused data for the full season
+  tempList <- list()
+  tempDF <- allData
+  tempDF <- tempDF[tempDF$Sex=="F",]
+  tempDF <- tempDF[tempDF$block==season,]
+  tempDF$event <- 1 #add emergence event
+  for (i in 1:length(unique(tempDF$Tray_Code))){ 
+    df <- tempDF[tempDF$Tray_Code==unique(tempDF$Tray_Code)[i],]
+    endDay <- max(tempDF$Exp_Day)
+    tempList[[i]] <- fillIn(df=df, endDay=endDay)
+  }
+  allSurv <- do.call(rbind.data.frame, tempList)
+  return(allSurv)
+}
+```
+
+```{r}
+summerSurv <- applyFill(season="summer")
+fallSurv <- applyFill(season="fall")
+allSurv <- rbind(summerSurv, fallSurv)
+```
+
+```{r kaplan meier curves, fig.width=6, fig.height=4}
+km.fit <- survfit(Surv(Exp_Day, event) ~ block + Class + cluster(Site_Code), data=allSurv, type="kaplan-meier", se.fit=T, conf.int=0.95)
+
+
+  data <- eval(km.fit$call$data)
+  d <- surv_summary(km.fit, data=data)
+  d$emerge <- (1 - d$surv)*100
+  ggplot(data=d, aes(x=time, y=emerge, group=factor(strata)))+
+    geom_line(aes(color=Class))+
+    geom_ribbon(aes(ymin=(1-upper)*100, ymax=(1-lower)*100, fill=Class), alpha=0.4)+
+    scale_color_manual(values=c("dodgerblue", "gray80", "maroon"), labels=c("Rural", "Suburban", "Urban"))+
+    scale_fill_manual(values=c("dodgerblue", "gray80", "maroon"))+
+    theme_base()+
+    ylab("Percent of Females Emerged") +
+    xlab("Day")+
+    guides(color=F)+
+    ggtitle("Female Larval Emergence")
+```
+
+This resulted in a difference in both the average time to emergence and survival across season, but not land class.
+
+```{r survival plot and stats, results='asis'}
+mixMortality <- lmer(percSurv ~  Class*block + (1|Site_Code), data=survSumm)
+#summary(mixMortality)
+#anova(mixMortality)
+emergAnova <- Anova(mixMortality, test.statistic = "F") #with car loaded
+#plot(mixMortality)
+#qqnorm(resid(mixMortality))
+with(survSumm, interaction.plot(x.factor=Class, trace.factor=block, response=percSurv, fun=mean, type="b", legend=T))
+knitr::kable(emergAnova, caption="LMEM of class * block on tray level emergence with site as a random effect")
+```
+
+```{r emergence time plot and stats, results='asis'}
+emergExpF <- filter(emergExp, Sex=="F")
+ggplot(data=emergExpF, aes(x=Site_Code, y=Exp_Day)) +
+  geom_boxplot() +
+  facet_wrap(~block) +  
+  theme_base() +
+  ylab("Emergence Day")
+
+mixEmerge <- lmer(Exp_Day ~  Class*block + (1|Site_Code), data=emergExpF)
+#plot(mixEmerge)
+#summary(mixEmerge)
+knitr::kable(Anova(mixEmerge), caption = "Results from Mixed model on the effect of class and block on time to emergence.")
+```
+
+The day of emergence differed significantly across block (and nearly class). Mosquitoes in the summer emerged on average 14 days sooner than those in the fall. 
+
+
+# Body Size
+
+
+
+
+
+
+

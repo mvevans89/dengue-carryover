@@ -127,7 +127,7 @@ We can also look at the time to development (i.e. emergence day) for block and c
 ```{r}
 emergExpF <- filter(emergExp, Sex=="F")
 ggplot(data=emergExpF, aes(x=Site_Code, y=Exp_Day)) +
-  geom_violin() +
+  geom_boxplot() +
   facet_wrap(~block) +  
   theme_base() +
   ylab("Emergence Day")
@@ -220,17 +220,6 @@ with (allSurv, table(event, block, Class))
 km.fit <- survfit(Surv(Exp_Day, event) ~ block + Class + cluster(Site_Code), data=allSurv, type="kaplan-meier", se.fit=T, conf.int=0.95)
 summary(km.fit)
 
-ggsurvplot(km.fit, 
-           data=allSurv, 
-           risk.table=F, 
-           pval=F, 
-           conf.int=T, 
-           ggtheme=theme_minimal()
-           #palette=rep(c(colRural,colSuburban, colUrban), 2),
-           #legend.labs=rep(c("Rural", "Suburban", "urban"), 2)
-          )
-
-
   data <- eval(km.fit$call$data)
   d <- surv_summary(km.fit, data=data)
   d$emerge <- (1 - d$surv)*100
@@ -249,38 +238,12 @@ ggsurvplot(km.fit,
 ```
 
 ```{r, eval=F}
-allSurv$bins <- cut(allSurv$Exp_Day, breaks=c(10,12,14,21,42))
-
-coxFit <- coxph(Surv(Exp_Day, event) ~ Class*block + block:Exp_Day + cluster(Site_Code), data=allSurv, method="breslow")
+coxFit <- coxph(Surv(Exp_Day, event) ~ Class*block + block:Exp_Day + cluster(Site_Code), data=allSurv, method="breslow") #this doesn't converge, but I think is okay
 summary(coxFit)
 
 
 cox.zph(coxFit)
 plot(cox.zph(coxFit))
-
-hist(allSurv$Exp_Day[allSurv$block=="summer"])
-hist(allSurv$Exp_Day[allSurv$block=="fall"])
-#their distributions are very different, may make sense to model them seperately
-
-summFit <- coxph(Surv(Exp_Day, event) ~ Class + Class:Exp_Day + cluster(Site_Code),
-                 data=allSurv[allSurv$block=="summer",],
-                 method="breslow")
-summary(summFit)
-cox.zph(summFit)
-plot(cox.zph(summFit))
-
-fallFit <- coxph(Surv(Exp_Day, event) ~ Class + Class:Exp_Day + cluster(Site_Code),
-                 data=allSurv[allSurv$block=="fall",],
-                 method="breslow")
-summary(fallFit)
-cox.zph(fallFit)
-plot(cox.zph(fallFit))
-
-#also test across blocks
-blockFit <- coxph(Surv(Exp_Day, event) ~ block + block:Exp_Day , data=allSurv, method="breslow")
-summary(blockFit)
-cox.zph(blockFit)
-plot(cox.zph(blockFit))
 ```
 
 
