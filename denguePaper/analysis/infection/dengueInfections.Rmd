@@ -25,6 +25,9 @@ knitr::opts_chunk$set(warning=FALSE)
 - GBM on individual level infection: did not work becuase the climate data was aggregated to the site level (Early April 2017)
 - glmnet for variable selection with site level infection rates: this worked fairly well, but I also noticed strong differences across block (season). This inspired me to then try a mixed-model which could have block as a random effect (mid-April 2017)
 - lmer model: informed by variable selection from glmnet. It is informed in that all of the variables are extremely correlated, but mean_temp came out as important. And I think it makes the most sense to focus on that for now. (April 20 2017)
+- added efficiency analysis (May 2017)
+- incorporated the effect of body size into analysis (May 2017)
+
 
 ```{r}
 library(xtable)
@@ -439,7 +442,7 @@ Based on the results of Test 1, we only see a difference in infection at 21 dpi 
 ### Load and Format Microclimate Data
 
 ```{r clean climate data, echo=FALSE, eval=T}
-climate <- read.csv('data/microclimate/clean/2016TrialsAdult.csv')[,-1]
+climate <- read.csv('../../data/microclimate/clean/2016TrialsAdult.csv')[,-1]
 #toss out ridiculous levels
 climate <- climate[climate$Temp<75,]
 #format date
@@ -669,7 +672,7 @@ When plotting environmental variables against each other, I realized why it was 
 ```{r create dataframe of site-aggregated infections}
 seasonSite <- seasons %>%
   filter(DPI=="21") %>%
-  dplyr::select(-Individual, -DPI, - Wing) %>%
+  dplyr::select(-Individual, -DPI, Wing) %>%
   dplyr::group_by(block, class, site) %>%
   summarise_each(funs(mean(.,na.rm=T), se=(sd(., na.rm=T)/sqrt(n()))))
 
@@ -1095,6 +1098,8 @@ dev.off()
 
 ### Test 3: Winglength
 
+We also want to know how winglength influences infection. One of our mechanisms has to do with the quality of mosquitoes, of which body size is a proxy.
+
 Because we have found a significant effect of class on body and head infection, but no significant effect of climate, we are wondering if it is indirectly through body size. That is, microclimate leads to different sized mosquitoes, and different size mosquitoes are more or less susceptible to infection. This requires two tests:
 
 * a) the relationship between wing size and infection
@@ -1103,656 +1108,57 @@ Because we have found a significant effect of class on body and head infection, 
 #### Test 3.a Wing Size and Infection
 
 ```{r}
-par(mfrow=c(3,1))
-ggplot(data=seasonInf, aes_string(x="Wing", y="Body")) +
-  geom_point(aes(color=class)) +
-  geom_smooth()
-ggplot(data=seasonInf, aes_string(x="Wing", y="Head")) +
-  geom_point(aes(color=class)) +
-  geom_smooth()
-ggplot(data=seasonInf, aes_string(x="Wing", y="Saliva")) +
-  geom_point(aes(color=class)) +
-  geom_smooth()
+ggplot(data=seasonInfSite, aes(x=Wing_mean, y=Body_mean))+
+  geom_point(aes(color=class))
+
+wingInf <- seasonInf[seasonInf$Body %in% c(1,0),]
+
+ggplot(data=wingInf, aes(Wing))+
+  geom_histogram(aes(fill=class))+
+  facet_wrap(~Body, dir="v")+
+  scale_fill_manual(values=c("dodgerblue", "gray80", "maroon"))+
+  #geom_vline(aes(xintercept=median(Wing)))+
+  theme_base()+
+  geom_vline(data=wingInf[wingInf$Body==1 & wingInf$class=="Rural",], aes(xintercept=median(Wing, na.rm=T)), color="dodgerblue")+
+    geom_vline(data=wingInf[wingInf$Body==0 & wingInf$class=="Rural",], aes(xintercept=median(Wing, na.rm=T)), color="dodgerblue")+
+    geom_vline(data=wingInf[wingInf$Body==1 & wingInf$class=="Suburban",], aes(xintercept=median(Wing, na.rm=T)), color="black")+
+    geom_vline(data=wingInf[wingInf$Body==0 & wingInf$class=="Suburban",], aes(xintercept=median(Wing, na.rm=T)), color="black")+
+      geom_vline(data=wingInf[wingInf$Body==1 & wingInf$class=="Urban",], aes(xintercept=median(Wing, na.rm=T)), color="maroon")+
+        geom_vline(data=wingInf[wingInf$Body==0 & wingInf$class=="Urban",], aes(xintercept=median(Wing, na.rm=T)), color="maroon")
+  
 ```
 
-From these rough plots, it does seem like larger mosquitoes are less likely to have body or head infections than smaller. And, as above, there is really no trend in Saliva infections.
-
-Now we try some tests:
+There really doesn't seem to be any trend between wing size and infection.  In both infected and uninfected mosquitoes, the size distribution is very similar. Urban mosquitoes are in general larger, but there is no difference between infected and uninfected.
 
 ```{r}
-mixModelwingBody <- lme4::glmer(Body~Wing, 
-                          data=seasonInf,
-                          family=binomial(link="logit"))
-plot(mixModelwingBody)
-summary(mixModelwingBody)
-
-glmWingBody <- glm(as.factor(Body)~Wing, 
-                          data=seasonInf,
-                          family=binomial(link="logit"))
-summary(glmWingBody)
-plot(glmWingBody)
-```
-
-#### Test 3.b Climate and Wing Size
-
-I've actually decided to wait and do this for the whole experiment.
-
-```{r}
-envVarPlot("Wing")
-```
-
-
-Really seems like warmer sites (urban), had larger mosquitoes, and therefore lower infection of body and heads. And then, when it comes to Saliva, it really doesn't matter.
-
-
-\newpage
-
-# Deprecated
-#### Visualization
-
-```{r facet visualization function, echo=FALSE}
-envVarPlot <- function(sample, dataset=seasonInf){
-  
-p1 <- ggplot(data=dataset, aes_string(x="Temp_mean", y=sample)) +
-  geom_point(aes(color=class)) +
-  geom_smooth() +
-  theme(legend.position="none")
-
-p2 <- ggplot(data=dataset, aes_string(x="Temp_max", y=sample)) +
-  geom_point(aes(color=class)) +
-  geom_smooth() +
-  theme(legend.position="none")
-
-p3 <- ggplot(data=dataset, aes_string(x="Temp_min", y=sample)) +
-  geom_point(aes(color=class)) +
-  geom_smooth() +
-  theme(legend.position="none")
-
-p4 <- ggplot(data=dataset, aes_string(x="RH_mean", y=sample)) +
-  geom_point(aes(color=class)) +
-  geom_smooth() +
-  theme(legend.position="none")
-
-p5 <- ggplot(data=dataset, aes_string(x="RH_max", y=sample)) +
-  geom_point(aes(color=class)) +
-  geom_smooth() +
-  theme(legend.position="none")
-
-p6 <- ggplot(data=dataset, aes_string(x="RH_min", y=sample)) +
-  geom_point(aes(color=class)) +
-  geom_smooth() +
-  theme(legend.position="none")
-
-p7 <- ggplot(data=dataset, aes_string(x="DTR", y=sample)) +
-  geom_point(aes(color=class)) +
-  geom_smooth() +
-  theme(legend.position="none")
-
-p8 <- ggplot(data=dataset, aes_string(x="hoursAbove31", y=sample)) +
-  geom_point(aes(color=class)) +
-  geom_smooth() +
-  theme(legend.position="none")
-
-p9 <- ggplot(data=dataset, aes_string(x="hoursBelow16", y=sample)) +
-  geom_point(aes(color=class)) +
-  geom_smooth()
-
-plotAll <- grid.arrange(p1,p2,p3,p4,p5,p6,p7,p8,p9,nrow=3)
-return(plotAll)
-}
-```
-
-```{r visualize all sample types, echo=FALSE}
-envVarPlot("Body")
-envVarPlot("Head")
-envVarPlot("Saliva")
-```
-
-Based on the GBM models, several variables have arisen as important, so I am plotting them against each other to explore any clustering
-
-```{r multivariate visualization}
-ggplot(data=seasonInf, aes(x=Temp_mean, y=DTR)) +
-  geom_point(aes(shape=factor(Body), color=class), size=4)
-
-```
-
-There doesn't seem to be much of an effect of any of them on saliva infection, but all the temperature variables seem to have a similar effect, and the RH variables an inverse (which makes sense). RH max is super weird because most of them have 100, so I will not use it in the glmer model.
-
-We can also check out some collinearity and correlations.
-
-```{r inspect correlation, echo=FALSE}
-#envVars <- seasonInf[,10:ncol(seasonInf)]
-#corrplot(cor(envVars))
-#pairs(envVars)
-line_fn <- function(data, mapping, ...){
-  p <- ggplot(data = data, mapping = mapping) + 
-    geom_point() + 
-    geom_smooth(method=loess, fill="red", color="red", ...) +
-    geom_smooth(method=lm, fill="blue", color="blue", ...)
-  p
-}
-ggpairs(seasonInf, 10:ncol(seasonInf),lower = list(continuous = line_fn))
-```
-
-There are some variables that are highly correlated. 
-
-#### GBM
-
-Because the response is binary, I'm going to give it a shot using glmnet and GBM. Also, there is no longer a random effect of site because the environmental variables are aggregated by site.
-
-```{r GBM, echo=FALSE}
-respV <- "Body"
-predVs <- c("Temp_mean","RH_mean","Temp_min","RH_min", "Temp_max", "DTR", "hoursAbove31", "hoursBelow16")
-
-prop.table(table(seasonInf[,respV])) #need at least %15 infected for easier stats
-
-#create dataframe without NAs
-myCols <- c(respV, predVs)
-modDF <- seasonInf %>%
-  dplyr::select(one_of(myCols)) 
-modDF <- na.omit(modDF)
-#modDF[,respV] <- as.factor(modDF[,respV])
-#levels(modDF[,respV]) <- c("no", "yes")
-
-
-#split into testing and training
-set.seed(8675309)
-inds <- createDataPartition(modDF[,respV], p=.7, list=F, times=1)
-train <- modDF[inds,]
-test <- modDF[-inds,]
-
-#set controls for testing different tuning parameters
-# gbmControl <- trainControl(method='cv', returnResamp='none', summaryFunction = twoClassSummary, classProbs = TRUE, preProcOptions = c("center", "scale", "corr"))
-# 
-# gbmTune <- expand.grid(n.trees=c(10000, 20000), interaction.depth=c(1,2,3), shrinkage=c(0.1,0.01,0.005), n.minobsinnode=c(1))
-# set.seed(8675309)
-# gbmModel <- train(train[,predVs], (train[,respV]), 
-#                   method='gbm', 
-#                   trControl=gbmControl,  
-#                   metric = "ROC",
-#                   tuneGrid=gbmTune,
-#                   verbose=F) 
-#based on training from above
-gbmModel <- gbm(Body~., 
-                distribution="bernoulli",
-                n.trees=20000,
-                interaction.depth = 3, 
-                shrinkage=0.01, 
-                n.minobsinnode=1,
-                bag.fraction=0.25,
-                n.cores=4,
-                data=train)
-library(dplyr)
-
-```
-
-```{r}
-summary(gbmModel)
-plot(gbmModel)
-gbmModel
-
-#check performance
-preds <- predict(object=gbmModel, test[,predVs], n.trees=20000)
-aucGBM <- roc(test[,respV], preds)
-aucGBM
-
-```
-
-The GBM performs not so great on Body with an AUC of `r print(aucGBM$auc)`.
-
-The important variables are `r print(summary(gbmModel))`
-
-```{r plot GBM variable importance}
-library(gbm)
-plot.gbm(gbmModel, i.var=1)
-plot.gbm(gbmModel, i.var=2)
-plot.gbm(gbmModel, i.var=3)
-plot.gbm(gbmModel, i.var=4)
-plot.gbm(gbmModel, i.var=5)
-plot.gbm(gbmModel, i.var=6)
-plot.gbm(gbmModel, i.var=7)
-plot.gbm(gbmModel, i.var=8)
-```
-
-
-#### glmnet
-
-
-```{r}
-#create new controls and models
-glmControl <- trainControl(method='cv', number=3, returnResamp='none', classProbs=T, preProcOptions = c("center", "corr", "scale")) #3 cd levels
-set.seed(8675309)
-glmModel <- train(train[, predVs], train[, respV], 
-                  method='glmnet',  
-                  metric = "Accuracy", 
-                  trControl=glmControl)
-
-plot(varImp(glmModel,scale=F))
-glmModel$results
-
-#check performance
-preds <- predict(object=glmModel, test[,predVs], type='prob')
-aucGLMnet <- roc(ifelse(test[,respV]=="yes",1,0), preds[[2]])
-```
-
-This performed slightly better than the `GBM`, with an AUC of `r aucGLMnet$auc`. The important variables are `Temp_mean`, `DTR`, `RH_mean`, `Temp_min`.
-
-**Classification Summary**: Both models perform poorly, with an AUC of around 0.58-0.61 on the testing data. This could be due to the collinearity of the variables. Similar variables do arise as important, however, with `Temp_mean`, `DTR` and `RH_mean` coming up as especially important.
-
-
-#### glm
-
-We can try this out with a generalized linear model (note we don't need a mixed-model because we have no random effect of site).
-
-```{r, eval=T}
-#drop Tmax because it is rank deficient
-set.seed(8675309)
-logregModel <- train(train[, predVs], train[, respV], 
-                  method='logreg',  
-                  metric = "Accuracy", 
-                  trControl=glmControl)
-
-
-BodyEnv <- glm(Body~ 
-                         scale(Temp_mean, center=T, scale=T) 
-                       + scale(DTR, center=T, scale=T) 
-                       + scale(RH_mean, center=T, scale=T) 
-                        + scale(Temp_min, center=T, scale=T) 
-                        + scale(RH_min, center=T, scale=T) 
-                       #+ scale(Temp_max, center=T, scale=T)
-                       # + scale(hoursAbove31, center=T, scale=T)
-                       # + scale(hoursBelow16, center=T, scale=T) 
-                          ,data=train,
-                          family=binomial(link="logit"))
-
-summary(BodyEnv) 
-#plot(BodyEnv)
-
-#check performance
-preds <- predict(object=BodyEnv, test[,predVs], type='response')
-aucGLM <- roc(test[,respV], preds)
-aucGLM
-```
-
-The only variable that is even somewhat significant is mean RH(p=0.04 and mean Temp (0.05). The other variables are also highly correlated, which makes it difficult to see which is having the largest effect. This does perform about the same as the `GBM` and `glmnet` models, with an auc of `r aucGLM$auc`. It's AIC is `r AIC(BodyEnv)`
-
-#### Model Selection using a priori variable selection
-
-First, I will try to do model selection based on what variables the earlier lasso regression had chosen to keep.
-
-```{r GLM with a priori variable selection}
-BodyEnvMS <- glm(Body~ 
-                         scale(Temp_mean, center=T, scale=T) 
-                       + scale(DTR, center=T, scale=T) 
-                       + scale(RH_mean, center=T, scale=T) 
-                       + scale(Temp_min, center=T, scale=T), 
-                       #+ scale(RH_min, center=T, scale=T) 
-                       #+ scale(Temp_max, center=T, scale=T)
-                       #+ scale(hoursAbove31, center=T, scale=T)
-                       #+ scale(hoursBelow16, center=T, scale=T), 
-                          data=train,
-                          family=binomial(link="logit"))
-
-summary(BodyEnvMS)
-plot(BodyEnvMS)
-
-#check performance
-preds <- predict(object=BodyEnvMS, test[,predVs], type='response')
-aucGLMMS <- roc(test[,respV], preds)
-AIC(BodyEnvMS)
-```
-
-
-The BIC value of this is `r BIC(BodyEnvMS)` compare to `r BIC(BodyEnv)` for the one without variable selection.  It's AUC value is `r print(aucGLMMS$auc)`. This really isn't much different than the other one with all of the variables. The AUC and AIC values are the same, and the BIC value only decreases because of parsimony (i.e. it penalizes having more variables).
-
-
-## Summary Plots by Site
-
-```{r plot by site function}
-sitePlot <- function(summTable, dpi, bodyPart){
-  cols <- c(1:3,grep(bodyPart, colnames(summTable)))
-temp <- summTable[summTable$DPI==dpi,cols]
-colnames(temp)[4:6] <- c("mean", "sd", "se")
-  barCenters <- barplot(temp$mean, 
-          col=c(colRural, colSuburban, colUrban)[temp$class],
-          names.arg=temp$site,
-          ylim=c(0,max(temp$mean+0.2)),
-          main = paste0(bodyPart, " Infection (", dpi, "dpi)")
-          )
-  #add se bars
-  segments(barCenters, temp$mean - temp$se , barCenters,
-         temp$mean + temp$se, lwd = 1.5)
-  
-  arrows(barCenters, temp$mean - temp$se , barCenters,
-         temp$mean + temp$se, lwd = 1.5, 
-         angle = 90,
-       code = 3, length = 0.05)
-}
-
-```
-
-```{r plot:body, eval=FALSE, echo=FALSE}
-par(mfrow=c(2,2))
-sitePlot(summTable=augustSumm, dpi="9", bodyPart = "Body")
-sitePlot(summTable=augustSumm, dpi="14", bodyPart = "Body")
-sitePlot(summTable=augustSumm, dpi="21", bodyPart = "Body")
-
-sitePlot(summTable=octSumm, dpi="21", bodyPart="Body")
-mtext("October")
-```
-
-```{r plot:head, eval=FALSE, echo=FALSE}
-par(mfrow=c(2,2))
-sitePlot(summTable=augustSumm, dpi="9", bodyPart = "Head")
-sitePlot(summTable=augustSumm, dpi="14", bodyPart = "Head")
-sitePlot(summTable=augustSumm, dpi="21", bodyPart = "Head")
-
-sitePlot(summTable=octSumm, dpi="21", bodyPart="Head")
-mtext("October")
-```
-
-```{r plot:saliva,eval=FALSE, echo=FALSE}
-sitePlot(summTable=augustSumm, dpi="9", bodyPart = "Saliva")
-sitePlot(summTable=augustSumm, dpi="14", bodyPart = "Saliva")
-sitePlot(summTable=augustSumm, dpi="21", bodyPart = "Saliva")
-
-sitePlot(summTable=octSumm, dpi="21", bodyPart="Saliva")
-mtext("October")
-```
-
-## Plotting them beside each other
-
-```{r beside plot function}
-besidePlot <- function(summTable, bodyPart, byclass=F){
-  if (byclass==T){
-    cols <- c(1:2,grep(bodyPart, colnames(summTable)))
-  } else cols <- c(1:3,grep(bodyPart, colnames(summTable)))
-  tempLarge <- summTable[,cols]
-  colnames(tempLarge)[(ncol(tempLarge)-2):ncol(tempLarge)] <- c("mean", "sd", "se")
-  if (byclass==F){
-  tempMean <- tempLarge %>%
-    select(-sd,-se, -class) %>%
-    spread(DPI, mean) %>%
-    select(-site)
-  } else tempMean <- tempLarge %>%
-    select(-sd,-se) %>%
-    spread( DPI, mean) %>%
-    select(-class)
-  if (byclass==T){
-    rownames(tempMean) <- levels(summTable$class)
-    } else rownames(tempMean) <- levels(summTable$site)
-  tempMean <- t(as.matrix(tempMean))
-  #colors
-  if (byclass==T){
-    colvec <- c(rep(colRural,3), rep(colSuburban,3), 
-                            rep(colUrban,3))
-  } else colvec <- c(rep(colRural,9), rep(colSuburban,9), 
-                            rep(colUrban,9))
-  #plot
-  barCenters <- barplot(tempMean, 
-                      beside=T,
-                      col=colvec,
-                      density = c(10,40,NA),
-                      names.arg=colnames(tempMean),
-                      ylim=c(0,0.80),
-                      main = paste0("Dengue ", bodyPart," Infections"),
-                      ylab = "Percent Infected"
-                      )
-
-    if (byclass==F){
-  tempSE <- tempLarge %>%
-    select(-sd,-mean,-class) %>%
-    spread( DPI, se) %>%
-    select(-site)
-  } else   tempSE <- tempLarge %>%
-    select(-sd,-mean) %>%
-    spread( DPI, se) %>%
-    select(-class)
-  
-  tempSE <- t(tempSE)
-  
-  #add se bars
-  segments(barCenters, tempMean - tempSE , barCenters,
-         tempMean + tempSE, lwd = 1.5)
-  
-  arrows(barCenters, tempMean - tempSE , barCenters,
-         tempMean + tempSE,
-         lwd = 1.5, 
-         angle = 90,
-         code = 3, length = 0.03)
-  
-  legend("topright", legend=c("9 dpi","14 dpi", "21 dpi"), density = c(10,40,NA),
-       bty = "n", col = "gray80")
-}
-```
-
-## August Plots by DPI
-
-Note there are none of these for October becuase we only did 21 dpi.
-
-```{r barplot:besideBody, eval=T, echo=FALSE}
-#pdf(file="../figures/augustBody.pdf", width = 8, height=6, family="sans")
-besidePlot(summTable=augustSumm, bodyPart="Body")
-#dev.off()
-```
-
-```{r barplot:besideHead aug, eval=T, echo=FALSE}
-#pdf(file="../figures/augustHead.pdf", width = 8, height=6, family="sans")
-besidePlot(summTable=augustSumm, bodyPart="Head")
-#dev.off()
-```
-
-```{r barplot:besideSaliva, eval=T, echo=FALSE}
-#pdf(file="../figures/augustSaliva.pdf", width = 8, height=6, family="sans")
-besidePlot(summTable=augustSumm, bodyPart="Saliva")
-#dev.off()
-```
-
-
-
-## Plots by Class
-
-```{r beside barplot for october, echo=FALSE}
-besidePlotOct <- function(summTable, bodyPart, byclass=F){
-  if (byclass==T){
-    cols <- c(1,2,grep(bodyPart, colnames(summTable)))
-  } else cols <- c(1:3,grep(bodyPart, colnames(summTable)))
-  tempLarge <- summTable[,cols]
-  colnames(tempLarge)[(ncol(tempLarge)-2):ncol(tempLarge)] <- c("mean", "sd", "se")
-  if (byclass==F){
-  tempMean <- tempLarge %>%
-    select(-sd,-se, -class) %>%
-    spread( DPI, mean) %>%
-    select(-site)
-  } else tempMean <- tempLarge %>%
-    select(-sd,-se, -class, -DPI)
-  if (byclass==T){
-    rownames(tempMean) <- levels(summTable$class)
-    } else rownames(tempMean) <- levels(summTable$site)
-  tempMean <- t(as.matrix(tempMean))
-  #colors
-  if (byclass==T){
-    colvec <- c(rep(colRural,1), rep(colSuburban,1), 
-                            rep(colUrban,1))
-  } else colvec <- c(rep(colRural,3), rep(colSuburban,3), 
-                            rep(colUrban,3))
-  #plot
-  barCenters <- barplot(tempMean, 
-                      beside=T,
-                      col=colvec,
-                      density = c(NA),
-                      names.arg=colnames(tempMean),
-                      ylim=c(0,0.80),
-                      main = paste0("Dengue ", bodyPart," Infections"),
-                      ylab = "Percent Infected"
-                      )
-
-    if (byclass==F){
-  tempSE <- tempLarge %>%
-    select(-sd,-mean,-class) %>%
-    spread( DPI, se) %>%
-    select(-site)
-  } else   tempSE <- tempLarge %>%
-    select(-sd,-mean) %>%
-    spread( DPI, se) %>%
-    select(-class)
-  
-  tempSE <- t(tempSE)
-  
-  #add se bars
-  segments(barCenters, tempMean - tempSE , barCenters,
-         tempMean + tempSE, lwd = 1.5)
-  
-  arrows(barCenters, tempMean - tempSE , barCenters,
-         tempMean + tempSE,
-         lwd = 1.5, 
-         angle = 90,
-         code = 3, length = 0.03)
-  
-  #legend("topright", legend=c("9 dpi","14 dpi", "21 dpi"), density = c(10,40,NA),
-       #bty = "n", col = "gray80")
-}
-
-```
-
-```{r format by class, eval=T}
-augustclassSumm <- august%>%
-  #drop individual
-  select(-Individual, -site) %>%
-  group_by(DPI, class) %>%
-  summarise_each(funs(mean(.,na.rm=T),sd(.,na.rm=T),se=(sd(., na.rm=T)/sqrt(n())))) %>%
+ggplot(data=seasonInf)+
+  geom_histogram(aes(Wing))+
+  facet_wrap(~site)
+
+ggplot(data=seasonInf)+
+  geom_boxplot(aes(y=Wing, x=factor(Body)))+
+  facet_wrap(~block)
+
+ggplot(data=seasonInf)+
+  geom_boxplot(aes(y=Wing, x=factor(class)))+
+  facet_wrap(~block)
+
+wingMeans <- seasonInf %>%
+  group_by(class, block, Body) %>%
+  filter(Body %in% c(0,1)) %>%
+  summarise(meanW=mean(Wing, na.rm=T), wingSE=sd(Wing, na.rm=T)/sqrt(n())) %>%
   ungroup()
 
-#print(xtable(augustclassSumm), type="html")
-augustclassSumm
+ggplot(data=wingMeans, aes(x=class,group=factor(Body)))+
+  geom_col(aes(y=meanW, group=factor(Body), fill=factor(Body)), position="dodge")+
+  geom_errorbar(aes(ymin=meanW-wingSE, ymax=meanW+wingSE), color="gray20", width=0.1, position="dodge")+
+  facet_wrap(~block)
 
-octclassSumm <- oct %>%
-  select(-Individual, -site) %>%
-  group_by(DPI, class) %>%
-  summarise_each(funs(mean(.,na.rm=T),sd(.,na.rm=T),se=(sd(., na.rm=T)/sqrt(n())))) %>%
-  ungroup()
-
-#print(xtable(octclassSumm), type="html")
-octclassSumm
-```
-
-```{r plot by class, eval=FALSE, echo=FALSE}
-pdf(file="../figures/forMS/augustHeadClass.pdf", width = 8, height=6, family="sans")
-besidePlot(summTable=augustclassSumm, bodyPart="Head", byclass=T)
-dev.off()
-
-pdf(file="../figures/forMS/augustBodyClass.pdf", width = 8, height=6, family="sans")
-besidePlot(summTable=augustclassSumm, bodyPart="Body", byclass=T)
-dev.off()
-
-pdf(file="../figures/forMS/augustSalivaClass.pdf", width = 8, height=6, family="sans")
-besidePlot(summTable=augustclassSumm, bodyPart="Saliva", byclass=T)
-dev.off()
-
-pdf(file="../figures/forMS/octoberHeadClass.pdf", width = 8, height=6, family="sans")
-besidePlotOct(summTable=octclassSumm, bodyPart="Head", byclass=T)
-dev.off()
-
-pdf(file="../figures/forMS/octoberBodyClass.pdf", width = 8, height=6, family="sans")
-besidePlotOct(summTable=octclassSumm, bodyPart="Body", byclass=T)
-dev.off()
-
-pdf(file="../figures/forMS/octoberSalivaClass.pdf", width = 8, height=6, family="sans")
-besidePlotOct(summTable=octclassSumm, bodyPart="Saliva", byclass=T)
-dev.off()
-
+median(seasonInf$Wing[seasonInf$block=="fall"], na.rm=T)
+median(seasonInf$Wing[seasonInf$block=="summer"], na.rm=T)
+mean(seasonInf$Wing[seasonInf$block=="fall"], na.rm=T)
+mean(seasonInf$Wing[seasonInf$block=="summer"], na.rm=T)
 ```
 
 
-```{r summary table}
-augustSumm <- august %>%
-  #drop individual
-  select(-Individual) %>%
-  group_by(DPI, site, class) %>%
-  summarise_each(funs(mean(.,na.rm=T),sd(.,na.rm=T),se=(sd(., na.rm=T)/sqrt(n())))) %>%
-  ungroup()
-
-#print(xtable(augustSumm), type="html")
-augustSumm
-
-octSumm <- oct %>%
-  #drop individual
-  select(-Individual) %>%
-  group_by(DPI, site, class) %>%
-  summarise_each(funs(mean(.,na.rm=T),sd(.,na.rm=T),se=(sd(., na.rm=T)/sqrt(n())))) %>%
-  ungroup()
-
-#print(xtable(octSumm), type="html")
-octSumm
-```
-
-```{r efficiency plot function, eval=FALSE, include=F}
-effPlot <- function(rawTable){
-  #format data
-  tempLarge <- rawTable %>%
-    filter(DPI=="21") %>%
-    group_by(site,class) %>%
-    mutate(bodyEff=mean(Body, na.rm=T))%>%
-    ungroup() %>%
-    filter(Body==1) %>%
-    group_by(site,class) %>%
-    mutate(headEff=mean(Head, na.rm=T))%>%
-    ungroup() %>%
-    filter(Head==1)%>%
-    group_by(site,class) %>%
-    mutate(salEff=mean(Saliva, na.rm=T))%>%
-    select(site, class, bodyEff, headEff, salEff) %>%
-    ungroup()
-  tempLarge <- unique(tempLarge)
-  #get mean and se
-  temp <- tempLarge %>%
-    select(-site) %>%
-    group_by(class) %>%
-    summarise_each(funs(mean(.,na.rm=T),se=(sd(., na.rm=T)/sqrt(n())))) %>%
-    ungroup()
-  
-  tempMean <- as.matrix(temp[,2:4])
-  rownames(tempMean) <- levels(temp$class)
-  tempMean <- t(tempMean)
- 
-  colvec <- c(rep(colRural,3), rep(colSuburban,3), 
-                            rep(colUrban,3))
-  #plot
-  barCenters <- barplot(tempMean, 
-                      beside=T,
-                      col=colvec,
-                      density = c(20,60,NA),
-                      names.arg=colnames(tempMean),
-                      ylim=c(0,1),
-                      ylab = "Relative Efficiency"
-                      )
-
-  tempSE <- as.matrix(temp[,5:7])
-  
-  tempSE <- t(tempSE)
-  
-  #add se bars
-  segments(barCenters, tempMean - tempSE , barCenters,
-         tempMean + tempSE, lwd = 1.5)
-  
-  arrows(barCenters, tempMean - tempSE , barCenters,
-         tempMean + tempSE,
-         lwd = 1.5, 
-         angle = 90,
-         code = 3, length = 0.03)
-  
-  #legend("topright", legend=c("9 dpi","14 dpi", "21 dpi"), density = c(10,40,NA),
-       #bty = "n", col = "gray80")
-}
-```
-
-```{r plot effiency, eval=FALSE, include=F}
-pdf(file="../figures/augEff.pdf", width = 8, height=4, family="sans")
-effPlot(rawTable=august)
-dev.off()
-
-pdf(file="../figures/octEff.pdf", width = 8, height=4, family="sans")
-effPlot(rawTable=oct)
-dev.off()
-```
 
