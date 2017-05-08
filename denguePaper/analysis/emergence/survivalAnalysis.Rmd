@@ -217,11 +217,11 @@ climate <- read.csv("../../data/microclimate/clean/2016TrialsAdultCleaned.csv", 
 
 with (allSurv, table(event, block, Class))
 
-km.fit <- survfit(Surv(Exp_Day, event) ~ block + Class + cluster(Site_Code), data=allSurv, type="kaplan-meier", se.fit=T, conf.int=0.95)
+km.fit <- survfit(Surv(Exp_Day, event) ~ block + Class +frailty(Site_Code), data=allSurv, type="kaplan-meier", se.fit=T, conf.int=0.95)
 summary(km.fit)
 
   data <- eval(km.fit$call$data)
-  d <- surv_summary(km.fit, data=data)
+  d <- survminer::surv_summary(km.fit, data=data)
   d$emerge <- (1 - d$surv)*100
   ggplot(data=d, aes(x=time, y=emerge, group=factor(strata)))+
     geom_line(aes(color=Class))+

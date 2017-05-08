@@ -31,6 +31,7 @@ library(GGally)
 library(dplyr)
 library(ggthemes)
 library(piecewiseSEM)
+library(survival)
 
 colR <- colRural <- "dodgerblue"
 colS <- colSuburban <- "gray80"
@@ -710,11 +711,11 @@ allSurv <- rbind(summerSurv, fallSurv)
 ```
 
 ```{r kaplan meier curves, fig.width=6, fig.height=4}
-km.fit <- survfit(Surv(Exp_Day, event) ~ block + Class + cluster(Site_Code), data=allSurv, type="kaplan-meier", se.fit=T, conf.int=0.95)
+km.fit <- survival::survfit(Surv(Exp_Day, event) ~ block + Class, data=allSurv, type="kaplan-meier", se.fit=T, conf.int=0.95)
 
 
   data <- eval(km.fit$call$data)
-  d <- surv_summary(km.fit, data=data)
+  d <- survminer::surv_summary(km.fit, data=data)
   d$emerge <- (1 - d$surv)*100
   ggplot(data=d, aes(x=time, y=emerge, group=factor(strata)))+
     geom_line(aes(color=Class))+
@@ -737,22 +738,27 @@ mixMortality <- lmer(percSurv ~  Class*block + (1|Site_Code), data=survSumm)
 emergAnova <- Anova(mixMortality, test.statistic = "F") #with car loaded
 #plot(mixMortality)
 #qqnorm(resid(mixMortality))
-with(survSumm, interaction.plot(x.factor=Class, trace.factor=block, response=percSurv, fun=mean, type="b", legend=T))
+with(survSumm, interaction.plot(x.factor=Class, trace.factor=block, response=percSurv, fun=mean, type="b", legend=T, ylab="Percentage Emerged"))
+mtext("Percentage Emerged by Class and Season")
 knitr::kable(emergAnova, caption="LMEM of class * block on tray level emergence with site as a random effect")
 ```
 
 ```{r emergence time plot and stats, results='asis'}
 emergExpF <- filter(emergExp, Sex=="F")
 ggplot(data=emergExpF, aes(x=Site_Code, y=Exp_Day)) +
-  geom_boxplot() +
+  geom_boxplot(aes(fill=Class)) +
+  scale_fill_manual(values=c("dodgerblue", "gray80", "maroon"))+
   facet_wrap(~block) +  
   theme_base() +
-  ylab("Emergence Day")
+  ylab("Emergence Day")+
+  xlab("Site")+
+  ggtitle("Day of Emergence by Site")
 
 mixEmerge <- lmer(Exp_Day ~  Class*block + (1|Site_Code), data=emergExpF)
 #plot(mixEmerge)
 #summary(mixEmerge)
 knitr::kable(Anova(mixEmerge), caption = "Results from Mixed model on the effect of class and block on time to emergence.")
+
 ```
 
 The day of emergence differed significantly across block (and nearly class). Mosquitoes in the summer emerged on average 14 days sooner than those in the fall. 
