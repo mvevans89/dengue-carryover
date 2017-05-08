@@ -1109,7 +1109,8 @@ Because we have found a significant effect of class on body and head infection, 
 
 ```{r}
 ggplot(data=seasonInfSite, aes(x=Wing_mean, y=Body_mean))+
-  geom_point(aes(color=class))
+  geom_point(aes(color=class, shape=block), size=3)+
+  geom_smooth(method="lm")
 
 wingInf <- seasonInf[seasonInf$Body %in% c(1,0),]
 
@@ -1160,5 +1161,14 @@ mean(seasonInf$Wing[seasonInf$block=="fall"], na.rm=T)
 mean(seasonInf$Wing[seasonInf$block=="summer"], na.rm=T)
 ```
 
+```{r}
+wingBody <- lmer(Body~Wing + (1|site), data=seasonInf)
+#wingBody <- glm(Body~1 + sqrt(Wing), data=seasonInf, family=binomial(link='logit'))
+plot(wingBody)
+summary(wingBody)
+Anova(wingBody)
+
+piecewiseSEM::rsquared(wingBody) #this RMSE is not so great
+```
 
 

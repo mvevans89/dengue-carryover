@@ -216,6 +216,75 @@ knitr::kable(Head21Aov, caption="Mixed model statistics for head infections.")
 
 As both the summer season and urban land classes had the highest temperatures in their respective groups, this suggests that these differences in vector competence may be due to differences in temperature in the larval environment.
 
+### Infection and Body Size
+
+In general, mosquitoes without head or body infections were larger than those that were infected. There was no difference in body size with regards to saliva infection. There is so much variation in these groups however, that there is no significant trend.
+
+```{r}
+wingInf <- seasonInf[seasonInf$Body %in% c(1,0),]
+
+ggplot(data=wingInf, aes(Wing))+
+  geom_histogram(aes(fill=class), bins=50)+
+  facet_wrap(~Body, dir="v")+
+  scale_fill_manual(values=c("dodgerblue", "gray80", "maroon"))+
+  #geom_vline(aes(xintercept=mean(Wing)))+
+  theme_base()+
+  geom_vline(data=wingInf[wingInf$Body==1 & wingInf$class=="Rural",], aes(xintercept=mean(Wing, na.rm=T)), color="dodgerblue")+
+    geom_vline(data=wingInf[wingInf$Body==0 & wingInf$class=="Rural",], aes(xintercept=mean(Wing, na.rm=T)), color="dodgerblue")+
+    geom_vline(data=wingInf[wingInf$Body==1 & wingInf$class=="Suburban",], aes(xintercept=mean(Wing, na.rm=T)), color="black")+
+    geom_vline(data=wingInf[wingInf$Body==0 & wingInf$class=="Suburban",], aes(xintercept=mean(Wing, na.rm=T)), color="black")+
+      geom_vline(data=wingInf[wingInf$Body==1 & wingInf$class=="Urban",], aes(xintercept=mean(Wing, na.rm=T)), color="maroon")+
+        geom_vline(data=wingInf[wingInf$Body==0 & wingInf$class=="Urban",], aes(xintercept=mean(Wing, na.rm=T)), color="maroon")+
+        geom_vline(data=wingInf[wingInf$Body==0,], aes(xintercept=mean(Wing, na.rm=T)), color="black", size=2)+
+        geom_vline(data=wingInf[wingInf$Body==1,], aes(xintercept=mean(Wing, na.rm=T)), color="black", size=2)+
+  ggtitle("Distribution of Body Size across Body Infections")
+```
+
+
+```{r}
+
+wingInf <- seasonInf[seasonInf$Head %in% c(1,0),]
+
+ggplot(data=wingInf, aes(Wing))+
+  geom_histogram(aes(fill=class), bins=50)+
+  facet_wrap(~Head, dir="v")+
+  scale_fill_manual(values=c("dodgerblue", "gray80", "maroon"))+
+  #geom_vline(aes(xintercept=mean(Wing)))+
+  theme_base()+
+  geom_vline(data=wingInf[wingInf$Head==1 & wingInf$class=="Rural",], aes(xintercept=mean(Wing, na.rm=T)), color="dodgerblue")+
+    geom_vline(data=wingInf[wingInf$Head==0 & wingInf$class=="Rural",], aes(xintercept=mean(Wing, na.rm=T)), color="dodgerblue")+
+    geom_vline(data=wingInf[wingInf$Head==1 & wingInf$class=="Suburban",], aes(xintercept=mean(Wing, na.rm=T)), color="black")+
+    geom_vline(data=wingInf[wingInf$Head==0 & wingInf$class=="Suburban",], aes(xintercept=mean(Wing, na.rm=T)), color="black")+
+      geom_vline(data=wingInf[wingInf$Head==1 & wingInf$class=="Urban",], aes(xintercept=mean(Wing, na.rm=T)), color="maroon")+
+        geom_vline(data=wingInf[wingInf$Head==0 & wingInf$class=="Urban",], aes(xintercept=mean(Wing, na.rm=T)), color="maroon")+
+        geom_vline(data=wingInf[wingInf$Head==0,], aes(xintercept=mean(Wing, na.rm=T)), color="black", size=2)+
+        geom_vline(data=wingInf[wingInf$Head==1,], aes(xintercept=mean(Wing, na.rm=T)), color="black", size=2)+
+  ggtitle("Distribution of Wing Size across Head Infections")
+```
+
+```{r}
+
+wingInf <- seasonInf[seasonInf$Saliva %in% c(1,0),]
+
+ggplot(data=wingInf, aes(Wing))+
+  geom_histogram(aes(fill=class), bins=50)+
+  facet_wrap(~Saliva, dir="v")+
+  scale_fill_manual(values=c("dodgerblue", "gray80", "maroon"))+
+  #geom_vline(aes(xintercept=mean(Wing)))+
+  theme_base()+
+  geom_vline(data=wingInf[wingInf$Saliva==1 & wingInf$class=="Rural",], aes(xintercept=mean(Wing, na.rm=T)), color="dodgerblue")+
+    geom_vline(data=wingInf[wingInf$Saliva==0 & wingInf$class=="Rural",], aes(xintercept=mean(Wing, na.rm=T)), color="dodgerblue")+
+    geom_vline(data=wingInf[wingInf$Saliva==1 & wingInf$class=="Suburban",], aes(xintercept=mean(Wing, na.rm=T)), color="black")+
+    geom_vline(data=wingInf[wingInf$Saliva==0 & wingInf$class=="Suburban",], aes(xintercept=mean(Wing, na.rm=T)), color="black")+
+      geom_vline(data=wingInf[wingInf$Saliva==1 & wingInf$class=="Urban",], aes(xintercept=mean(Wing, na.rm=T)), color="maroon")+
+        geom_vline(data=wingInf[wingInf$Saliva==0 & wingInf$class=="Urban",], aes(xintercept=mean(Wing, na.rm=T)), color="maroon")+
+        geom_vline(data=wingInf[wingInf$Saliva==0,], aes(xintercept=mean(Wing, na.rm=T)), color="black", size=2)+
+        geom_vline(data=wingInf[wingInf$Saliva==1,], aes(xintercept=mean(Wing, na.rm=T)), color="black", size=2)+
+  ggtitle("Distribution of Wing Size across Saliva Infections")
+```
+
+
+
 ### Infection Efficiency
 
 We can also look at infection efficiency. This is similar to what proportion of mosquitoes proceed to having head infections, out of those that have body infections.
