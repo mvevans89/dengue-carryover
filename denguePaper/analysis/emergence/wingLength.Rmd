@@ -1,0 +1,43 @@
+---
+title: "Wing Length Analysis"
+author: "Michelle Evans"
+date: "5/11/2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(cache=TRUE)
+knitr::opts_chunk$set(message=FALSE)
+knitr::opts_chunk$set(warning=FALSE)
+```
+
+```{r load body size data}
+augWing <- read.csv("../data/emergence/raw/AugustWingLength.csv")
+octWing <- read.csv("../data/emergence/raw/OctoberWingLength.csv")
+
+
+#convert to mm & clean
+augWing$mm <- augWing$Bars*augWing$Conversion.mm.bars.
+octWing$mm <- octWing$Bars*octWing$Conversion.bars.mm.
+
+octWing$site <- as.factor(substr(as.character(octWing$TrayCode), 1, 2))
+augWing$site <- as.factor(substr(as.character(augWing$TrayCode), 1, 2))
+
+getClass <- function(monthDf){
+  monthDf$class <- NULL
+  for (i in 1:nrow(monthDf)){
+    if (substr(monthDf$site[i], 1,1)=="R"){
+    monthDf$class[i] <- "Rural"
+    } else if (substr(monthDf$site[i], 1,1)=="S"){
+    monthDf$class[i] <- "Suburban"
+    } else if (substr(monthDf$site[i], 1,1)=="U"){
+    monthDf$class[i] <- "Urban"
+    }
+  }
+  monthDf$class <- as.factor(monthDf$class)
+}
+
+getClass(augWing)
+getClass(octWing)
+```

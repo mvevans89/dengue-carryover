@@ -382,6 +382,7 @@ summary(mixModelseasonsBody21)
 Anova(mixModelseasonsBody21, type=2) 
 #check overdispersion
 overdisp_fun(mixModelseasonsBody21) 
+qqnorm(resid(mixModelseasonsBody21))
 
 simulationOutput <- simulateResiduals(fittedModel = mixModelseasonsBody21)
 plotSimulatedResiduals(simulationOutput = simulationOutput)
