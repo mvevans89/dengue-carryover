@@ -6,7 +6,7 @@ output: pdf_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = F)
+knitr::opts_chunk$set(echo = T)
 knitr::opts_chunk$set(cache=TRUE)
 knitr::opts_chunk$set(message=FALSE)
 knitr::opts_chunk$set(warning=FALSE)
@@ -153,236 +153,6 @@ seasonPlot <- function(bodyPart, summTable=seasonSumm){
        #bty = "n", col = "gray80")
 }
 ```
-
-
-# Infection Dynamics
-
-**Methods Overview**: Mosquitoes were reared at 9 sites (3 rural, 3 suburban, 3 urban) and brought back to the lab to infect with dengue. Mosquitoes were reared in four trays at each site, but pooled by site for infections because there were not enough numbers. At 21 days post infection, they were processed to test for infection (body), dissemination (head), and infectiousness (saliva). This was repeated in the fall and summer. Climate data reported was averaged at the site level over the larval rearing period, and weighted to account for the amount of time mosquitoes spent in each tray.
-
-## Infection by Class and Season
-
-
-The first analysis was to determine how infection dynamics differed by class (rural, suburban, or urban) & season (summer or fall).
-
-```{r season by class infection plot, fig.width=4, fig.height=6}
-#png(file="../figures/forMS/seasonInfections.png", width = 4, height=6, units="in", res=500, family="sans")
-par(mfrow=c(3,1), las=1, par(mar=c(5.1,6.1,4.1,2.1)))
-seasonPlot(bodyPart="Body")
-par(xpd=T)
-legend(x=7.5, y=1.0, legend=c("Summer", "Fall"), density = c(40,NA),
-       bty = "n", col = "gray80", cex=1.1)
-mtext("Body")
-
-
-
-seasonPlot(bodyPart="Head")
-mtext("Head")
-par(las=0)
-mtext("Proportion Infected", side=2, line=3)
-
-
-
-par(las=1)
-seasonPlot(bodyPart="Saliva")
-mtext("Saliva")
-#dev.off()
-```
-
-A binomial generalized linear mixed-effects model was fit to the data, with class and season and their interaction as fixed effects and site as a random effect. To test for significance, we calculated an analysis of variance table using a Type II Wald chi square test for the fixed effects. Both class and season had significant effects on body and head infections, however there was no effect of either on saliva infection.
-
-```{r seasonal infection stats}
-#model #there was no interaction of class and block
-mixModelseasonsBody21 <- lme4::glmer(Body~class + block + (1|site), 
-                          data=seasons[seasons$DPI=="21",],
-                          family=binomial(link="logit"))
-Body21Aov <- car::Anova(mixModelseasonsBody21)
-
-mixModelseasonsHead21 <- lme4::glmer(Head~class + block  + (1|site), 
-                          data=seasons[seasons$DPI=="21",],
-                          family=binomial(link="logit"))
-Head21Aov <- car::Anova(mixModelseasonsHead21)
-mixModelseasonsSaliva21 <- lme4::glmer(Saliva~class + block  + (1|site), 
-                          data=seasons[seasons$DPI=="21",],
-                          family=binomial(link="logit"))
-Saliva21Aov <- car::Anova((mixModelseasonsSaliva21))
-```
-
-We found that infection in the body and head was significantly lower in the summer than the fall. Although there was a trend towards higher infection in the saliva in the summer, this was not significant (p=0.05676).  Land class also influence infection of both the body and head, with urban mosquitoes having lower rates of infection than rural and suburban mosquitoes. Saliva infections were unaffected by land class, however.
-```{r seasonal infection tables, results='asis', eval=T}
-knitr::kable(Body21Aov, caption="Mixed model statistics for body level infections.")
-knitr::kable(Head21Aov, caption="Mixed model statistics for head infections.")
-```
-
-
-As both the summer season and urban land classes had the highest temperatures in their respective groups, this suggests that these differences in vector competence may be due to differences in temperature in the larval environment.
-
-### Infection and Body Size
-
-In general, mosquitoes without head or body infections were larger than those that were infected. There was no difference in body size with regards to saliva infection. There is so much variation in these groups however, that there is no significant trend.
-
-```{r}
-wingInf <- seasonInf[seasonInf$Body %in% c(1,0),]
-
-ggplot(data=wingInf, aes(Wing))+
-  geom_histogram(aes(fill=class), bins=50)+
-  facet_wrap(~Body, dir="v")+
-  scale_fill_manual(values=c("dodgerblue", "gray80", "maroon"))+
-  #geom_vline(aes(xintercept=mean(Wing)))+
-  theme_base()+
-  geom_vline(data=wingInf[wingInf$Body==1 & wingInf$class=="Rural",], aes(xintercept=mean(Wing, na.rm=T)), color="dodgerblue")+
-    geom_vline(data=wingInf[wingInf$Body==0 & wingInf$class=="Rural",], aes(xintercept=mean(Wing, na.rm=T)), color="dodgerblue")+
-    geom_vline(data=wingInf[wingInf$Body==1 & wingInf$class=="Suburban",], aes(xintercept=mean(Wing, na.rm=T)), color="black")+
-    geom_vline(data=wingInf[wingInf$Body==0 & wingInf$class=="Suburban",], aes(xintercept=mean(Wing, na.rm=T)), color="black")+
-      geom_vline(data=wingInf[wingInf$Body==1 & wingInf$class=="Urban",], aes(xintercept=mean(Wing, na.rm=T)), color="maroon")+
-        geom_vline(data=wingInf[wingInf$Body==0 & wingInf$class=="Urban",], aes(xintercept=mean(Wing, na.rm=T)), color="maroon")+
-        geom_vline(data=wingInf[wingInf$Body==0,], aes(xintercept=mean(Wing, na.rm=T)), color="black", size=2)+
-        geom_vline(data=wingInf[wingInf$Body==1,], aes(xintercept=mean(Wing, na.rm=T)), color="black", size=2)+
-  ggtitle("Distribution of Body Size across Body Infections")
-```
-
-
-```{r}
-
-wingInf <- seasonInf[seasonInf$Head %in% c(1,0),]
-
-ggplot(data=wingInf, aes(Wing))+
-  geom_histogram(aes(fill=class), bins=50)+
-  facet_wrap(~Head, dir="v")+
-  scale_fill_manual(values=c("dodgerblue", "gray80", "maroon"))+
-  #geom_vline(aes(xintercept=mean(Wing)))+
-  theme_base()+
-  geom_vline(data=wingInf[wingInf$Head==1 & wingInf$class=="Rural",], aes(xintercept=mean(Wing, na.rm=T)), color="dodgerblue")+
-    geom_vline(data=wingInf[wingInf$Head==0 & wingInf$class=="Rural",], aes(xintercept=mean(Wing, na.rm=T)), color="dodgerblue")+
-    geom_vline(data=wingInf[wingInf$Head==1 & wingInf$class=="Suburban",], aes(xintercept=mean(Wing, na.rm=T)), color="black")+
-    geom_vline(data=wingInf[wingInf$Head==0 & wingInf$class=="Suburban",], aes(xintercept=mean(Wing, na.rm=T)), color="black")+
-      geom_vline(data=wingInf[wingInf$Head==1 & wingInf$class=="Urban",], aes(xintercept=mean(Wing, na.rm=T)), color="maroon")+
-        geom_vline(data=wingInf[wingInf$Head==0 & wingInf$class=="Urban",], aes(xintercept=mean(Wing, na.rm=T)), color="maroon")+
-        geom_vline(data=wingInf[wingInf$Head==0,], aes(xintercept=mean(Wing, na.rm=T)), color="black", size=2)+
-        geom_vline(data=wingInf[wingInf$Head==1,], aes(xintercept=mean(Wing, na.rm=T)), color="black", size=2)+
-  ggtitle("Distribution of Wing Size across Head Infections")
-```
-
-```{r}
-
-wingInf <- seasonInf[seasonInf$Saliva %in% c(1,0),]
-
-ggplot(data=wingInf, aes(Wing))+
-  geom_histogram(aes(fill=class), bins=50)+
-  facet_wrap(~Saliva, dir="v")+
-  scale_fill_manual(values=c("dodgerblue", "gray80", "maroon"))+
-  #geom_vline(aes(xintercept=mean(Wing)))+
-  theme_base()+
-  geom_vline(data=wingInf[wingInf$Saliva==1 & wingInf$class=="Rural",], aes(xintercept=mean(Wing, na.rm=T)), color="dodgerblue")+
-    geom_vline(data=wingInf[wingInf$Saliva==0 & wingInf$class=="Rural",], aes(xintercept=mean(Wing, na.rm=T)), color="dodgerblue")+
-    geom_vline(data=wingInf[wingInf$Saliva==1 & wingInf$class=="Suburban",], aes(xintercept=mean(Wing, na.rm=T)), color="black")+
-    geom_vline(data=wingInf[wingInf$Saliva==0 & wingInf$class=="Suburban",], aes(xintercept=mean(Wing, na.rm=T)), color="black")+
-      geom_vline(data=wingInf[wingInf$Saliva==1 & wingInf$class=="Urban",], aes(xintercept=mean(Wing, na.rm=T)), color="maroon")+
-        geom_vline(data=wingInf[wingInf$Saliva==0 & wingInf$class=="Urban",], aes(xintercept=mean(Wing, na.rm=T)), color="maroon")+
-        geom_vline(data=wingInf[wingInf$Saliva==0,], aes(xintercept=mean(Wing, na.rm=T)), color="black", size=2)+
-        geom_vline(data=wingInf[wingInf$Saliva==1,], aes(xintercept=mean(Wing, na.rm=T)), color="black", size=2)+
-  ggtitle("Distribution of Wing Size across Saliva Infections")
-```
-
-
-
-### Infection Efficiency
-
-We can also look at infection efficiency. This is similar to what proportion of mosquitoes proceed to having head infections, out of those that have body infections.
-
-```{r create efficiency data}
-bodyEff <- seasons %>%
-  filter(DPI==21) %>%
-  #drop individual
-  select(-Individual, -site, -Wing, -DPI) %>%
-  group_by(block, class) %>%
-  summarise_each(funs(bodyMean=mean(.,na.rm=T),bodySE=(sd(., na.rm=T)/sqrt(n()))), Body) %>%
-  ungroup()
-
-headEff <- seasons %>%
-  filter(DPI==21) %>%
-  filter(Body==1) %>%
-  #drop individual
-  select(-Individual, -site, -Wing, -DPI) %>%
-  group_by(block, class) %>%
-  summarise_each(funs(headMean=mean(.,na.rm=T),headSE=(sd(., na.rm=T)/sqrt(n()))), Head) %>%
-  ungroup()
-
-salEff <-  seasons %>%
-  filter(DPI==21) %>%
-  filter(Head==1) %>%
-  #drop individual
-  select(-Individual, -site, -Wing, -DPI) %>%
-  group_by(block, class) %>%
-  summarise_each(funs(salMean=mean(.,na.rm=T),salSE=(sd(., na.rm=T)/sqrt(n()))), Saliva) %>%
-  ungroup()
-
-#group together
-allEff <- full_join(bodyEff, headEff, by=c("block", "class"))
-allEff <- full_join(allEff, salEff, by=c("block", "class"))
-
-library(tidyr)
-meltMean <- allEff %>%
-  select(block, class, contains("Mean")) %>%
-  gather(key=variable, value=mean, -block, -class) 
-
-meltMean$type <- rep(c("Body", "Head", "Saliva"), each=6)
-  
-meltSE <- allEff %>%
-  select(block, class, contains("SE")) %>%
-  gather(variable, SE, -block, -class)
-
-meltSE$type <- rep(c("Body", "Head", "Saliva"), each=6)
-  
-meltAll <- full_join(meltMean, meltSE, by=c("class", "block", "type")) %>%
-  select(-variable.x, -variable.y)
-
-
-```
-
-
-```{r plot efficiency}
-ggplot(data=meltAll[order(meltAll$block, decreasing=F),], aes(x=class, group=block))+
-  geom_bar(stat="identity", aes(y=mean, alpha=factor(block), fill=factor(class)), color="gray20", position=position_dodge(width=-0.9))+
-  facet_wrap(~type, nrow=3, dir="v") +
-  scale_fill_manual(values=c(colRural, colSuburban, colU))+
-  scale_alpha_discrete(range=c(0.3,1), name="Season", labels=c("Fall", "Summer"), guide=guide_legend(reverse=T))+
-  geom_errorbar(aes(ymin=mean-SE, ymax=mean+SE), width=0.2, color="gray20", position =position_dodge(-0.9))+
-  theme_base() + 
-  xlab("Land Class") +
-  ylab("Infection Efficiency") +
-  guides(fill=F)
-  #theme(legend.title=element_text("Season"))
-  
-```
-
-```{r efficiency stats}
-#model 
-mixModelseasonsBody21 <- lme4::glmer(Body~class + block + (1|site), 
-                          data=seasons[seasons$DPI=="21",],
-                          family=binomial(link="logit"))
-Body21Aov <- car::Anova(mixModelseasonsBody21)
-
-mixModelseasonsHead21 <- lme4::glmer(Head~class + block  + (1|site), 
-                          data=seasons[seasons$DPI=="21" & seasons$Body==1,],
-                          family=binomial(link="logit"))
-Head21Aov <- car::Anova(mixModelseasonsHead21) #no effect
-
-mixModelseasonsSaliva21 <- lme4::glmer(Saliva~class + block  + (1|site), 
-                          data=seasons[seasons$DPI=="21" & seasons$Head==1,],
-                          family=binomial(link="logit"))
-Saliva21Aov <- car::Anova((mixModelseasonsSaliva21))
-```
-
-
-```{r efficiency infection tables, results='asis', eval=T}
-knitr::kable(Body21Aov, caption="Significance of block and season on infection efficiency using a mixed effect model. This is identical to body infection above.")
-knitr::kable(Head21Aov, caption="Significance of block and season on dissemination efficiency using a mixed effect model.")
-knitr::kable(Saliva21Aov, caption="Significance of block and season on efficiency of salivary gland infections, using a mixed effect model.")
-```
-
-The two major obstacles to infectiousness are at the level of the body and the saliva.  Nearly all mosquitoes that have body infections also have disseminated infections, suggesting that midgut escape is relatively uncontrolled. However, of the disseminated infections, not all result in salivary gland infections, suggesting there is a mechanism blocking the virus from spreading to the salivary glands. The summer has a significantly higher efficiency than the fall season with regards to saliva, however, there is no difference in progression to disseminated infections.
-
-## Infection and Microclimate
 
 ```{r load and format microclimate data}
 climate <- read.csv('../data/microclimate/clean/2016TrialsAdult.csv')[,-1]
@@ -586,6 +356,234 @@ oct$block <- as.factor("fall")
 august$block <- as.factor("summer")
 seasonInf <- merge(rbind(oct, august[august$DPI=="21",]), rbind(augEnvVar,octEnvVar), by.x=c("block", "site"), by.y=c("block", "Site_Code"))
 ```
+
+# Infection Dynamics
+
+**Methods Overview**: Mosquitoes were reared at 9 sites (3 rural, 3 suburban, 3 urban) and brought back to the lab to infect with dengue. Mosquitoes were reared in four trays at each site, but pooled by site for infections because there were not enough numbers. At 21 days post infection, they were processed to test for infection (body), dissemination (head), and infectiousness (saliva). This was repeated in the fall and summer. Climate data reported was averaged at the site level over the larval rearing period, and weighted to account for the amount of time mosquitoes spent in each tray.
+
+## Infection by Class and Season
+
+
+The first analysis was to determine how infection dynamics differed by class (rural, suburban, or urban) & season (summer or fall).
+
+```{r season by class infection plot, fig.width=4, fig.height=6}
+#png(file="../figures/forMS/seasonInfections.png", width = 4, height=6, units="in", res=500, family="sans")
+par(mfrow=c(3,1), las=1, par(mar=c(5.1,6.1,4.1,2.1)))
+seasonPlot(bodyPart="Body")
+par(xpd=T)
+legend(x=7.5, y=1.0, legend=c("Summer", "Fall"), density = c(40,NA),
+       bty = "n", col = "gray80", cex=1.1)
+mtext("Body")
+
+
+
+seasonPlot(bodyPart="Head")
+mtext("Head")
+par(las=0)
+mtext("Proportion Infected", side=2, line=3)
+
+
+
+par(las=1)
+seasonPlot(bodyPart="Saliva")
+mtext("Saliva")
+#dev.off()
+```
+
+A binomial generalized linear mixed-effects model was fit to the data, with class and season and their interaction as fixed effects and site as a random effect. To test for significance, we calculated an analysis of variance table using a Type II Wald chi square test for the fixed effects. Both class and season had significant effects on body and head infections, however there was no effect of either on saliva infection.
+
+```{r seasonal infection stats}
+#model #there was no interaction of class and block
+mixModelseasonsBody21 <- lme4::glmer(Body~class + block + (1|site), 
+                          data=seasons[seasons$DPI=="21",],
+                          family=binomial(link="logit"))
+Body21Aov <- car::Anova(mixModelseasonsBody21)
+
+mixModelseasonsHead21 <- lme4::glmer(Head~class + block  + (1|site), 
+                          data=seasons[seasons$DPI=="21",],
+                          family=binomial(link="logit"))
+Head21Aov <- car::Anova(mixModelseasonsHead21)
+mixModelseasonsSaliva21 <- lme4::glmer(Saliva~class + block  + (1|site), 
+                          data=seasons[seasons$DPI=="21",],
+                          family=binomial(link="logit"))
+Saliva21Aov <- car::Anova((mixModelseasonsSaliva21))
+```
+
+We found that infection in the body and head was significantly lower in the summer than the fall. Although there was a trend towards higher infection in the saliva in the summer, this was not significant (p=0.05676).  Land class also influence infection of both the body and head, with urban mosquitoes having lower rates of infection than rural and suburban mosquitoes. Saliva infections were unaffected by land class, however.
+```{r seasonal infection tables, results='asis', eval=T}
+knitr::kable(Body21Aov, caption="Mixed model statistics for body level infections.")
+knitr::kable(Head21Aov, caption="Mixed model statistics for head infections.")
+```
+
+
+As both the summer season and urban land classes had the highest temperatures in their respective groups, this suggests that these differences in vector competence may be due to differences in temperature in the larval environment.
+
+### Infection and Body Size
+
+In general, mosquitoes without head or body infections were larger than those that were infected. There was no difference in body size with regards to saliva infection. There is so much variation in these groups however, that there is no significant trend.
+
+```{r}
+wingInf <- seasonInf[seasonInf$Body %in% c(1,0),]
+
+ggplot(data=wingInf, aes(Wing))+
+  geom_histogram(aes(fill=class), bins=50)+
+  facet_wrap(~Body, dir="v")+
+  scale_fill_manual(values=c("dodgerblue", "gray80", "maroon"))+
+  #geom_vline(aes(xintercept=mean(Wing)))+
+  theme_base()+
+  geom_vline(data=wingInf[wingInf$Body==1 & wingInf$class=="Rural",], aes(xintercept=mean(Wing, na.rm=T)), color="dodgerblue")+
+    geom_vline(data=wingInf[wingInf$Body==0 & wingInf$class=="Rural",], aes(xintercept=mean(Wing, na.rm=T)), color="dodgerblue")+
+    geom_vline(data=wingInf[wingInf$Body==1 & wingInf$class=="Suburban",], aes(xintercept=mean(Wing, na.rm=T)), color="black")+
+    geom_vline(data=wingInf[wingInf$Body==0 & wingInf$class=="Suburban",], aes(xintercept=mean(Wing, na.rm=T)), color="black")+
+      geom_vline(data=wingInf[wingInf$Body==1 & wingInf$class=="Urban",], aes(xintercept=mean(Wing, na.rm=T)), color="maroon")+
+        geom_vline(data=wingInf[wingInf$Body==0 & wingInf$class=="Urban",], aes(xintercept=mean(Wing, na.rm=T)), color="maroon")+
+        geom_vline(data=wingInf[wingInf$Body==0,], aes(xintercept=mean(Wing, na.rm=T)), color="black", size=2)+
+        geom_vline(data=wingInf[wingInf$Body==1,], aes(xintercept=mean(Wing, na.rm=T)), color="black", size=2)+
+  ggtitle("Distribution of Body Size across Body Infections")
+```
+
+
+```{r}
+
+wingInf <- seasonInf[seasonInf$Head %in% c(1,0),]
+
+ggplot(data=wingInf, aes(Wing))+
+  geom_histogram(aes(fill=class), bins=50)+
+  facet_wrap(~Head, dir="v")+
+  scale_fill_manual(values=c("dodgerblue", "gray80", "maroon"))+
+  #geom_vline(aes(xintercept=mean(Wing)))+
+  theme_base()+
+  geom_vline(data=wingInf[wingInf$Head==1 & wingInf$class=="Rural",], aes(xintercept=mean(Wing, na.rm=T)), color="dodgerblue")+
+    geom_vline(data=wingInf[wingInf$Head==0 & wingInf$class=="Rural",], aes(xintercept=mean(Wing, na.rm=T)), color="dodgerblue")+
+    geom_vline(data=wingInf[wingInf$Head==1 & wingInf$class=="Suburban",], aes(xintercept=mean(Wing, na.rm=T)), color="black")+
+    geom_vline(data=wingInf[wingInf$Head==0 & wingInf$class=="Suburban",], aes(xintercept=mean(Wing, na.rm=T)), color="black")+
+      geom_vline(data=wingInf[wingInf$Head==1 & wingInf$class=="Urban",], aes(xintercept=mean(Wing, na.rm=T)), color="maroon")+
+        geom_vline(data=wingInf[wingInf$Head==0 & wingInf$class=="Urban",], aes(xintercept=mean(Wing, na.rm=T)), color="maroon")+
+        geom_vline(data=wingInf[wingInf$Head==0,], aes(xintercept=mean(Wing, na.rm=T)), color="black", size=2)+
+        geom_vline(data=wingInf[wingInf$Head==1,], aes(xintercept=mean(Wing, na.rm=T)), color="black", size=2)+
+  ggtitle("Distribution of Wing Size across Head Infections")
+```
+
+```{r}
+
+wingInf <- seasonInf[seasonInf$Saliva %in% c(1,0),]
+
+ggplot(data=wingInf, aes(Wing))+
+  geom_histogram(aes(fill=class), bins=50)+
+  facet_wrap(~Saliva, dir="v")+
+  scale_fill_manual(values=c("dodgerblue", "gray80", "maroon"))+
+  #geom_vline(aes(xintercept=mean(Wing)))+
+  theme_base()+
+  geom_vline(data=wingInf[wingInf$Saliva==1 & wingInf$class=="Rural",], aes(xintercept=mean(Wing, na.rm=T)), color="dodgerblue")+
+    geom_vline(data=wingInf[wingInf$Saliva==0 & wingInf$class=="Rural",], aes(xintercept=mean(Wing, na.rm=T)), color="dodgerblue")+
+    geom_vline(data=wingInf[wingInf$Saliva==1 & wingInf$class=="Suburban",], aes(xintercept=mean(Wing, na.rm=T)), color="black")+
+    geom_vline(data=wingInf[wingInf$Saliva==0 & wingInf$class=="Suburban",], aes(xintercept=mean(Wing, na.rm=T)), color="black")+
+      geom_vline(data=wingInf[wingInf$Saliva==1 & wingInf$class=="Urban",], aes(xintercept=mean(Wing, na.rm=T)), color="maroon")+
+        geom_vline(data=wingInf[wingInf$Saliva==0 & wingInf$class=="Urban",], aes(xintercept=mean(Wing, na.rm=T)), color="maroon")+
+        geom_vline(data=wingInf[wingInf$Saliva==0,], aes(xintercept=mean(Wing, na.rm=T)), color="black", size=2)+
+        geom_vline(data=wingInf[wingInf$Saliva==1,], aes(xintercept=mean(Wing, na.rm=T)), color="black", size=2)+
+  ggtitle("Distribution of Wing Size across Saliva Infections")
+```
+
+### Infection Efficiency
+
+We can also look at infection efficiency. This is similar to what proportion of mosquitoes proceed to having head infections, out of those that have body infections.
+
+```{r create efficiency data}
+bodyEff <- seasons %>%
+  filter(DPI==21) %>%
+  #drop individual
+  select(-Individual, -site, -Wing, -DPI) %>%
+  group_by(block, class) %>%
+  summarise_each(funs(bodyMean=mean(.,na.rm=T),bodySE=(sd(., na.rm=T)/sqrt(n()))), Body) %>%
+  ungroup()
+
+headEff <- seasons %>%
+  filter(DPI==21) %>%
+  filter(Body==1) %>%
+  #drop individual
+  select(-Individual, -site, -Wing, -DPI) %>%
+  group_by(block, class) %>%
+  summarise_each(funs(headMean=mean(.,na.rm=T),headSE=(sd(., na.rm=T)/sqrt(n()))), Head) %>%
+  ungroup()
+
+salEff <-  seasons %>%
+  filter(DPI==21) %>%
+  filter(Head==1) %>%
+  #drop individual
+  select(-Individual, -site, -Wing, -DPI) %>%
+  group_by(block, class) %>%
+  summarise_each(funs(salMean=mean(.,na.rm=T),salSE=(sd(., na.rm=T)/sqrt(n()))), Saliva) %>%
+  ungroup()
+
+#group together
+allEff <- full_join(bodyEff, headEff, by=c("block", "class"))
+allEff <- full_join(allEff, salEff, by=c("block", "class"))
+
+library(tidyr)
+meltMean <- allEff %>%
+  select(block, class, contains("Mean")) %>%
+  gather(key=variable, value=mean, -block, -class) 
+
+meltMean$type <- rep(c("Body", "Head", "Saliva"), each=6)
+  
+meltSE <- allEff %>%
+  select(block, class, contains("SE")) %>%
+  gather(variable, SE, -block, -class)
+
+meltSE$type <- rep(c("Body", "Head", "Saliva"), each=6)
+  
+meltAll <- full_join(meltMean, meltSE, by=c("class", "block", "type")) %>%
+  select(-variable.x, -variable.y)
+
+
+```
+
+
+```{r plot efficiency}
+ggplot(data=meltAll[order(meltAll$block, decreasing=F),], aes(x=class, group=block))+
+  geom_bar(stat="identity", aes(y=mean, alpha=factor(block), fill=factor(class)), color="gray20", position=position_dodge(width=-0.9))+
+  facet_wrap(~type, nrow=3, dir="v") +
+  scale_fill_manual(values=c(colRural, colSuburban, colU))+
+  scale_alpha_discrete(range=c(1,0.3), name="Season", labels=c("Fall", "Summer"), guide=guide_legend(reverse=T))+
+  geom_errorbar(aes(ymin=mean-SE, ymax=mean+SE), width=0.2, color="gray20", position =position_dodge(-0.9))+
+  theme_base() + 
+  xlab("Land Class") +
+  ylab("Infection Efficiency") +
+  guides(fill=F)
+  #theme(legend.title=element_text("Season"))
+  
+```
+
+```{r efficiency stats}
+#model 
+mixModelseasonsBody21 <- lme4::glmer(Body~class + block + (1|site), 
+                          data=seasons[seasons$DPI=="21",],
+                          family=binomial(link="logit"))
+Body21Aov <- car::Anova(mixModelseasonsBody21)
+
+mixModelseasonsHead21 <- lme4::glmer(Head~class + block  + (1|site), 
+                          data=seasons[seasons$DPI=="21" & seasons$Body==1,],
+                          family=binomial(link="logit"))
+Head21Aov <- car::Anova(mixModelseasonsHead21) #no effect
+
+mixModelseasonsSaliva21 <- lme4::glmer(Saliva~class + block  + (1|site), 
+                          data=seasons[seasons$DPI=="21" & seasons$Head==1,],
+                          family=binomial(link="logit"))
+Saliva21Aov <- car::Anova((mixModelseasonsSaliva21))
+```
+
+
+```{r efficiency infection tables, results='asis', eval=T}
+knitr::kable(Body21Aov, caption="Significance of block and season on infection efficiency using a mixed effect model. This is identical to body infection above.")
+knitr::kable(Head21Aov, caption="Significance of block and season on dissemination efficiency using a mixed effect model.")
+knitr::kable(Saliva21Aov, caption="Significance of block and season on efficiency of salivary gland infections, using a mixed effect model.")
+```
+
+The two major obstacles to infectiousness are at the level of the body and the saliva.  Nearly all mosquitoes that have body infections also have disseminated infections, suggesting that midgut escape is relatively uncontrolled. However, of the disseminated infections, not all result in salivary gland infections, suggesting there is a mechanism blocking the virus from spreading to the salivary glands. The summer has a significantly higher efficiency than the fall season with regards to saliva, however, there is no difference in progression to disseminated infections.
+
+## Infection and Microclimate
+
 
 ```{r create dataframe of site-aggregated infections}
 seasonSite <- seasons %>%
