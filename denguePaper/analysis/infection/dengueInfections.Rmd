@@ -381,7 +381,7 @@ summary(mixModelseasonsBody21)
 Anova(mixModelseasonsBody21, type=2) 
 #check overdispersion
 overdisp_fun(mixModelseasonsBody21) 
-plot(mixModelseasonsBody21)
+
 
 #Predict onto real data and compare
 # test21 <- predict(mixModelseasonsBody21, data=seasons[seasons$DPI=="21",])
@@ -1163,7 +1163,9 @@ mean(seasonInf$Wing[seasonInf$block=="summer"], na.rm=T)
 
 ```{r}
 wingBody <- lmer(Body~Wing + (1|site), data=seasonInf)
-#wingBody <- glm(Body~1 + sqrt(Wing), data=seasonInf, family=binomial(link='logit'))
+wingBody <- glmer(Body~1 + sqrt(Wing) + (1|site), data=seasonInf, family=binomial(link='logit'))
+
+overdisp_fun(wingBody) 
 plot(wingBody)
 summary(wingBody)
 Anova(wingBody)
