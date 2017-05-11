@@ -22,16 +22,13 @@ library(lme4) #mixed models
 library(car)
 library(MASS)
 library(gridExtra) #for facet grids later
-library(gbm)
 library(caret)
-library(pROC)
-library(corrplot)
-library(glmnet)
-library(GGally)
 library(dplyr)
 library(ggthemes)
-library(piecewiseSEM)
+library(piecewiseSEM) #marginal rsquared
 library(survival)
+library(DHARMa) #mixed model residuals
+library(survminer) #extracts survival objects
 
 colR <- colRural <- "dodgerblue"
 colS <- colSuburban <- "gray80"
@@ -584,7 +581,6 @@ The two major obstacles to infectiousness are at the level of the body and the s
 
 ## Infection and Microclimate
 
-
 ```{r create dataframe of site-aggregated infections}
 seasonSite <- seasons %>%
   filter(DPI=="21") %>%
@@ -803,8 +799,11 @@ mixMortality <- lmer(percSurv ~  Class*block + (1|Site_Code), data=survSumm)
 #summary(mixMortality)
 #anova(mixMortality)
 emergAnova <- Anova(mixMortality, test.statistic = "F") #with car loaded
-#plot(mixMortality)
 #qqnorm(resid(mixMortality))
+#simulationOutput <- simulateResiduals(fittedModel = mixMortality)
+#plotSimulatedResiduals(simulationOutput = simulationOutput)
+#plotResiduals(as.factor(survSumm$block),  simulationOutput$scaledResiduals)
+
 with(survSumm, interaction.plot(x.factor=Class, trace.factor=block, response=percSurv, fun=mean, type="b", legend=T, ylab="Percentage Emerged"))
 mtext("Percentage Emerged by Class and Season")
 knitr::kable(emergAnova, caption="LMEM of class * block on tray level emergence with site as a random effect")
@@ -821,15 +820,21 @@ ggplot(data=emergExpF, aes(x=Site_Code, y=Exp_Day)) +
   xlab("Site")+
   ggtitle("Day of Emergence by Site")
 
-mixEmerge <- lmer(Exp_Day ~  Class*block + (1|Site_Code), data=emergExpF)
-#plot(mixEmerge)
-#summary(mixEmerge)
+mixEmerge <- glmer(Exp_Day ~  Class*block + (1|Site_Code), data=emergExpF, 
+                   family=Gamma(link="log")
+                   )
+plot(mixEmerge)
+qqnorm(resid(mixEmerge))
+summary(mixEmerge)
+simulationOutput <- simulateResiduals(fittedModel = mixEmerge)
+plotSimulatedResiduals(simulationOutput = simulationOutput)
+plotResiduals(as.factor(emergExpF$Class),  simulationOutput$scaledResiduals)
+
 knitr::kable(Anova(mixEmerge), caption = "Results from Mixed model on the effect of class and block on time to emergence.")
 
 ```
 
 The day of emergence differed significantly across block (and nearly class). Mosquitoes in the summer emerged on average 14 days sooner than those in the fall. 
-
 
 # Body Size
 
