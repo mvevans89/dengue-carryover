@@ -46,6 +46,7 @@ library(GGally)
 library(dplyr)
 library(ggthemes)
 library(piecewiseSEM)
+library(DHARMa)
 ```
 
 ```{r}
@@ -372,7 +373,7 @@ ggplot(data=seasons[seasons$DPI=="21",], aes(factor(class))) +
   facet_wrap(~block) + 
   ggtitle("21 dpi Body across Seasons")
 #model #there was no interaction of class and block
-mixModelseasonsBody21 <- lme4::glmer(Body~class + block + (1|site), 
+mixModelseasonsBody21 <- lme4::glmer(Body~block + class + (1|site) , 
                           data=seasons[seasons$DPI=="21",],
                           family=binomial(link="logit"))
 #get a summary
@@ -382,18 +383,12 @@ Anova(mixModelseasonsBody21, type=2)
 #check overdispersion
 overdisp_fun(mixModelseasonsBody21) 
 
-
-#Predict onto real data and compare
-# test21 <- predict(mixModelseasonsBody21, data=seasons[seasons$DPI=="21",])
-# plot(y=seasons[as.numeric(names(test21)), 'Body'], x=test21, 
-#      col=c(colR,colS, colU)[as.numeric(seasons[as.numeric(names(test21)), 'class'])],
-#      pch=c(15,17)[as.numeric(seasons[as.numeric(names(test21)), 'block'])],
-#      xlab="Model Predictions",
-#      ylab="Observed Values")
+simulationOutput <- simulateResiduals(fittedModel = mixModelseasonsBody21)
+plotSimulatedResiduals(simulationOutput = simulationOutput)
+#plotResiduals(seasons$class[seasons$DPI=="21"],  simulationOutput$scaledResiduals)
 ```
 
 We find that class and block have a significant effect on Body infection at 21 days, but there is no interaction between the two.
-
 
 ```{r seasonal 21 dpi Head infection}
 #explore data
@@ -411,6 +406,10 @@ summary(mixModelseasonsHead21)
 Anova(mixModelseasonsHead21) 
 #check overdispersion
 overdisp_fun(mixModelseasonsHead21) 
+#residuals
+simulationOutput <- simulateResiduals(fittedModel = mixModelseasonsHead21)
+plotSimulatedResiduals(simulationOutput = simulationOutput)
+#plotResiduals(seasons$class[seasons$DPI=="21"],  simulationOutput$scaledResiduals)
 ```
 
 Again, there is a significant effect of class and block, but no interaction. Similar effects as with the body infections.
@@ -431,6 +430,10 @@ summary(mixModelseasonsSaliva21)
 Anova(mixModelseasonsSaliva21)
 #check overdispersion
 overdisp_fun(mixModelseasonsSaliva21) 
+#plot residuals
+simulationOutput <- simulateResiduals(fittedModel = mixModelseasonsBody21)
+plotSimulatedResiduals(simulationOutput = simulationOutput)
+#plotResiduals(seasons$class[seasons$DPI=="21"],  simulationOutput$scaledResiduals)
 ```
 
 There is **no significant effect on saliva**. There is almost (p=0.052) an effect of block, but not quite.
