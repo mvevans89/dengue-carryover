@@ -13,8 +13,8 @@ knitr::opts_chunk$set(warning=FALSE)
 ```
 
 ```{r load body size data}
-augWing <- read.csv("../data/emergence/raw/AugustWingLength.csv")
-octWing <- read.csv("../data/emergence/raw/OctoberWingLength.csv")
+augWing <- read.csv("../data/emergence/raw/AugustWingLength.csv", stringsAsFactors = F)
+octWing <- read.csv("../data/emergence/raw/OctoberWingLength.csv",  stringsAsFactors = F)
 
 
 #convert to mm & clean
@@ -29,15 +29,63 @@ getClass <- function(monthDf){
   for (i in 1:nrow(monthDf)){
     if (substr(monthDf$site[i], 1,1)=="R"){
     monthDf$class[i] <- "Rural"
-    } else if (substr(monthDf$site[i], 1,1)=="S"){
+    }
+    if (substr(monthDf$site[i], 1,1)=="S"){
     monthDf$class[i] <- "Suburban"
-    } else if (substr(monthDf$site[i], 1,1)=="U"){
+    }
+    if (substr(monthDf$site[i], 1,1)=="U"){
     monthDf$class[i] <- "Urban"
     }
   }
   monthDf$class <- as.factor(monthDf$class)
+  return(monthDf)
 }
 
-getClass(augWing)
-getClass(octWing)
+augWing <- getClass(augWing)
+octWing <- getClass(octWing)
+
+octWing$block <- "fall"
+augWing$block <- "summer"
+
+augWing$Date <- as.Date(as.character(augWing$Date), format="%m/%d/%Y")
+octWing$Date <- as.Date(as.character(octWing$Date), format="%m/%d/%Y")
+
+#add day of experiment
+augWing$Exp_Day <- as.numeric(augWing$Date-as.Date("2016-08-01", format="%Y-%m-%d"))
+octWing$Exp_Day <- as.numeric(octWing$Date-as.Date("2016-09-26", format="%Y-%m-%d"))
+
+#combine
+fallWing <- octWing %>%
+  select(block, class, site, TrayCode, Exp_Day, mm)
+
+summerWing <- augWing %>%
+    select(block, class, site, TrayCode, Exp_Day, mm)
+
+allWing <- rbind(summerWing, fallWing)
+allWing$block<- as.factor(allWing$block)
 ```
+
+# Basic Visualization
+
+Size of mosquitoes over time: Are mosquitoes that emerge later larger?
+
+```{r}
+plot(allWing$Exp_Day, allWing$mm, col=c(1,2,3)[as.numeric(allWing$class)], pch=c(16,17)[as.numeric(as.factor(allWing$block))])
+with(allWing, abline(lm(mm~Exp_Day), lty=2))
+```
+
+No, we don't need to worry about that in our analysis.
+
+Does the size of mosquitoes differ between class and block?
+
+```{r}
+ggplot(data=allWing, aes(x=site, y=mm))+
+  geom_boxplot() +
+  facet_wrap(~block)+
+  theme_base()
+```
+
+No difference in size among those that weren't infected. However we saw a significant difference among those that were infected. Two possible reasons:
+
+- size differences are most pronounced for mosquitoes at the peak of emergence, and these mosquitoes were all measured after the peak, when they may have had more access to resources
+- infection is causing mosquitoes which are smaller to die off.
