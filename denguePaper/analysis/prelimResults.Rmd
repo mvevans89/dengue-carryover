@@ -417,6 +417,11 @@ As both the summer season and urban land classes had the highest temperatures in
 
 ### Infection and Body Size
 
+```{r}
+with(na.omit(seasonInf), interaction.plot(x.factor=class, trace.factor=block, response=Wing, fun=mean, type="b", legend=T, ylab="Wing Size"))
+```
+
+
 In general, mosquitoes without head or body infections were larger than those that were infected. There was no difference in body size with regards to saliva infection. There is so much variation in these groups however, that there is no significant trend.
 
 ```{r}
@@ -437,6 +442,28 @@ ggplot(data=wingInf, aes(Wing))+
         geom_vline(data=wingInf[wingInf$Body==0,], aes(xintercept=mean(Wing, na.rm=T)), color="black", size=2)+
         geom_vline(data=wingInf[wingInf$Body==1,], aes(xintercept=mean(Wing, na.rm=T)), color="black", size=2)+
   ggtitle("Distribution of Body Size across Body Infections")
+```
+
+
+```{r}
+# bodyWingDF <- seasonInf %>%
+#   select(Body, Wing, site, block, class) %>%
+#   filter(!is.na(Body)) %>%
+#   filter(!is.na(Wing))
+#   
+#   
+# bodyWing <- glmer(Body~Wing + (1+Wing|block), 
+#                           data=bodyWingDF,
+#                           family=binomial(link="logit"))
+# summary(bodyWing)
+# plot(bodyWing)
+# qqnorm(resid(bodyWing))
+# simulationOutput <- simulateResiduals(fittedModel = bodyWing)
+# plotSimulatedResiduals(simulationOutput = simulationOutput)
+# plotResiduals(bodyWingDF$Wing,  simulationOutput$scaledResiduals)
+# 
+# with(bodyWingDF,plot(x=jitter(Wing), y=Body, pch=c(16,17)[block], col=c(colR, colS, colU)[class]))
+# with(bodyWingDF, abline(lm(Body~Wing)))
 ```
 
 

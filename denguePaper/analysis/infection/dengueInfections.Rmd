@@ -202,7 +202,7 @@ mtext("Proportion Infected", side=2, line=3)
 par(las=1)
 seasonPlot(bodyPart="Saliva")
 mtext("Saliva")
-dev.off()
+#dev.off()
 ```
 
 
