@@ -34,7 +34,7 @@ library(ggthemes)
 * survival curves using Cox PH: PH Assumptions were very violated, even when turning `Class` into a time dependent variable. Decided against this method (2017-04-10)
 * creating individual regression curves for each tray, and then using the growth rate as response variables in a mixed-model (2017-04-16)
 * attempting to use a `nls` formula within a lmer statistical model (similar to Shapiro et al. 2016) - Spoke with John and decided to explore the fall data and explain why the survial curves do not fit (2017-05-01)
-* plot KM curves and then analyze seasons seperately
+* plot KM curves and then analyze seasons seperately, using survival and emergence (or development rate)
 
 
 # Data Visualization
@@ -238,7 +238,7 @@ summary(km.fit)
 ```
 
 ```{r, eval=F}
-coxFit <- coxph(Surv(Exp_Day, event) ~ Class*block + block:Exp_Day + cluster(Site_Code), data=allSurv, method="breslow") #this doesn't converge, but I think is okay
+coxFit <- survival::coxph(Surv(Exp_Day, event) ~ Class*block + block:Exp_Day, data=allSurv, method="breslow") #this doesn't converge, but I think is okay
 summary(coxFit)
 
 
