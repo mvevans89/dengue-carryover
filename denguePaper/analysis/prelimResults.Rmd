@@ -458,24 +458,25 @@ ggplot(data=wingInf, aes(x=factor(Body)))+
 
 
 ```{r}
-# bodyWingDF <- seasonInf %>%
-#   dplyr::select(Body, Wing, site, block, class) %>%
-#   filter(!is.na(Body)) %>%
-#   filter(!is.na(Wing))
-# 
-# 
-# bodyWing <- glmer(Body~Wing + (1|block),
-#                           data=bodyWingDF,
-#                           family=binomial(link="logit"))
-# summary(bodyWing)
-# plot(bodyWing)
-# qqnorm(resid(bodyWing))
-# simulationOutput <- simulateResiduals(fittedModel = bodyWing)
-# plotSimulatedResiduals(simulationOutput = simulationOutput)
-# plotResiduals(bodyWingDF$Wing,  simulationOutput$scaledResiduals)
-# 
-# with(bodyWingDF,plot(x=jitter(Wing), y=Body, pch=c(16,17)[block], col=c(colR, colS, colU)[class]))
-# with(bodyWingDF, abline(lm(Body~Wing)))
+bodyWingDF <- seasonInf %>%
+  dplyr::select(Body, Wing, site, block, class) %>%
+  filter(!is.na(Body)) %>%
+  filter(!is.na(Wing))
+
+
+bodyWing <- glmer(Body~Wing,
+                          data=bodyWingDF,
+                          family=binomial(link="logit"))
+summary(bodyWing)
+simulationOutput <- simulateResiduals(fittedModel = bodyWing)
+plotSimulatedResiduals(simulationOutput = simulationOutput)
+plotResiduals(bodyWingDF$Wing,  simulationOutput$scaledResiduals)
+
+with(bodyWingDF,plot(x=jitter(Wing), y=Body, pch=c(16,17)[block], col=c(colR, colS, colU)[class]))
+curve(4.6320-1.8761*x, 1.5, 3, add=T, lwd=2)
+#with(bodyWingDF, abline(lm(Body~Wing)))
+
+knitr::kable(Anova(bodyWing))
 ```
 
 
