@@ -834,18 +834,21 @@ km.fit <- survival::survfit(Surv(Exp_Day, event) ~ block + Class, data=allSurv, 
 This resulted in a difference in both the average time to emergence and survival across season, but not land class.
 
 ```{r survival plot and stats, results='asis'}
-mixMortality <- lmer(percSurv ~  Class*block + (1|Site_Code), data=survSumm)
-#summary(mixMortality)
-#anova(mixMortality)
-emergAnova <- Anova(mixMortality, test.statistic = "F") #with car loaded
-#qqnorm(resid(mixMortality))
-#simulationOutput <- simulateResiduals(fittedModel = mixMortality)
-#plotSimulatedResiduals(simulationOutput = simulationOutput)
-#plotResiduals(as.factor(survSumm$block),  simulationOutput$scaledResiduals)
+siteSumm <- emergExp %>%
+  filter(Sex=="F") %>%
+  group_by(block, Site_Code) %>%
+  mutate(numSurv=n()) %>%
+  ungroup() %>%
+  dplyr::select(block, Class, Site_Code, numSurv)
+siteSumm <- unique(siteSumm)
+
+siteEmerg <- aov(numSurv ~  Class*block, data=siteSumm) # a better AIC than mixed model
+summary(siteEmerg)
+#plot(siteEmerg)
+TukeyHSD(siteEmerg)
 
 with(survSumm, interaction.plot(x.factor=Class, trace.factor=block, response=percSurv, fun=mean, type="b", legend=T, ylab="Percentage Emerged"))
 mtext("Percentage Emerged by Class and Season")
-knitr::kable(emergAnova, caption="LMEM of class * block on tray level emergence with site as a random effect")
 ```
 
 ```{r emergence time plot and stats, results='asis'}
@@ -859,27 +862,193 @@ ggplot(data=emergExpF, aes(x=Site_Code, y=Exp_Day)) +
   xlab("Site")+
   ggtitle("Day of Emergence by Site")
 
-mixEmerge <- glm(Exp_Day ~  Class*block, #random effects competed with fixed effects (Hodges 2014)
-                 data=emergExpF, 
-                   family=Gamma(link="log")
+mixEmerge <- aov(Exp_Day ~  Class*block, 
+                 data=emergExpF
                    )
 plot(mixEmerge)
 qqnorm(resid(mixEmerge))
 summary(mixEmerge)
-simulationOutput <- simulateResiduals(fittedModel = mixEmerge)
-plotSimulatedResiduals(simulationOutput = simulationOutput)
-plotResiduals(as.factor(emergExpF$Class),  simulationOutput$scaledResiduals)
+confint(mixEmerge)
 
 knitr::kable(Anova(mixEmerge), caption = "Results from Mixed model on the effect of class and block on time to emergence.")
 
+with(na.omit(emergExpF), interaction.plot(x.factor=Class, trace.factor=block, response=Exp_Day, fun=mean, type="b", legend=T, ylab="Emergence Day"))
+
 ```
 
-The day of emergence differed significantly across block and class. Mosquitoes in the summer emerged on average 14 days sooner than those in the fall. Rural mosquitoes emerged latest at rural sites in the fall, and latest at suburban sites in the summer.
+The day of emergence differed significantly across block and class. Mosquitoes in the summer emerged on average 14 days sooner than those in the fall. Urban sites had faster development times than rural and suburban sites.
 
-Probably need to run some TukeyHSD business on this.
 
 # Body Size
 
+```{r load body size data}
+augWing <- read.csv("../data/emergence/raw/AugustWingLength.csv", stringsAsFactors = F)
+octWing <- read.csv("../data/emergence/raw/OctoberWingLength.csv",  stringsAsFactors = F)
 
 
+#convert to mm & clean
+augWing$mm <- augWing$Bars*augWing$Conversion.mm.bars.
+octWing$mm <- octWing$Bars*octWing$Conversion.bars.mm.
 
+octWing$site <- as.factor(substr(as.character(octWing$TrayCode), 1, 2))
+augWing$site <- as.factor(substr(as.character(augWing$TrayCode), 1, 2))
+
+getClass <- function(monthDf){
+  monthDf$class <- NULL
+  for (i in 1:nrow(monthDf)){
+    if (substr(monthDf$site[i], 1,1)=="R"){
+    monthDf$class[i] <- "Rural"
+    }
+    if (substr(monthDf$site[i], 1,1)=="S"){
+    monthDf$class[i] <- "Suburban"
+    }
+    if (substr(monthDf$site[i], 1,1)=="U"){
+    monthDf$class[i] <- "Urban"
+    }
+  }
+  monthDf$class <- as.factor(monthDf$class)
+  return(monthDf)
+}
+
+augWing <- getClass(augWing)
+octWing <- getClass(octWing)
+
+octWing$block <- "fall"
+augWing$block <- "summer"
+
+augWing$Date <- as.Date(as.character(augWing$Date), format="%m/%d/%Y")
+octWing$Date <- as.Date(as.character(octWing$Date), format="%m/%d/%Y")
+
+#add day of experiment
+augWing$Exp_Day <- as.numeric(augWing$Date-as.Date("2016-08-01", format="%Y-%m-%d"))
+octWing$Exp_Day <- as.numeric(octWing$Date-as.Date("2016-09-26", format="%Y-%m-%d"))
+
+#rename traycode column to match
+colnames(augWing)[1] <- "Tray_ID"
+colnames(octWing)[1] <- "Tray_ID"
+
+#combine
+fallWing <- octWing %>%
+  select(block, class, site, Tray_ID, Exp_Day, mm)
+
+summerWing <- augWing %>%
+    select(block, class, site, Tray_ID, Exp_Day, mm)
+
+allWing <- rbind(summerWing, fallWing)
+allWing$block<- as.factor(allWing$block)
+
+#drop outlier in S2 (wing size =1.56 mm)
+allWing <- allWing %>%
+  filter(mm>1.6)
+```
+
+```{r}
+wingMix <- lmer(mm~block*class +(1|site),
+                data=allWing)
+summary(wingMix)
+plot(wingMix)
+car::Anova(wingMix)
+
+with(allWing, interaction.plot(x.factor=class, trace.factor=block, response=mm, fun="mean", type="b", legend=T))
+```
+
+With the exception of suburban sites, there is no significant difference across season and class. Suburban sites, however, are very small in the summer and large in the fall. This may be due to differences in microclimate, see below.
+
+## Climate and Wing Length
+
+```{r}
+climate <- read.csv(file='../data/microclimate/clean/2016TrialsAdultCleaned.csv', stringsAsFactors = F)
+
+climate$Day <- as.Date(climate$Day, format="%Y-%m-%d")
+climate$Site_ID <- as.factor(climate$Site_ID)
+climate$Tray_ID <- as.factor(climate$Tray_ID)
+
+getClimate <- function(indMosq, climateDF=climate, season){
+  #' This is a function to apply over the rows of the octWing and augWing data frames. Must have climate data loaded
+  
+  #' @param indMosq row of the dataframe for each individual mosquito
+  #' @param climateDF the dataframe containing climate data every 10 minutes
+  #' @param season, either "summer" or "fall"
+  #' @returns formatted data with climate and winglength for the individual mosquito
+  
+  
+  #get date range
+  startDate <- ifelse(season=="summer", "2016-08-01", "2016-09-26")
+  startDate <- as.Date(startDate, format="%Y-%m-%d")
+  endDate <- indMosq$Date
+  
+  #subset temperature data
+  try(climSubset <- climateDF %>%
+    filter(Tray_ID==as.character(indMosq$Tray_ID)) %>%
+    filter(Day>startDate & Day<endDate),
+    silent=T)
+  
+  #now take mean temperature
+  tempMean <- climSubset %>%
+    summarise(Tmean=mean(Temp, na.rm=T))
+  
+  # if (nrow(climSubset)<1000){
+  #   climSubset <- climate %>%
+  #     filter(Site_ID==indMosq$site) %>%
+  #     filter(Day>startDate & Day<endDate)
+  # }
+  
+  #merge this all together
+  #mosqFormat <- cbind(indMosq[,c('block','class','site','Tray_ID','Exp_Day', 'mm')], Tmean=tempMean$Tmean)
+  
+  return(tempMean$Tmean)
+}
+
+augWing$Temp <- NA
+for(i in 1:nrow(augWing)){
+  indMosq <- augWing[i,]
+  augWing$Temp[i] <- getClimate(indMosq, season="summer")
+}
+
+octWing$Temp <- NA
+for(i in 1:nrow(octWing)){
+  indMosq <- octWing[i,]
+  octWing$Temp[i] <- getClimate(indMosq, season="fall")
+}
+
+#combine
+fallWing <- octWing %>%
+  select(block, class, site, Tray_ID, Exp_Day, mm, Temp)
+
+summerWing <- augWing %>%
+    select(block, class, site, Tray_ID, Exp_Day, mm, Temp)
+
+allWing <- rbind(summerWing, fallWing)
+allWing$block<- as.factor(allWing$block)
+
+#drop outlier in S2 (wing size =1.56 mm)
+allWing <- allWing %>%
+  filter(mm>1.6)
+```
+
+```{r}
+ggplot(data=allWing, aes(x=Temp, y=mm)) +
+  geom_point(aes(col=factor(class), shape=factor(block))) + 
+  theme_base() + 
+  facet_wrap(~block) +
+  geom_smooth(method="lm")
+```
+
+```{r}
+modDf <- na.omit(allWing)
+wingTemp <- lmer(mm~Temp +(1|site),
+                 data=modDf)
+summary(wingTemp)
+plot(wingTemp)
+car::Anova(wingTemp)
+AIC(wingTemp)
+confint(wingTemp)
+
+preds <- predict(wingTemp)
+ranef(wingTemp)
+coef(wingTemp)
+
+plot(x=modDf$Temp, y=preds)
+```
+
+Temperature had no significant effect on wing length. This makes sense, as we saw very little difference across site and land use, with the exception of suburban sites.
