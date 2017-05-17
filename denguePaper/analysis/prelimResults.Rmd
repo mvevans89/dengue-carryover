@@ -23,12 +23,12 @@ library(car)
 library(MASS)
 library(gridExtra) #for facet grids later
 library(caret)
-library(dplyr)
 library(ggthemes)
 library(piecewiseSEM) #marginal rsquared
 library(survival)
 library(DHARMa) #mixed model residuals
 library(survminer) #extracts survival objects
+library(dplyr)
 
 colR <- colRural <- "dodgerblue"
 colS <- colSuburban <- "gray80"
@@ -257,7 +257,7 @@ octAbove31 <- climate %>%
   group_by(Tray_ID) %>%
   summarise(Tcount=n()) %>%
   mutate(hoursAbove31=Tcount/6) %>%
-  select(-Tcount)
+  dplyr::select(-Tcount)
 
 
 #merge climate variables together
@@ -324,7 +324,7 @@ augAbove31 <- climate %>%
   group_by(Tray_ID) %>%
   dplyr::summarise(Tcount=n()) %>%
   mutate(hoursAbove31=Tcount/6) %>%
-  select(-Tcount)
+  dplyr::select(-Tcount)
 
 
 #merge climate variables together
