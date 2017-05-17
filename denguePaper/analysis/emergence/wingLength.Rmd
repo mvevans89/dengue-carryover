@@ -238,18 +238,34 @@ ggplot(data=allWing, aes(x=Temp, y=mm)) +
 
 ```{r}
 modDf <- na.omit(allWing)
-wingTemp <- lmer(mm~Temp +(1|site),
+wingTemp <- lmer(mm~Temp + (1|site),
                  data=modDf)
 summary(wingTemp)
 plot(wingTemp)
 car::Anova(wingTemp)
 AIC(wingTemp)
+confint(wingTemp)
 
 preds <- predict(wingTemp)
 ranef(wingTemp)
 coef(wingTemp)
 
-plot(x=modDf$Temp, y=preds)
+plot(x=jitter(modDf$mm,0.01), y=preds, col=RColorBrewer::brewer.pal(6,name="RdBu")[.bincode(modDf$Temp, breaks=c(15,18,20,22,25,26,30))], pch=16)
+cor(modDf$mm, preds)
 ```
 
 The effect of temperature on wing size is slightly positive, but not significant. This matches what we found above.
+
+**This is opposite of what we found last year.** So I am looking into what our results from last year would say if we only considered the subset of mosquitoes after the peak emergence.
+
+```{r}
+wings2015 <- read.csv("../../data/emergence/clean/2015wingLength.csv")
+wings2015$Date <- as.Date(paste("2016", wings2015$Month, wings2015$Day, sep="-"), format="%Y-%m-%d")
+```
+
+```{r}
+ggplot(data=wings2015, aes(x=Date, y=WingSize)) +
+  geom_point()+
+  theme_base()
+```
+
