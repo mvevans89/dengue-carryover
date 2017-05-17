@@ -12,9 +12,17 @@ knitr::opts_chunk$set(message=FALSE)
 knitr::opts_chunk$set(warning=FALSE)
 ```
 
+
+```{r}
+library(dplyr)
+library(ggplot2)
+library(ggthemes)
+library(lme4)
+```
+
 ```{r load body size data}
-augWing <- read.csv("../data/emergence/raw/AugustWingLength.csv", stringsAsFactors = F)
-octWing <- read.csv("../data/emergence/raw/OctoberWingLength.csv",  stringsAsFactors = F)
+augWing <- read.csv("../../data/emergence/raw/AugustWingLength.csv", stringsAsFactors = F)
+octWing <- read.csv("../../data/emergence/raw/OctoberWingLength.csv",  stringsAsFactors = F)
 
 
 #convert to mm & clean
@@ -54,20 +62,30 @@ octWing$Date <- as.Date(as.character(octWing$Date), format="%m/%d/%Y")
 augWing$Exp_Day <- as.numeric(augWing$Date-as.Date("2016-08-01", format="%Y-%m-%d"))
 octWing$Exp_Day <- as.numeric(octWing$Date-as.Date("2016-09-26", format="%Y-%m-%d"))
 
+#rename traycode column to match
+colnames(augWing)[1] <- "Tray_ID"
+colnames(octWing)[1] <- "Tray_ID"
+
 #combine
 fallWing <- octWing %>%
-  select(block, class, site, TrayCode, Exp_Day, mm)
+  select(block, class, site, Tray_ID, Exp_Day, mm)
 
 summerWing <- augWing %>%
-    select(block, class, site, TrayCode, Exp_Day, mm)
+    select(block, class, site, Tray_ID, Exp_Day, mm)
 
 allWing <- rbind(summerWing, fallWing)
 allWing$block<- as.factor(allWing$block)
+
+#drop outlier in S2 (wing size =1.56 mm)
+allWing <- allWing %>%
+  filter(mm>1.6)
 ```
 
-# Basic Visualization
+# Class * Block Analysis
 
-Size of mosquitoes over time: Are mosquitoes that emerge later larger?
+## Basic Visualization
+
+**Size of mosquitoes over time: Are mosquitoes that emerge later larger?**
 
 ```{r}
 plot(allWing$Exp_Day, allWing$mm, col=c(1,2,3)[as.numeric(allWing$class)], pch=c(16,17)[as.numeric(as.factor(allWing$block))])
@@ -76,16 +94,162 @@ with(allWing, abline(lm(mm~Exp_Day), lty=2))
 
 No, we don't need to worry about that in our analysis.
 
-Does the size of mosquitoes differ between class and block?
+**Does the size of mosquitoes differ between class and block?**
 
 ```{r}
 ggplot(data=allWing, aes(x=site, y=mm))+
+  geom_violin() +
+  facet_wrap(~block)+
+  theme_base()
+
+ggplot(data=allWing, aes(x=class, y=mm))+
   geom_boxplot() +
   facet_wrap(~block)+
   theme_base()
+
+#note there is an outlier in S2 in the summer (dropping above)
 ```
 
 No difference in size among those that weren't infected. However we saw a significant difference among those that were infected. Two possible reasons:
 
 - size differences are most pronounced for mosquitoes at the peak of emergence, and these mosquitoes were all measured after the peak, when they may have had more access to resources
-- infection is causing mosquitoes which are smaller to die off.
+- infection is causing smaller mosquitoes to die off
+
+## Stats
+
+We can look at statistical differences, but based on the above visualization, they all look the same.
+
+```{r}
+wingMix <- lmer(mm~block*class +(1|site),
+                data=allWing)
+summary(wingMix)
+plot(wingMix)
+car::Anova(wingMix)
+```
+
+This says that there is an interaction between block and class. Let's plot that out:
+
+```{r}
+with(allWing, interaction.plot(x.factor=class, trace.factor=block, response=mm, fun="mean", type="b", legend=T))
+```
+
+Yes, it seems that in the summer, suburban mosquitoes were the smallest, while they were the largest in teh fall. There also is a greater difference between urban and rural sites in the summer and fall.
+
+# Climate and Wing Length
+
+For this, I will use the climate up until each individual mosquitoes day of emergence.
+
+```{r load climate data}
+climate <- read.csv(file='../../data/microclimate/clean/2016TrialsAdultCleaned.csv', stringsAsFactors = F)
+
+climate$Day <- as.Date(climate$Day, format="%Y-%m-%d")
+climate$Site_ID <- as.factor(climate$Site_ID)
+climate$Tray_ID <- as.factor(climate$Tray_ID)
+```
+
+
+```{r format climate and wing length data}
+getClimate <- function(indMosq, climateDF=climate, season){
+  #' This is a function to apply over the rows of the octWing and augWing data frames. Must have climate data loaded
+  
+  #' @param indMosq row of the dataframe for each individual mosquito
+  #' @param climateDF the dataframe containing climate data every 10 minutes
+  #' @param season, either "summer" or "fall"
+  #' @returns formatted data with climate and winglength for the individual mosquito
+  
+  
+  #get date range
+  startDate <- ifelse(season=="summer", "2016-08-01", "2016-09-26")
+  startDate <- as.Date(startDate, format="%Y-%m-%d")
+  endDate <- indMosq$Date
+  
+  #subset temperature data
+  try(climSubset <- climateDF %>%
+    filter(Tray_ID==as.character(indMosq$Tray_ID)) %>%
+    filter(Day>startDate & Day<endDate),
+    silent=T)
+  
+  #now take mean temperature
+  tempMean <- climSubset %>%
+    summarise(Tmean=mean(Temp, na.rm=T))
+  
+  # if (nrow(climSubset)<1000){
+  #   climSubset <- climate %>%
+  #     filter(Site_ID==indMosq$site) %>%
+  #     filter(Day>startDate & Day<endDate)
+  # }
+  
+  #merge this all together
+  #mosqFormat <- cbind(indMosq[,c('block','class','site','Tray_ID','Exp_Day', 'mm')], Tmean=tempMean$Tmean)
+  
+  return(tempMean$Tmean)
+}
+```
+
+```{r}
+augWing$Temp <- NA
+for(i in 1:nrow(augWing)){
+  indMosq <- augWing[i,]
+  augWing$Temp[i] <- getClimate(indMosq, season="summer")
+}
+
+octWing$Temp <- NA
+for(i in 1:nrow(octWing)){
+  indMosq <- octWing[i,]
+  octWing$Temp[i] <- getClimate(indMosq, season="fall")
+}
+
+#combine
+fallWing <- octWing %>%
+  select(block, class, site, Tray_ID, Exp_Day, mm, Temp)
+
+summerWing <- augWing %>%
+    select(block, class, site, Tray_ID, Exp_Day, mm, Temp)
+
+allWing <- rbind(summerWing, fallWing)
+allWing$block<- as.factor(allWing$block)
+
+#drop outlier in S2 (wing size =1.56 mm)
+allWing <- allWing %>%
+  filter(mm>1.6)
+```
+
+## Basic Visualization
+
+```{r}
+ggplot(data=allWing, aes(x=Temp, y=mm)) +
+  geom_point(aes(col=factor(class), shape=factor(block))) + 
+  theme_base() + 
+  #facet_wrap(~block) +
+  geom_smooth(method="lm")
+```
+
+If you look at each block individually, it does seem like there is a trend between temperature and wing size.
+
+```{r}
+ggplot(data=allWing, aes(x=Temp, y=mm)) +
+  geom_point(aes(col=factor(class), shape=factor(block))) + 
+  theme_base() + 
+  facet_wrap(~block) +
+  geom_smooth(method="lm")
+```
+
+## Statistics
+
+```{r}
+modDf <- na.omit(allWing)
+wingTemp <- lmer(mm~Temp +(1|site),
+                 data=modDf)
+summary(wingTemp)
+plot(wingTemp)
+car::Anova(wingTemp)
+AIC(wingTemp)
+
+preds <- predict(wingTemp)
+ranef(wingTemp)
+coef(wingTemp)
+
+plot(x=modDf$Temp, y=preds)
+```
+
+The effect of temperature on wing size is slightly positive, but not significant. This matches what we found above.
