@@ -44,7 +44,7 @@ formatData <- function(month){
   monthDf <- read.csv(paste0("../data/infections/raw/", month,"Dengue.csv"))
   #convert wingLength and drop extra columns
   monthDf$Wing <- monthDf$WingLength*monthDf$conversion..mm.bar.
-  monthDf <- select(monthDf, -WingLength, -conversion..mm.bar.)
+  monthDf <- dplyr::select(monthDf, -WingLength, -conversion..mm.bar.)
   
   #dpi as factor
   monthDf$DPI <- as.factor(monthDf$DPI)
@@ -91,7 +91,7 @@ seasons$block <- as.factor(c(rep("summer", nrow(august)), rep("fall", nrow(oct))
 seasonSumm <- seasons %>%
   filter(DPI==21) %>%
   #drop individual
-  select(-Individual, -site, -Wing, -DPI) %>%
+  dplyr::select(-Individual, -site, -Wing, -DPI) %>%
   group_by(block, class) %>%
   summarise_each(funs(mean(.,na.rm=T),sd(.,na.rm=T),se=(sd(., na.rm=T)/sqrt(n())))) %>%
   ungroup()
@@ -104,9 +104,9 @@ seasonPlot <- function(bodyPart, summTable=seasonSumm){
   colnames(tempLarge)[3:5] <- c("mean", "sd", "se")
     
   tempMean <- tempLarge %>%
-    select(-sd,-se) %>%
+    dplyr::select(-sd,-se) %>%
     spread(block, mean) %>%
-    select(-class)
+    dplyr::select(-class)
   
   #put summer before fall
   tempMean <- tempMean[,c(2,1)]
@@ -127,9 +127,9 @@ seasonPlot <- function(bodyPart, summTable=seasonSumm){
                       )
   
   tempSE <- tempLarge %>%
-    select(-sd,-mean) %>%
+    dplyr::select(-sd,-mean) %>%
     spread(block, se) %>%
-    select(-class)
+    dplyr::select(-class)
   
    #put summer before fall
   tempSE <- tempSE[,c(2,1)]
@@ -242,7 +242,7 @@ octBelow16 <- climate %>%
   group_by(Tray_ID) %>%
   dplyr::summarise(Tcount=n()) %>%
   mutate(hoursBelow16=Tcount/6) %>%
-  select(-Tcount)
+  dplyr::select(-Tcount)
 
 
 
@@ -442,17 +442,22 @@ ggplot(data=wingInf, aes(Wing))+
         geom_vline(data=wingInf[wingInf$Body==0,], aes(xintercept=mean(Wing, na.rm=T)), color="black", size=2)+
         geom_vline(data=wingInf[wingInf$Body==1,], aes(xintercept=mean(Wing, na.rm=T)), color="black", size=2)+
   ggtitle("Distribution of Body Size across Body Infections")
+
+ggplot(data=wingInf, aes(x=factor(Body)))+
+  geom_violin(aes(y=Wing))
+  
+  
 ```
 
 
 ```{r}
 # bodyWingDF <- seasonInf %>%
-#   select(Body, Wing, site, block, class) %>%
+#   dplyr::select(Body, Wing, site, block, class) %>%
 #   filter(!is.na(Body)) %>%
 #   filter(!is.na(Wing))
-#   
-#   
-# bodyWing <- glmer(Body~Wing + (1+Wing|block), 
+# 
+# 
+# bodyWing <- glmer(Body~Wing + (1|block),
 #                           data=bodyWingDF,
 #                           family=binomial(link="logit"))
 # summary(bodyWing)
@@ -847,7 +852,8 @@ ggplot(data=emergExpF, aes(x=Site_Code, y=Exp_Day)) +
   xlab("Site")+
   ggtitle("Day of Emergence by Site")
 
-mixEmerge <- glmer(Exp_Day ~  Class*block + (1|Site_Code), data=emergExpF, 
+mixEmerge <- glm(Exp_Day ~  Class*block, #random effects competed with fixed effects (Hodges 2014)
+                 data=emergExpF, 
                    family=Gamma(link="log")
                    )
 plot(mixEmerge)
@@ -861,7 +867,9 @@ knitr::kable(Anova(mixEmerge), caption = "Results from Mixed model on the effect
 
 ```
 
-The day of emergence differed significantly across block (and nearly class). Mosquitoes in the summer emerged on average 14 days sooner than those in the fall. 
+The day of emergence differed significantly across block and class. Mosquitoes in the summer emerged on average 14 days sooner than those in the fall. Rural mosquitoes emerged latest at rural sites in the fall, and latest at suburban sites in the summer.
+
+Probably need to run some TukeyHSD business on this.
 
 # Body Size
 
