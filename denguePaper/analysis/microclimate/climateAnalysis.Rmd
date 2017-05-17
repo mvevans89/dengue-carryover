@@ -10,4 +10,103 @@ knitr::opts_chunk$set(echo = T)
 knitr::opts_chunk$set(cache=TRUE)
 knitr::opts_chunk$set(message=FALSE)
 knitr::opts_chunk$set(warning=FALSE)
+
+library(ggplot2)
+library(dplyr)
+library(ggthemes)
 ```
+
+#Load Data
+
+This data was cleaned in the RMardown file "dengueAnalysis.Rmd"
+
+```{r}
+climate <- read.csv(file='../../data/microclimate/clean/2016TrialsAdultCleaned.csv', stringsAsFactors = F)
+
+climate$Day <- as.Date(climate$Day, format="%Y-%m-%d")
+climate$Site_ID <- as.factor(climate$Site_ID)
+climate$Tray_ID <- as.factor(climate$Tray_ID)
+```
+
+Get mean, min, max
+```{r}
+clim <- climate %>%
+  group_by(Tray_ID, Day, Site_ID, Class) %>%
+  summarise(meanT=mean(Temp), minT=min(Temp), maxT=max(Temp)) %>% #values per tray
+  ungroup() %>%
+  group_by(Class, Day) %>% #get mean values per class
+  summarise(meanT=mean(meanT), minT=mean(minT), maxT=mean(maxT)) %>%
+  ungroup()
+
+```
+
+```{r}
+ggplot(data=clim, aes(x=Day, group=Class))+
+  geom_line(aes(y=meanT, col=Class)) + 
+  geom_line(aes(y=minT, col=Class), linetype="dotted") +
+  geom_line(aes(y=maxT, col=Class), linetype="dotted") +
+  theme_fivethirtyeight() +
+  scale_color_manual(values=c("dodgerblue", "gray20", "maroon")) +
+  theme(axis.title = element_text(), axis.title.x = element_blank()) +
+  ylab("Temperature (C)")
+```
+
+# Stats
+
+By tray:
+
+```{r}
+climTray <- climate %>%
+  group_by(Tray_ID, Day, Site_ID, Class) %>%
+  summarise(meanT=mean(Temp), minT=min(Temp), maxT=max(Temp))
+```
+
+```{r}
+climModMean <- lmer(meanT~0+Class + (1|Site_ID), data=climTray)
+plot(climModMean)
+summary(climModMean)
+confint(climModMean)
+
+Anova(climMod)
+
+climModMin <- lmer(minT~0+Class + (1|Site_ID), data=climTray)
+plot(climModMin)
+summary(climModMin)
+confint(climModMin)
+
+Anova(climMod)
+
+climModMax <- lmer(maxT~0+Class + (1|Site_ID), data=climTray)
+plot(climModMax)
+summary(climModMax)
+confint(climModMax)
+
+Anova(climMod)
+```
+
+Urban sites are significantly hotter than rural and suburban sites, where there is no difference. This is exactly what we found last year. Surprisingly, rural sites had the hottest maximum temperature. This may explain some of our differences from 2015.
+
+## Compare summer and fall
+
+```{r}
+fall <- climate %>%
+  filter(Day>"2016-09-26") %>%
+  mutate(Block="Fall")
+
+summer <- climate %>%
+  filter(Day < "2016-09-01") %>%
+  mutate(Block="Summer")
+
+climBlocks <- rbind(summer, fall)
+rm(summer,fall)
+```
+
+
+```{r}
+ggplot(data=climBlocks, aes(x=Block, y=Temp)) +
+  geom_boxplot()
+
+summary(aov(Temp~Block, data=climBlocks))
+```
+
+Summer is definitely hotter than the fall (seem unnecessary to plot but there you go)

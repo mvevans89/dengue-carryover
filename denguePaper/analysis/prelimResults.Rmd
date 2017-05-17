@@ -464,17 +464,19 @@ bodyWingDF <- seasonInf %>%
   filter(!is.na(Wing))
 
 
-bodyWing <- glmer(Body~Wing,
+bodyWing <- glmer(Body~Wing + (1|block),
                           data=bodyWingDF,
                           family=binomial(link="logit"))
 summary(bodyWing)
-simulationOutput <- simulateResiduals(fittedModel = bodyWing)
+simulationOutput <- simulateResiduals(fittedModel = bodyWing, n=99)
 plotSimulatedResiduals(simulationOutput = simulationOutput)
-plotResiduals(bodyWingDF$Wing,  simulationOutput$scaledResiduals)
+#plotResiduals(bodyWingDF$Wing,  simulationOutput$scaledResiduals)
 
-with(bodyWingDF,plot(x=jitter(Wing), y=Body, pch=c(16,17)[block], col=c(colR, colS, colU)[class]))
-curve(4.6320-1.8761*x, 1.5, 3, add=T, lwd=2)
+#with(bodyWingDF,plot(x=jitter(Wing), y=Body, pch=c(16,17)[block], col=c(colR, colS, colU)[class]))
+#curve(4.6320-1.8761*x, 1.5, 3, add=T, lwd=2)
 #with(bodyWingDF, abline(lm(Body~Wing)))
+ggplot(data=seasonInf, aes(x=factor(Body), y=Wing))+
+  geom_violin()
 
 knitr::kable(Anova(bodyWing))
 ```
@@ -502,6 +504,32 @@ ggplot(data=wingInf, aes(Wing))+
 ```
 
 ```{r}
+headWingDF <- seasonInf %>%
+  dplyr::select(Head, Wing, site, block, class) %>%
+  filter(!is.na(Head)) %>%
+  filter(!is.na(Wing))
+
+
+headWing <- glmer(Head~Wing + (1|block),
+                          data=headWingDF,
+                          family=binomial(link="logit"))
+summary(headWing)
+simulationOutput <- simulateResiduals(fittedModel = headWing, n=99)
+plotSimulatedResiduals(simulationOutput = simulationOutput)
+plotResiduals(headWingDF$Wing,  simulationOutput$scaledResiduals)
+
+#with(headWingDF,plot(x=jitter(Wing), y=Head, pch=c(16,17)[block], col=c(colR, colS, colU)[class]))
+#curve(4.6320-1.8761*x, 1.5, 3, add=T, lwd=2)
+#with(bodyWingDF, abline(lm(Body~Wing)))
+ggplot(data=seasonInf, aes(x=factor(Head), y=Wing))+
+  geom_violin()
+
+knitr::kable(Anova(headWing))
+```
+
+No significant effect of body size on head infection.
+
+```{r}
 
 wingInf <- seasonInf[seasonInf$Saliva %in% c(1,0),]
 
@@ -520,6 +548,30 @@ ggplot(data=wingInf, aes(Wing))+
         geom_vline(data=wingInf[wingInf$Saliva==0,], aes(xintercept=mean(Wing, na.rm=T)), color="black", size=2)+
         geom_vline(data=wingInf[wingInf$Saliva==1,], aes(xintercept=mean(Wing, na.rm=T)), color="black", size=2)+
   ggtitle("Distribution of Wing Size across Saliva Infections")
+```
+
+```{r}
+salWingDF <- seasonInf %>%
+  dplyr::select(Saliva, Wing, site, block, class) %>%
+  filter(!is.na(Saliva)) %>%
+  filter(!is.na(Wing))
+
+
+salWing <- glmer(Saliva~Wing + (1|block),
+                          data=salWingDF,
+                          family=binomial(link="logit"))
+summary(salWing)
+simulationOutput <- simulateResiduals(fittedModel = salWing, n=99)
+plotSimulatedResiduals(simulationOutput = simulationOutput)
+plotResiduals(salWingDF$Wing,  simulationOutput$scaledResiduals)
+
+with(salWingDF,plot(x=jitter(Wing), y=Saliva, pch=c(16,17)[block], col=c(colR, colS, colU)[class]))
+#curve(4.6320-1.8761*x, 1.5, 3, add=T, lwd=2)
+#with(bodyWingDF, abline(lm(Body~Wing)))
+ggplot(data=seasonInf, aes(x=factor(Saliva), y=Wing))+
+  geom_violin()
+
+knitr::kable(Anova(salWing))
 ```
 
 ### Infection Efficiency
