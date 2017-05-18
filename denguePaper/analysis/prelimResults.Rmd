@@ -789,6 +789,8 @@ ggplot(data=seasonInfSite, aes(x=Temp_max_mean, y=Saliva_mean))+
 
 # Emergence and Survival Results
 
+##  Class and Block
+
 In general, we found that larval emergence and survival differed significantly across season, but not across land class.
 
 ```{r}
@@ -872,16 +874,28 @@ km.fit <- survival::survfit(Surv(Exp_Day, event) ~ block + Class, data=allSurv, 
   data <- eval(km.fit$call$data)
   d <- survminer::surv_summary(km.fit, data=data)
   d$emerge <- (1 - d$surv)*100
+  
+png(file="figures/forMS/emergence.png", width = 6, height=4, units="in", res=700)  
   ggplot(data=d, aes(x=time, y=emerge, group=factor(strata)))+
     geom_line(aes(color=Class))+
     geom_ribbon(aes(ymin=(1-upper)*100, ymax=(1-lower)*100, fill=Class), alpha=0.4)+
-    scale_color_manual(values=c("dodgerblue", "gray80", "maroon"), labels=c("Rural", "Suburban", "Urban"))+
-    scale_fill_manual(values=c("dodgerblue", "gray80", "maroon"))+
-    theme_base()+
+    scale_color_manual(values=c("dodgerblue", "gray10", "maroon"), labels=c("Rural", "Suburban", "Urban"))+
+    scale_fill_manual(values=c("dodgerblue", "gray80", "maroon"), labels=c("Rural", "Suburban", "Urban"))+
+    theme_fivethirtyeight()+
+    theme(axis.title = element_text()) +
     ylab("Percent of Females Emerged") +
     xlab("Day")+
+    #xlim(0,45)+
     guides(color=F)+
-    ggtitle("Female Larval Emergence")
+    annotate("text", x=12, y=70, label="Summer")+
+    annotate("text", x=25, y=42, label="Fall")+
+    ggtitle("Female Larval Emergence") +
+    theme(panel.background = element_rect(fill = "transparent", colour = NA), 
+        plot.background = element_rect(fill = "transparent", colour = NA),
+        legend.key = element_blank())+
+    theme(legend.background = element_rect(fill = "transparent", colour = NA))+
+    theme(legend.position="right", legend.direction="vertical")
+dev.off()
 ```
 
 This resulted in a difference in both the average time to emergence and survival across season, but not land class.
@@ -889,16 +903,23 @@ This resulted in a difference in both the average time to emergence and survival
 ```{r survival plot and stats, results='asis'}
 siteSumm <- emergExp %>%
   filter(Sex=="F") %>%
-  group_by(block, Site_Code) %>%
+  group_by(block, Tray_Code) %>%
   mutate(numSurv=n()) %>%
   ungroup() %>%
   dplyr::select(block, Class, Site_Code, numSurv)
 siteSumm <- unique(siteSumm)
 
-siteEmerg <- aov(numSurv ~  Class*block, data=siteSumm) # a better AIC than mixed model
+siteSumm$block <- as.factor(siteSumm$block)
+
+siteEmerg <- lmer(numSurv ~ 0 + Class + block + (1|Site_Code), data=siteSumm)
 summary(siteEmerg)
-#plot(siteEmerg)
-TukeyHSD(siteEmerg)
+plot(siteEmerg)
+
+#pairwise
+summary(glht(siteEmerg, linfct = mcp(block = "Tukey"), test = adjusted("holm")))
+
+summary(glht(siteEmerg, linfct = mcp(Class = "Tukey"), test = adjusted("holm")))
+
 
 with(survSumm, interaction.plot(x.factor=Class, trace.factor=block, response=percSurv, fun=mean, type="b", legend=T, ylab="Percentage Emerged"))
 mtext("Percentage Emerged by Class and Season")
@@ -915,7 +936,9 @@ ggplot(data=emergExpF, aes(x=Site_Code, y=Exp_Day)) +
   xlab("Site")+
   ggtitle("Day of Emergence by Site")
 
-mixEmerge <- aov(Exp_Day ~  Class*block, 
+mixEmerge$block <- as.factor(mixEmerge$block)
+
+mixEmerge <- lmer(Exp_Day ~  0 + block + Class + (1|Site_Code), 
                  data=emergExpF
                    )
 plot(mixEmerge)
@@ -923,13 +946,72 @@ qqnorm(resid(mixEmerge))
 summary(mixEmerge)
 confint(mixEmerge)
 
-knitr::kable(Anova(mixEmerge), caption = "Results from Mixed model on the effect of class and block on time to emergence.")
+#pairwise
+summary(glht(mixEmerge, linfct = mcp(block = "Tukey"), test = adjusted("holm")))
+
+summary(glht(mixEmerge, linfct = mcp(Class = "Tukey"), test = adjusted("holm")))
 
 with(na.omit(emergExpF), interaction.plot(x.factor=Class, trace.factor=block, response=Exp_Day, fun=mean, type="b", legend=T, ylab="Emergence Day"))
 
 ```
 
-The day of emergence differed significantly across block and class. Mosquitoes in the summer emerged on average 14 days sooner than those in the fall. Urban sites had faster development times than rural and suburban sites.
+The day of emergence differed significantly across block. Mosquitoes in the summer emerged on average 12 days sooner than those in the fall. Urban mosquitoes developed more quickly, but not significantly.
+
+## Temperature
+
+Because this data is calculated at a tray level, we will tie in tray-level climate data.
+
+```{r}
+allClim <- rbind(augClim, octClim)
+allClim$block <- rep(c("summer", "fall"), each=34)
+survClim <- merge(survSumm, allClim, by.x=c("block","Tray_Code"), by.y=c("block","Tray_ID"))
+```
+
+
+```{r}
+ggplot(data=survClim, aes(x=Temp_mean, y=percSurv))+
+  geom_point(aes(color=Class, shape=block))
+```
+
+
+```{r}
+survClimMod <- lm(percSurv~Temp_mean,
+                    data=survClim)
+
+plot(survClimMod)
+qqnorm(resid(survClimMod))
+summary(survClimMod)
+coef(survClimMod)
+
+car::Anova(survClimMod)
+```
+
+
+Now we look at temperature and emergence day.
+
+```{r}
+emergClim <- merge(emergExpF, allClim, by.x=c("block","Tray_Code"), by.y=c("block","Tray_ID"))
+emergClim <- mutate(emergClim, devRate =1/Exp_Day)
+```
+
+```{r}
+ggplot(data=emergClim, aes(x=Temp_mean, y=devRate))+
+  geom_point(aes(color=Class, shape=block))
+```
+
+
+```{r}
+survClimMod <- lm(devRate~Temp_mean,
+                    data=emergClim)
+
+plot(survClimMod)
+qqnorm(resid(survClimMod))
+summary(survClimMod)
+coef(survClimMod)
+
+car::Anova(survClimMod)
+```
+
 
 
 # Body Size
@@ -982,10 +1064,10 @@ colnames(octWing)[1] <- "Tray_ID"
 
 #combine
 fallWing <- octWing %>%
-  select(block, class, site, Tray_ID, Exp_Day, mm)
+  dplyr::select(block, class, site, Tray_ID, Exp_Day, mm)
 
 summerWing <- augWing %>%
-    select(block, class, site, Tray_ID, Exp_Day, mm)
+  dplyr::select(block, class, site, Tray_ID, Exp_Day, mm)
 
 allWing <- rbind(summerWing, fallWing)
 allWing$block<- as.factor(allWing$block)
@@ -1066,10 +1148,10 @@ for(i in 1:nrow(octWing)){
 
 #combine
 fallWing <- octWing %>%
-  select(block, class, site, Tray_ID, Exp_Day, mm, Temp)
+  dplyr::select(block, class, site, Tray_ID, Exp_Day, mm, Temp)
 
 summerWing <- augWing %>%
-    select(block, class, site, Tray_ID, Exp_Day, mm, Temp)
+    dplyr::select(block, class, site, Tray_ID, Exp_Day, mm, Temp)
 
 allWing <- rbind(summerWing, fallWing)
 allWing$block<- as.factor(allWing$block)
