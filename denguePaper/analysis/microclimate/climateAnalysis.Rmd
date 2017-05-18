@@ -14,11 +14,13 @@ knitr::opts_chunk$set(warning=FALSE)
 library(ggplot2)
 library(dplyr)
 library(ggthemes)
+library(lme4)
+library(multcomp)
 ```
 
 #Load Data
 
-This data was cleaned in the RMardown file "dengueAnalysis.Rmd"
+This data was cleaned in the RMarkdown file "dengueAnalysis.Rmd"
 
 ```{r}
 climate <- read.csv(file='../../data/microclimate/clean/2016TrialsAdultCleaned.csv', stringsAsFactors = F)
@@ -26,6 +28,9 @@ climate <- read.csv(file='../../data/microclimate/clean/2016TrialsAdultCleaned.c
 climate$Day <- as.Date(climate$Day, format="%Y-%m-%d")
 climate$Site_ID <- as.factor(climate$Site_ID)
 climate$Tray_ID <- as.factor(climate$Tray_ID)
+
+#drop R3T4 because it has wierd errors
+climate <- filter(climate, Tray_ID!="R3T4")
 ```
 
 Get mean, min, max
@@ -40,7 +45,9 @@ clim <- climate %>%
 
 ```
 
+
 ```{r}
+#png(file="../figures/forMS/seasonClimate.png", width = 6, height=4, units="in", res=500, family="sans")
 ggplot(data=clim, aes(x=Day, group=Class))+
   geom_line(aes(y=meanT, col=Class)) + 
   geom_line(aes(y=minT, col=Class), linetype="dotted") +
@@ -48,45 +55,19 @@ ggplot(data=clim, aes(x=Day, group=Class))+
   theme_fivethirtyeight() +
   scale_color_manual(values=c("dodgerblue", "gray20", "maroon")) +
   theme(axis.title = element_text(), axis.title.x = element_blank()) +
-  ylab("Temperature (C)")
+  ylab("Temperature (C)") + 
+  annotate("rect", xmin=as.Date("2016-08-01", format="%Y-%m-%d"), xmax=as.Date("2016-09-01", format="%Y-%m-%d"), ymin=-Inf, ymax=Inf, fill="forestgreen", alpha=0.1)+
+    annotate("rect", xmin=as.Date("2016-09-26", format="%Y-%m-%d"), xmax=as.Date("2016-11-07", format="%Y-%m-%d"), ymin=-Inf, ymax=Inf, fill="darkorange", alpha=0.1)+
+  theme(panel.background = element_rect(fill = "transparent", colour = NA), 
+        plot.background = element_rect(fill = "transparent", colour = NA),
+        legend.key = element_blank())+
+  theme(legend.background = element_rect(fill = "transparent", colour = NA))
+#dev.off()
 ```
 
 # Stats
 
 By tray:
-
-```{r}
-climTray <- climate %>%
-  group_by(Tray_ID, Day, Site_ID, Class) %>%
-  summarise(meanT=mean(Temp), minT=min(Temp), maxT=max(Temp))
-```
-
-```{r}
-climModMean <- lmer(meanT~0+Class + (1|Site_ID), data=climTray)
-plot(climModMean)
-summary(climModMean)
-confint(climModMean)
-
-Anova(climMod)
-
-climModMin <- lmer(minT~0+Class + (1|Site_ID), data=climTray)
-plot(climModMin)
-summary(climModMin)
-confint(climModMin)
-
-Anova(climMod)
-
-climModMax <- lmer(maxT~0+Class + (1|Site_ID), data=climTray)
-plot(climModMax)
-summary(climModMax)
-confint(climModMax)
-
-Anova(climMod)
-```
-
-Urban sites are significantly hotter than rural and suburban sites, where there is no difference. This is exactly what we found last year. Surprisingly, rural sites had the hottest maximum temperature. This may explain some of our differences from 2015.
-
-## Compare summer and fall
 
 ```{r}
 fall <- climate %>%
@@ -99,11 +80,68 @@ summer <- climate %>%
 
 climBlocks <- rbind(summer, fall)
 rm(summer,fall)
+
+climTray <- climBlocks %>%
+  group_by(Block, Tray_ID, Day, Site_ID, Class) %>%
+  summarise(meanT=mean(Temp), minT=min(Temp), maxT=max(Temp))
+
+climTray$classxBlock <- interaction(climTray$Class, climTray$Block)
 ```
+
+```{r}
+ggplot(data=climTray[climTray$Block=="Summer",], aes(x=Tray_ID, y=meanT))+
+  geom_boxplot()
+```
+
+```{r}
+climModMean <- lmer(meanT~Class*Block+ (1|Day) + (1|Site_ID), data=climTray)
+plot(climModMean)
+summary(climModMean)
+confint(climModMean)
+AIC(climModMean)
+car::Anova(climModMean)
+
+#pairwise stats
+summary(glht(climModMean, linfct = mcp(Class = "Tukey"), test = adjusted("holm")))
+
+summary(glht(climModMean, linfct = mcp(Block = "Tukey"), test = adjusted("holm")))
+
+#pairwise stats-interaction
+intMod <- lmer(meanT~classxBlock+ (1|Day) + (1|Site_ID), data=climTray)
+summary(glht(intMod, linfct = mcp(classxBlock = "Tukey"), test = adjusted("holm")))
+
+anova(climModMean, intMod)
+
+climModMin <- lmer(minT~0+Class*Block + (1|Day) + (1|Site_ID), data=climTray)
+plot(climModMin)
+summary(climModMin)
+confint(climModMin)
+AIC(climModMin)
+car::Anova(climModMin)
+
+
+climModMax <- lmer(maxT~0+Class*Block + (1|Day)+ (1|Site_ID), data=climTray)
+plot(climModMax)
+summary(climModMax)
+confint(climModMax)
+
+car::Anova(climModMax)
+
+#pairwise stats
+summary(glht(climModMax, linfct = mcp(Class = "Tukey"), test = adjusted("holm")))
+
+#pairwise stats
+summary(glht(climModMax, linfct = mcp(Block = "Tukey"), test = adjusted("holm")))
+
+```
+
+Urban sites are significantly hotter than rural and suburban sites, where there is no difference. This is exactly what we found last year. Surprisingly, rural sites had the hottest maximum temperature. This may explain some of our differences from 2015.
+
+## Compare summer and fall
 
 
 ```{r}
-ggplot(data=climBlocks, aes(x=Block, y=Temp)) +
+ggplot(data=climTray, aes(x=Block, y=meanT)) +
   geom_boxplot()
 
 summary(aov(Temp~Block, data=climBlocks))
