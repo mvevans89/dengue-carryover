@@ -705,6 +705,8 @@ modDF <- seasonInfSite %>%
   dplyr::select(one_of(myCols)) 
 modDF <- na.omit(modDF)
 
+modDF$scaleTemp <- scale(modDF$Temp_mean_mean, center=T, scale = F)
+
 finalBody <- lm(Body_mean~ Temp_mean_mean, data=modDF)
 ```
 
