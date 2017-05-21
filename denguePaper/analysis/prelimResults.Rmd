@@ -624,8 +624,6 @@ meltSE$type <- rep(c("Body", "Head", "Saliva"), each=6)
   
 meltAll <- full_join(meltMean, meltSE, by=c("class", "block", "type")) %>%
   select(-variable.x, -variable.y)
-
-
 ```
 
 
@@ -707,26 +705,32 @@ modDF <- seasonInfSite %>%
   dplyr::select(one_of(myCols)) 
 modDF <- na.omit(modDF)
 
-finalBody <- lmer(Body_mean~ Temp_mean_mean + (1|block), data=modDF)
+finalBody <- lm(Body_mean~ Temp_mean_mean, data=modDF)
 ```
 
 
 The final linear mixed model included mean temperature as a fixed effect. It had a marginal $r^2$ of `r  round(MuMIn::r.squaredGLMM(finalBody)[[1]],3)`. It also had the lowest AIC value out of all models.  
 
-The relationship between mean temperature and body infection is negative ($\beta$=`r round(coef(finalBody)$block$Temp_mean_mean[[1]], 3)`) and significant ($p<0.05$). Higher temperatures seem to be leading to lower body infection rates.  Additionally, the relationship seems qualitatively different over the seasons, with the season as a random intercept explaining nearly as much of the variance as the mean temperature ($r^2_{GLMM_c}$=`r  round(MuMIn::r.squaredGLMM(finalBody)[[2]],3)`). This may be because the summer temperatures are near the thermal optimum, where the effect of temperature is more pronounced.
+The relationship between mean temperature and body infection is negative ($\beta$=`r round(coef(finalBody)[[2]], 3)`) and significant ($p<0.05$). Higher temperatures seem to be leading to lower body infection rates.  Additionally, the relationship seems qualitatively different over the seasons, with the season as a random intercept explaining nearly as much of the variance as the mean temperature ($r^2_{GLMM_c}$=`r  round(MuMIn::r.squaredGLMM(finalBody)[[2]],3)`). This may be because the summer temperatures are near the thermal optimum, where the effect of temperature is more pronounced.
 
 ```{r body x meanT plot, fig.width=6, fig.height=4}
-#png(file="../figures/forMS/bodyInfxMeanTemp.png", width = 6, height=4, units="in", res=500, family="sans")
+#png(file="figures/forMS/bodyInfxMeanTemp.png", width = 6, height=4, units="in", res=500, family="sans")
 par(family="sans")
 ggplot(data=seasonInfSite, aes(x=Temp_mean_mean, y=Body_mean))+
   geom_errorbar(aes(ymin=Body_mean-Body_se, ymax=Body_mean+Body_se), color="gray20", width=0.1) +
   #geom_errorbarh(aes(xmin=Temp_mean_mean-Temp_mean_se, xmax=Temp_mean_mean+Temp_mean_se, y=Body_mean),color="gray20", height=0.05) + #not enough error to see
   geom_point(aes(color=class, shape=block), size=4.5) + 
   scale_color_manual(values=c(colRural, colSuburban, colUrban)) +
-  theme_base() +
+  theme_fivethirtyeight() +
+    theme(panel.background = element_rect(fill = "transparent", colour = NA), 
+        plot.background = element_rect(fill = "transparent", colour = NA),
+        legend.key = element_blank())+
+  theme(legend.background = element_rect(fill = "transparent", colour = NA)) +
+    theme(axis.title = element_text(), axis.title.x = element_text()) +
   ylab("Prop. Body Infection")+
   xlab("Mean Daily Temperature (C)") +  
-  ggtitle("Infection Rates and Mean Temp.")
+  ggtitle("Infection Rates and Mean Temp.") +
+  theme(legend.position="right", legend.direction="vertical")
 #dev.off()
 ```
 
@@ -744,7 +748,9 @@ modDF <- seasonInfSite %>%
   dplyr::select(one_of(myCols)) 
 modDF <- na.omit(modDF)
 
-finalHead <- lmer(Head_mean~ Temp_mean_mean + (1|block), data=modDF)
+finalHead <- lm(Head_mean~ Temp_mean_mean , data=modDF)
+Anova(finalHead)
+plot(finalHead)
 ```
 
 The final linear mixed model included mean temperature as a fixed effect. It had a marginal $r^2$ of `r  round(MuMIn::r.squaredGLMM(finalHead)[[1]],3)`. It only had the second lowest AIC value out of the models, however the marginal $r^2$ of the model with the lowest AIC, which included mean temperature and relative humidity and their interaction, was much lower than that of the final model, and included additional variables.
@@ -785,6 +791,22 @@ ggplot(data=seasonInfSite, aes(x=Temp_max_mean, y=Saliva_mean))+
   xlab("Maximum Daily Temperature (C)") +
   ggtitle("Infectious Rates and Mean Temp.")
 #dev.off()
+```
+
+
+```{r}
+respV <- "Saliva_mean"
+predVs <- c("Temp_mean_mean","RH_mean_mean","Temp_min_mean","RH_min_mean", "Temp_max_mean", "DTR_mean", "hoursAbove31_mean", "hoursBelow16_mean")
+
+#create dataframe without NAs
+myCols <- c(respV, predVs, "block")
+modDF <- seasonInfSite %>%
+  dplyr::select(one_of(myCols)) 
+modDF <- na.omit(modDF)
+
+finalSal <- lm(Saliva_mean~ Temp_mean_mean , data=modDF)
+Anova(finalSal)
+plot(finalSal)
 ```
 
 # Emergence and Survival Results
