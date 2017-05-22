@@ -825,6 +825,8 @@ emergOct <- read.csv("../data/emergence/raw/OctoberEmergence.csv")
 emergOct$block <- "fall"
 #drop U3T1 in fall because it was eaten by ants
 emergOct <- filter(emergOct, Tray_Code!="U3T1")
+emergOct <- filter(emergOct, Tray_Code!="S1T3") #dumped
+emergOct <- filter(emergOct, Tray_Code!="U1T4") #dumped
 
 emergAll <- rbind(emergOct, emergAug)
 #expand so each mosquito gets one row
@@ -840,6 +842,9 @@ survSumm <- emergExp %>%
   ungroup() %>%
   dplyr::select(block, Class, Site_Code, Tray_Code, percSurv)
 survSumm <- unique(survSumm)
+
+
+  
 ```
 
 ```{r fillIn function}
@@ -940,9 +945,9 @@ summary(siteEmerg)
 plot(siteEmerg)
 
 #pairwise
-summary(glht(siteEmerg, linfct = mcp(block = "Tukey"), test = adjusted("holm")))
+summary(multcomp::glht(siteEmerg, linfct = multcomp::mcp(block = "Tukey"), test = multcomp::adjusted("holm")))
 
-summary(glht(siteEmerg, linfct = mcp(Class = "Tukey"), test = adjusted("holm")))
+summary(multcomp::glht(siteEmerg, linfct = multcomp::mcp(Class = "Tukey"), test = multcomp::adjusted("holm")))
 
 
 with(survSumm, interaction.plot(x.factor=Class, trace.factor=block, response=percSurv, fun=mean, type="b", legend=T, ylab="Percentage Emerged"))
@@ -960,7 +965,7 @@ ggplot(data=emergExpF, aes(x=Site_Code, y=Exp_Day)) +
   xlab("Site")+
   ggtitle("Day of Emergence by Site")
 
-mixEmerge$block <- as.factor(mixEmerge$block)
+emergExpF$block <- as.factor(emergExpF$block)
 
 mixEmerge <- lmer(Exp_Day ~  0 + block + Class + (1|Site_Code), 
                  data=emergExpF
@@ -971,6 +976,7 @@ summary(mixEmerge)
 confint(mixEmerge)
 
 #pairwise
+library(multcomp)
 summary(glht(mixEmerge, linfct = mcp(block = "Tukey"), test = adjusted("holm")))
 
 summary(glht(mixEmerge, linfct = mcp(Class = "Tukey"), test = adjusted("holm")))
