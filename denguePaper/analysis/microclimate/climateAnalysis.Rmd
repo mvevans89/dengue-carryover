@@ -94,7 +94,7 @@ ggplot(data=climTray[climTray$Block=="Summer",], aes(x=Tray_ID, y=meanT))+
 ```
 
 ```{r}
-climModMean <- lmer(meanT~Class*Block+ (1|Day) + (1|Site_ID), data=climTray)
+climModMean <- lmer(meanT~0 + Class*Block+ (1|Day) + (1|Site_ID), data=climTray)
 plot(climModMean)
 summary(climModMean)
 confint(climModMean)
@@ -118,6 +118,15 @@ summary(climModMin)
 confint(climModMin)
 AIC(climModMin)
 car::Anova(climModMin)
+
+#pairwise stats
+summary(glht(climModMin, linfct = mcp(Class = "Tukey"), test = adjusted("holm")))
+
+summary(glht(climModMin, linfct = mcp(Block = "Tukey"), test = adjusted("holm")))
+
+#pairwise stats-interaction
+intMod <- lmer(minT~classxBlock+ (1|Day) + (1|Site_ID), data=climTray)
+summary(glht(intMod, linfct = mcp(classxBlock = "Tukey"), test = adjusted("holm")))
 
 
 climModMax <- lmer(maxT~0+Class*Block + (1|Day)+ (1|Site_ID), data=climTray)
