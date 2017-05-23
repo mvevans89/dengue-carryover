@@ -402,14 +402,14 @@ mixModelseasonsHead21 <- lme4::glmer(Head~class + block  + (1|site),
                           data=seasons[seasons$DPI=="21",],
                           family=binomial(link="logit"))
 Head21Aov <- car::Anova(mixModelseasonsHead21) #Wald test
-confint(mixModelseasonsHead21) #profiled confidence interval
+#confint(mixModelseasonsHead21) #profiled confidence interval
 
 mixModelseasonsSaliva21 <- lme4::glmer(Saliva~class + block  + (1|site), 
                           data=seasons[seasons$DPI=="21",],
                           family=binomial(link="logit"))
 summary(mixModelseasonsSaliva21) #z-test
 Saliva21Aov <- car::Anova((mixModelseasonsSaliva21)) #Wald test
-confint(mixModelseasonsSaliva21) #profiled confidence interval
+#confint(mixModelseasonsSaliva21) #profiled confidence interval
 ```
 
 We found that infection in the body and head was significantly lower in the summer than the fall. Although there was a trend towards higher infection in the saliva in the summer, this was not significant (p=0.05676).  Land class also influence infection of both the body and head, with urban mosquitoes having lower rates of infection than rural and suburban mosquitoes. Saliva infections were unaffected by land class, however.
@@ -707,7 +707,11 @@ modDF <- na.omit(modDF)
 
 modDF$scaleTemp <- scale(modDF$Temp_mean_mean, center=T, scale = F)
 
-finalBody <- lm(Body_mean~ Temp_mean_mean, data=modDF)
+finalBody <- lm(Body_mean~ exp(Temp_mean_mean), data=modDF)
+finalBodyMix <- lmer(Body_mean~Temp_mean_mean + (1+Temp_mean_mean|block), data=modDF)
+qqnorm(resid(finalBody))
+car::Anova(finalBody)
+summary(finalBody)
 ```
 
 
@@ -904,7 +908,7 @@ km.fit <- survival::survfit(Surv(Exp_Day, event) ~ block + Class, data=allSurv, 
   d <- survminer::surv_summary(km.fit, data=data)
   d$emerge <- (1 - d$surv)*100
   
-png(file="figures/forMS/emergence.png", width = 6, height=4, units="in", res=700)  
+#png(file="figures/forMS/emergence.png", width = 6, height=4, units="in", res=700)  
   ggplot(data=d, aes(x=time, y=emerge, group=factor(strata)))+
     geom_line(aes(color=Class))+
     geom_ribbon(aes(ymin=(1-upper)*100, ymax=(1-lower)*100, fill=Class), alpha=0.4)+
@@ -924,7 +928,7 @@ png(file="figures/forMS/emergence.png", width = 6, height=4, units="in", res=700
         legend.key = element_blank())+
     theme(legend.background = element_rect(fill = "transparent", colour = NA))+
     theme(legend.position="right", legend.direction="vertical")
-dev.off()
+#dev.off()
 ```
 
 This resulted in a difference in both the average time to emergence and survival across season, but not land class.
