@@ -1004,20 +1004,39 @@ survClim <- merge(survSumm, allClim, by.x=c("block","Tray_Code"), by.y=c("block"
 
 ```{r}
 ggplot(data=survClim, aes(x=Temp_mean, y=percSurv))+
-  geom_point(aes(color=Class, shape=block))
+  geom_point(aes(color=Class, shape=block), size=3) +
+  theme_fivethirtyeight()+
+  theme(axis.title = element_text()) +
+  theme(panel.background = element_rect(fill = "transparent", colour = NA), 
+        plot.background = element_rect(fill = "transparent", colour = NA),
+        legend.key = element_blank())+
+  theme(legend.background = element_rect(fill = "transparent", colour = NA))+
+  theme(legend.position="right", legend.direction="vertical") +
+  scale_color_manual(values=c("dodgerblue", "gray10", "maroon"), labels=c("Rural", "Suburban", "Urban"))+
+    scale_fill_manual(values=c("dodgerblue", "gray80", "maroon"), labels=c("Rural", "Suburban", "Urban")) +
+  ylab("Number Females Survived (Out of 50)") +
+  xlab("Mean Temperature (C)")+
+  guides(shape=F)
 ```
 
 
 ```{r}
-survClimMod <- lm(percSurv~Temp_mean,
+survClimMod <- lm(percSurv~Temp_mean, data=survClim)
+ggplot(data=survClim, aes(y=percSurv, x=Temp_mean))+
+  geom_point()+
+  geom_smooth(method="lm")+
+  facet_wrap(~block)
+survClimModmix <- lmer(log(percSurv)~Temp_mean + (1|Site_Code),
                     data=survClim)
 
-plot(survClimMod)
-qqnorm(resid(survClimMod))
-summary(survClimMod)
-coef(survClimMod)
+plot(survClimModmix)
+qqnorm(resid(survClimModmix))
+summary(survClimModmix)
+coef(survClimModmix)
+AIC(survClimModmix)
 
-car::Anova(survClimMod)
+anova(survClimModmix)
+
 ```
 
 
@@ -1030,7 +1049,19 @@ emergClim <- mutate(emergClim, devRate =1/Exp_Day)
 
 ```{r}
 ggplot(data=emergClim, aes(x=Temp_mean, y=devRate))+
-  geom_point(aes(color=Class, shape=block))
+  geom_point(aes(color=Class, shape=block), size=3) +
+  theme_fivethirtyeight()+
+  theme(axis.title = element_text()) +
+  theme(panel.background = element_rect(fill = "transparent", colour = NA), 
+        plot.background = element_rect(fill = "transparent", colour = NA),
+        legend.key = element_blank())+
+  theme(legend.background = element_rect(fill = "transparent", colour = NA))+
+  theme(legend.position="right", legend.direction="vertical") +
+  scale_color_manual(values=c("dodgerblue", "gray10", "maroon"), labels=c("Rural", "Suburban", "Urban"))+
+    scale_fill_manual(values=c("dodgerblue", "gray80", "maroon"), labels=c("Rural", "Suburban", "Urban")) +
+  ylab("Development Rate (1/day)") +
+  xlab("Mean Temperature (C)")+
+  guides(shape=F)
 ```
 
 
