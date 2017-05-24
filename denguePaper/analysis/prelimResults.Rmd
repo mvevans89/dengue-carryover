@@ -857,7 +857,7 @@ emergExp <- emergAll[rep(seq.int(1,nrow(emergAll)), emergAll$Num_Emerge),
 survSumm <- emergExp %>%
   filter(Sex=="F") %>%
   group_by(block, Tray_Code) %>%
-  mutate(percSurv=n()) %>%
+  dplyr::mutate(percSurv=n()) %>%
   ungroup() %>%
   dplyr::select(block, Class, Site_Code, Tray_Code, percSurv)
 survSumm <- unique(survSumm)
@@ -1407,16 +1407,20 @@ growthDF$xAxFwx <- growthDF$Exp_Day*growthDF$AxFwx
 #get sum per day
 
 growthDF2 <- growthDF %>%
-  dplyr::group_by(block, Tray_Code, Class) %>%
+  dplyr::group_by(block, Tray_Code, Class, Site_Code) %>%
   dplyr::summarise(xAxFwx = sum(xAxFwx), AxFwx=sum(AxFwx))
+
 growthDF2 <- growthDF2 %>%
   mutate(r=(log((1/50)*AxFwx))/(14+(xAxFwx/AxFwx)))
+
+levels(growthDF2$block) <- c("Summer", "Fall")
+levels(growthDF2$Class) <- c("Rural", "Suburban", "Urban")
 ```
 
 Plot growth rate:
 
 ```{r}
-levels(growthDF2$block) <- c("Summer", "Fall")
+
 ggplot(data=growthDF2, aes(x=Class, y=r))+
   geom_boxplot()+
   facet_wrap(~block)+
@@ -1447,6 +1451,110 @@ I will calculate the vectorial capacity with the Ross-McDonald equation.
 The per capita growth rate will be used as a proxy of mosquito density. Bite rate, EIP, and adult survival will be calculated using rate summation from Mordecai et al 2017.  Vector competence will be a direct measure by site from our empirical work.
 
 ```{r}
+#from cleaned climate
+#subset out dates I want
+climS <- climate[climate$Day >="2016-08-01" & climate$Day <="2016-09-03",]
+climS$Block <- "summer"
 
+climF <- climate[climate$Day >="2016-09-26" & climate$Day <="2016-11-08",]
+climF$Block <- "fall"
+
+#bind back together
+climAll <- rbind(climS, climF)
+climAll$Date <- as.POSIXct(climAll$Date)
+climAll$Hour <- lubridate::hour(climAll$Date)
+
+parameters <- dplyr::select(climAll, Block, Class, Site_ID, Tray_ID, Temp, Day, Hour)
+```
+
+```{r}
+#a -- bite rate
+parameters$a <- ((1.93/10000)*parameters$Temp*(parameters$Temp-10.25)*((38.32-parameters$Temp)^0.5))/24
+#adjust negatives
+parameters$a[parameters$a<0] <- 0
+parameters$a[is.na(parameters$a)] <- 0
+
+# PDR - parasite development rate
+parameters$PDR <- ((1.09/10000)*parameters$Temp*(parameters$Temp-10.39)*((43.05-parameters$Temp)^0.5))/24
+#adjust negatives
+parameters$PDR[parameters$PDR<0] <- 0
+parameters$PDR[is.na(parameters$PDR)] <- 0
+
+# L - mosquito lifespan
+parameters$L <- (-1.43*(parameters$Temp-13.41)*(parameters$Temp-31.51))/24
+#adjust for zeros
+parameters$L[parameters$L<0] <- 0
+parameters$L[is.na(parameters$L)] <- 0
+
+# we will then calculate the mean and se for these parameters per site and hour, then sum them up for a daily value
+library(dplyr)
+paramRate <- parameters %>%
+  group_by(Block, Class, Site_ID, Hour) %>%
+  select(-Temp, -Day) %>%
+  summarise_each(funs(mean(.,na.rm=T))) %>%
+  ungroup() %>%
+  group_by(Block, Class, Site_ID) %>%
+  summarise_each(funs(sum)) %>%
+  ungroup()
+
+## u - daily probability of mosquito mortality
+paramRate$mu <- 1/paramRate$L
+
+## EIP -
+paramRate$EIP <- 1/paramRate$PDR
+
+paramRate$Block <- as.factor(paramRate$Block)
+levels(paramRate$Block) <- c("Fall", "Summer")
+paramRate$Class <- as.factor(paramRate$Class)
+```
+
+Combine these calculated parameters with field derived growth and vector competence:
+
+```{r}
+growthSite <- growthDF2 %>%
+  dplyr::group_by(block, Class, Site_Code) %>%
+  dplyr::summarise(rCap=mean(r, na.rm=T))
+```
+
+```{r}
+params2 <- merge(paramRate, growthSite, by.x=c("Block", "Class", "Site_ID"), by.y=c("block", "Class", "Site_Code"))
+levels(seasonInfSite$block) <- c("Fall", "Summer") 
+params3 <- merge(params2, seasonInfSite, by.x=c("Block", "Class", "Site_ID"),
+                 by.y=c("block", "class", "site"))
+#add in survival if I want to use that instead of rCap
+siteSurv<- survSumm %>%
+  group_by(block, Class, Site_Code) %>%
+  dplyr::summarise(surv=mean(percSurv, na.rm=T)/50)
+params4 <- merge()
+siteVC <- params3 %>%
+  select(Block, Class, Site_ID, a, EIP, mu, rCap, Saliva_mean) %>%
+  mutate(VC=(rCap*(a^2)*Saliva_mean*mu^EIP)/(-log(mu)))
+```
+
+Plot:
+
+```{r}
+siteVC$Block <- factor(siteVC$Block, levels=c("Summer", "Fall"))
+ggplot(data=siteVC, aes(x=Class, y=VC))+
+  geom_boxplot()+
+  facet_wrap(~Block)+
+  theme_fivethirtyeight() +
+  theme(panel.background = element_rect(fill = "transparent", colour = NA), 
+        plot.background = element_rect(fill = "transparent", colour = NA),
+        legend.key = element_blank())+
+  theme(legend.background = element_rect(fill = "transparent", colour = NA)) +
+    theme(axis.title = element_text(), axis.title.x = element_text()) +
+  ylab("Vectorial Capacity")+
+  xlab("Land Class") +  
+  #ggtitle("Body Size ") +
+  theme(legend.position="right", legend.direction="vertical")+
+  guides(fill=F, color=F) 
+```
+
+Stats:
+
+```{r}
+anova(lm(VC~Class*Block, data=siteVC))
+plot(lm(VC~Class*Block, data=siteVC))
 ```
 
