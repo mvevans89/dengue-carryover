@@ -1350,61 +1350,103 @@ plot(x=modDf$Temp, y=preds)
 
 Temperature had no significant effect on wing length. This makes sense, as we saw very little difference across site and land use, with the exception of suburban sites.
 
-# Vectorial Capacity
+#Growth Rate
 
-To calculate the vectorial capacity, I will use a method similar to that used in Murdock et al. 2017.
+The growth rate is calculated using the Livdahl Stringer Equation.
 
-I will calculate parameters by hour by site for the VC equation and propagate uncertainty through MCMC methods.
+Because I do not have the average wing length per day of emergence for all emergence events, I will use an average per tray for those that emerged prior to when we began mounting wings.
 
 ```{r}
-#from cleaned climate
-#subset out dates I want
-climS <- climate[climate$Day >="2016-08-01" & climate$Day <="2016-09-03",]
-climS$Block <- "summer"
+#calculate means per Exp_Day and Tray
+growthWing <- allWing %>%
+  dplyr::group_by(block,class,site,Tray_ID, Exp_Day) %>%
+  dplyr::summarise(meanWing=mean(mm, na.rm=T)) %>%
+  dplyr::ungroup()
 
-climF <- climate[climate$Day >="2016-09-26" & climate$Day <="2016-11-08",]
-climF$Block <- "fall"
+growthWing$class <- tolower(growthWing$class)
 
-#bind back together
-climAll <- rbind(climS, climF)
-climAll$Date <- as.POSIXct(climAll$Date)
-climAll$Hour <- lubridate::hour(climAll$Date)
+#merge with emergence data
+growthDF <- merge(allEmerg, growthWing, by.x=c("block", "Class", "Site_Code", "Tray_Code", "Exp_Day"), by.y=c("block", "class", "site", "Tray_ID", "Exp_Day"), all.x=T) 
 
-parameters <- dplyr::select(climAll, Block, Class, Site_ID, Tray_ID, Temp, Day, Hour)
+trayMeans <- allWing %>%
+  dplyr::group_by(block, Tray_ID) %>%
+  dplyr::summarise(meanWing=mean(mm, na.rm=T))
+
+#fill in missing with mean of tray during that block
+for (i in 1:nrow(growthDF)){
+  if (is.na(growthDF$meanWing[i])){
+    temp <- trayMeans$meanWing[trayMeans$block==growthDF$block[i] & trayMeans$Tray_ID==growthDF$Tray_Code[i]]
+    if (length(temp)==0) next
+    growthDF$meanWing[i] <- temp
+  } else next
+}
+
+#some trays had no mosquitoes emerge that weren't infected, so we take the site level mean for them
+
+siteMeans <- allWing %>%
+  dplyr::group_by(site, block) %>%
+  dplyr::summarise(meanWing=mean(mm, na.rm=T))
+
+for (i in 1:nrow(growthDF)){
+  if (is.na(growthDF$meanWing[i])){
+    temp <- siteMeans$meanWing[siteMeans$block==growthDF$block[i] & siteMeans$site==growthDF$Site_Code[i]]
+    if (length(temp)==0) next
+    growthDF$meanWing[i] <- temp
+  } else next
+}
+
 ```
 
-We will need to combine this with the mosquito development rate and survival per site.
-
-
-Calculate parameters based on equations from Mordecai et al 2017.
+Then calculate the per capita growth rate:
 
 ```{r}
-#a -- bite rate
-parameters$a <- (1.93/10000)*parameters$Temp*(parameters$Temp-10.25)*((38.32-parameters$Temp)^0.5)/24
-#adjust negatives
-parameters$a[parameters$a<0] <- 0
-parameters$a[is.na(parameters$a)] <- 0
+growthDF$Fwx <- -121.240 + (78.02 * growthDF$meanWing)
+growthDF$AxFwx <- growthDF$Num_Emerge*growthDF$Fwx
+growthDF$xAxFwx <- growthDF$Exp_Day*growthDF$AxFwx
 
-# PDR - parasite development rate
-parameters$PDR <- (1.09/10000)*parameters$Temp*(parameters$Temp-10.39)*((43.05-parameters$Temp)^0.5)/24
-#adjust negatives
-parameters$PDR[parameters$PDR<0] <- 0
-parameters$PDR[is.na(parameters$PDR)] <- 0
+#get sum per day
 
-# L - mosquito lifespan
-parameters$L <- -1.43*(parameters$Temp-13.41)*(parameters$Temp-31.51)/24
-#adjust for zeros
-parameters$L[parameters$L<0] <- 0
-parameters$L[is.na(parameters$L)] <- 0
+growthDF2 <- growthDF %>%
+  dplyr::group_by(block, Tray_Code, Class) %>%
+  dplyr::summarise(xAxFwx = sum(xAxFwx), AxFwx=sum(AxFwx))
+growthDF2 <- growthDF2 %>%
+  mutate(r=(log((1/50)*AxFwx))/(14+(xAxFwx/AxFwx)))
+```
 
-# we will then calculate the mean and se for these parameters per site and hour
-paramRate <- parameters %>%
-  group_by(Block, Class, Site_ID, Hour) %>%
-  select(-Temp, -Day,) %>%
-  summarise_each(funs(mean(.,na.rm=T), sd=sd())) %>%
-  ungroup()
+Plot growth rate:
 
+```{r}
+levels(growthDF2$block) <- c("Summer", "Fall")
+ggplot(data=growthDF2, aes(x=Class, y=r))+
+  geom_boxplot()+
+  facet_wrap(~block)+
+  theme_fivethirtyeight() +
+  theme(panel.background = element_rect(fill = "transparent", colour = NA), 
+        plot.background = element_rect(fill = "transparent", colour = NA),
+        legend.key = element_blank())+
+  theme(legend.background = element_rect(fill = "transparent", colour = NA)) +
+    theme(axis.title = element_text(), axis.title.x = element_text()) +
+  ylab("Per Capita Growth Rate (r')")+
+  xlab("Land Class") +  
+  #ggtitle("Body Size ") +
+  theme(legend.position="right", legend.direction="vertical")+
+  guides(fill=F, color=F) 
+```
 
+Growth rate stats:
+
+```{r}
+anova(lm(r~Class*block, data=growthDF2)) #only block is significant
+plot(lm(r~Class*block, data=growthDF2))
+```
+
+#Vectorial capacity using Ross-McDonald equation
+
+I will calculate the vectorial capacity with the Ross-McDonald equation. 
+
+The per capita growth rate will be used as a proxy of mosquito density. Bite rate, EIP, and adult survival will be calculated using rate summation from Mordecai et al 2017.  Vector competence will be a direct measure by site from our empirical work.
+
+```{r}
 
 ```
 
