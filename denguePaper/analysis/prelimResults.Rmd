@@ -719,19 +719,15 @@ modDF <- seasonInfSite %>%
   dplyr::select(one_of(myCols)) 
 modDF <- na.omit(modDF)
 
-modDF$scaleTemp <- scale(modDF$Temp_mean_mean, center=T, scale = F)
+#modDF$scaleTemp <- scale(modDF$Temp_mean_mean, center=T, scale = F)
 
-finalBody <- lm(Body_mean~ exp(Temp_mean_mean), data=modDF)
+finalBody <- lm(exp(Body_mean)~ Temp_mean_mean, data=modDF)
 plot(finalBody)
 car::Anova(finalBody)
 confint(finalBody)
 summary(finalBody)
+with(modDF,plot(y=exp(Body_mean), x=Temp_mean_mean))
 ```
-
-
-The final linear mixed model included mean temperature as a fixed effect. It had a marginal $r^2$ of `r  round(MuMIn::r.squaredGLMM(finalBodyMix)[[1]],3)`. It also had the lowest AIC value out of all models.  
-
-The relationship between mean temperature and body infection is negative ($\beta$=`r round(coef(finalBody)[[2]], 3)`) and significant ($p<0.05$). Higher temperatures seem to be leading to lower body infection rates.  Additionally, the relationship seems qualitatively different over the seasons, with the season as a random intercept explaining nearly as much of the variance as the mean temperature ($r^2_{GLMM_c}$=`r  round(MuMIn::r.squaredGLMM(finalBody)[[2]],3)`). This may be because the summer temperatures are near the thermal optimum, where the effect of temperature is more pronounced.
 
 ```{r body x meanT plot, fig.width=6, fig.height=4}
 #png(file="figures/forMS/bodyInfxMeanTemp.png", width = 6, height=4, units="in", res=500, family="sans")
@@ -769,9 +765,10 @@ modDF <- seasonInfSite %>%
   dplyr::select(one_of(myCols)) 
 modDF <- na.omit(modDF)
 
-finalHead <- lm(Head_mean~ exp(Temp_mean_mean), data=modDF)
+finalHead <- lm(exp(Head_mean)~ Temp_mean_mean, data=modDF)
 Anova(finalHead)
 plot(finalHead)
+summary(finalHead)
 ```
 
 The final linear mixed model included mean temperature as a fixed effect. It had a marginal $r^2$ of `r  round(MuMIn::r.squaredGLMM(finalHead)[[1]],3)`. It only had the second lowest AIC value out of the models, however the marginal $r^2$ of the model with the lowest AIC, which included mean temperature and relative humidity and their interaction, was much lower than that of the final model, and included additional variables.
@@ -828,6 +825,7 @@ modDF <- na.omit(modDF)
 finalSal <- lm(Saliva_mean~ Temp_mean_mean, data=modDF)
 Anova(finalSal)
 plot(finalSal)
+summary(finalSal)
 ```
 
 # Emergence and Survival Results
@@ -1158,7 +1156,7 @@ allWing <- allWing %>%
 ```
 
 ```{r}
-wingMix <- lmer(mm~0 +block+class +(1|site),
+wingMix <- lmer(mm~0 + class*block +(1|site),
                 data=allWing)
 summary(wingMix)
 plot(wingMix)
@@ -1333,7 +1331,7 @@ ggplot(data=allWing, aes(x=Temp, y=mm)) +
 
 ```{r}
 modDf <- na.omit(allWing)
-wingTemp <- lm(mm~Temp,
+wingTemp <- lmer(mm~Temp + (1|site),
                  data=modDf)
 summary(wingTemp)
 plot(wingTemp)
@@ -1420,9 +1418,10 @@ levels(growthDF2$Class) <- c("Rural", "Suburban", "Urban")
 Plot growth rate:
 
 ```{r}
-
+#png(file="figures/forMS/growthRateFig.png", width = 6, height=4, units="in", res=500, family="sans")
 ggplot(data=growthDF2, aes(x=Class, y=r))+
-  geom_boxplot()+
+  geom_violin(aes(color=Class))+
+  geom_jitter(aes(color=Class), width=0.1, height=0)+
   facet_wrap(~block)+
   theme_fivethirtyeight() +
   theme(panel.background = element_rect(fill = "transparent", colour = NA), 
@@ -1432,16 +1431,20 @@ ggplot(data=growthDF2, aes(x=Class, y=r))+
     theme(axis.title = element_text(), axis.title.x = element_text()) +
   ylab("Per Capita Growth Rate (r')")+
   xlab("Land Class") +  
-  #ggtitle("Body Size ") +
+  scale_color_manual(values=c(colR, "gray30", colU)) +
   theme(legend.position="right", legend.direction="vertical")+
   guides(fill=F, color=F) 
+#dev.off()
 ```
 
 Growth rate stats:
 
 ```{r}
-anova(lm(r~Class*block, data=growthDF2)) #only block is significant
-plot(lm(r~Class*block, data=growthDF2))
+growthMix <- lmer(r~ block + Class + (1|Site_Code), data=growthDF2)
+summary(growthMix)
+anova(growthMix) #only block is significant
+plot(growthMix)
+confint(growthMix)
 ```
 
 #Vectorial capacity using Ross-McDonald equation
