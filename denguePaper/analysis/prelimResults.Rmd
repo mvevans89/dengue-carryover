@@ -1447,7 +1447,7 @@ plot(growthMix)
 confint(growthMix)
 ```
 
-#Vectorial capacity using Ross-McDonald equation
+#Vectorial capacity using Mordecai et al 2017
 
 I will calculate the vectorial capacity with the equation from Mordecai et al. 2017:
 
@@ -1608,45 +1608,48 @@ Calculate EFD with total eggs and gonotrophic cycle duration (assumed to be inve
 paramRate$EFD <- paramRate$fecundity*paramRate$a
 ```
 
+Calculate R_0
+
 ```{r}
-params2 <- merge(paramRate, growthSite, by.x=c("Block", "Class", "Site_ID"), by.y=c("block", "Class", "Site_Code"))
-levels(seasonInfSite$block) <- c("Fall", "Summer") 
-params3 <- merge(params2, seasonInfSite, by.x=c("Block", "Class", "Site_ID"),
-                 by.y=c("block", "class", "site"))
-#add in survival if I want to use that instead of rCap
-siteSurv<- survSumm %>%
-  group_by(block, Class, Site_Code) %>%
-  dplyr::summarise(surv=mean(percSurv, na.rm=T)/50)
-params4 <- merge()
-siteVC <- params3 %>%
-  select(Block, Class, Site_ID, a, EIP, mu, rCap, Saliva_mean) %>%
-  mutate(VC=(rCap*(a^2)*Saliva_mean*mu^EIP)/(-log(mu)))
+N=100000 #human density
+r=0.1 # human recovery rate
+paramRate <- mutate(paramRate, 
+                    R0=(((a^2)*bc*(exp(-mu/PDR))*EFD*pEA*(MDR^2))/(N*r*(mu^3)))^(1/2))
 ```
+
 
 Plot:
 
 ```{r}
-siteVC$Block <- factor(siteVC$Block, levels=c("Summer", "Fall"))
-ggplot(data=siteVC, aes(x=Class, y=VC))+
-  geom_boxplot()+
-  facet_wrap(~Block)+
+paramRate$block <- as.factor(paramRate$block)
+levels(paramRate$block) <- c("Fall","Summer")
+#png(file="figures/forMS/relativeR0.png", width = 6, height=4, units="in", res=500, family="sans")
+ggplot(data=paramRate, aes(x=factor(Class), y=R0))+
+  #geom_boxplot(aes(color=Class))+
+  geom_point(aes(color=Class), size=3) +
+  facet_wrap(~factor(block))+
   theme_fivethirtyeight() +
+  scale_color_manual(values=c(colR, colS, colU)) +
   theme(panel.background = element_rect(fill = "transparent", colour = NA), 
         plot.background = element_rect(fill = "transparent", colour = NA),
         legend.key = element_blank())+
   theme(legend.background = element_rect(fill = "transparent", colour = NA)) +
     theme(axis.title = element_text(), axis.title.x = element_text()) +
-  ylab("Vectorial Capacity")+
+  ylab("Relative R0")+
   xlab("Land Class") +  
-  #ggtitle("Body Size ") +
+  scale_x_discrete(name=c("Rural", "Suburban", "Urban"))+
   theme(legend.position="right", legend.direction="vertical")+
   guides(fill=F, color=F) 
+#dev.off()
 ```
 
 Stats:
 
 ```{r}
-anova(lm(VC~Class*Block, data=siteVC))
-plot(lm(VC~Class*Block, data=siteVC))
+r0mod <- lm(R0~block, data=paramRate)
+plot(r0mod)
+summary(r0mod)
+anova(r0mod)
 ```
 
+There was a significant difference across season, but not land class.
