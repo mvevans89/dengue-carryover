@@ -1449,9 +1449,11 @@ confint(growthMix)
 
 #Vectorial capacity using Ross-McDonald equation
 
-I will calculate the vectorial capacity with the Ross-McDonald equation. 
+I will calculate the vectorial capacity with the equation from Mordecai et al. 2017:
 
-The per capita growth rate will be used as a proxy of mosquito density. Bite rate, EIP, and adult survival will be calculated using rate summation from Mordecai et al 2017.  Vector competence will be a direct measure by site from our empirical work.
+$$ R_0(T) = \left (\frac{a(T)^2b(T)c(T)e^{-\mu (T)/PDR(T)}EFD(T)p_{EA}(T)MDR(T)} {Nr\mu(T)^3}  \right ) ^{1/2} $$
+
+Bite rate, EIP, and adult survival will be calculated using rate summation from Mordecai et al 2017.  Vector competence, eggs per female per day, egg to adult survival probability and mosquito immature development rate are empirically measured. Human population density and recovery rate are held constant.
 
 ```{r}
 #from cleaned climate
@@ -1470,7 +1472,9 @@ climAll$Hour <- lubridate::hour(climAll$Date)
 parameters <- dplyr::select(climAll, Block, Class, Site_ID, Tray_ID, Temp, Day, Hour)
 ```
 
-```{r}
+Calculated with environmental temperatures:
+
+```{r, eval=F}
 #a -- bite rate
 parameters$a <- ((1.93/10000)*parameters$Temp*(parameters$Temp-10.25)*((38.32-parameters$Temp)^0.5))/24
 #adjust negatives
@@ -1500,23 +1504,108 @@ paramRate <- parameters %>%
   summarise_each(funs(sum)) %>%
   ungroup()
 
+paramRate <- dplyr::rename(paramRate, Site_Code=Site_ID)
+paramRate <- dplyr::rename(paramRate, block=Block)
+
 ## u - daily probability of mosquito mortality
 paramRate$mu <- 1/paramRate$L
 
 ## EIP -
-paramRate$EIP <- 1/paramRate$PDR
+#paramRate$EIP <- 1/paramRate$PDR
 
-paramRate$Block <- as.factor(paramRate$Block)
-levels(paramRate$Block) <- c("Fall", "Summer")
-paramRate$Class <- as.factor(paramRate$Class)
+paramRate$block <- tolower(paramRate$block)
+paramRate$Class <- tolower(paramRate$Class)
 ```
 
-Combine these calculated parameters with field derived growth and vector competence:
+Calculated set at 27C constant (x=27):
+
+Briere:  y ~ a * x * (x - t0) * (tmax - x)^(1/2)
+Quad: y ~ a * (x-t0) * (x-Tmax)
 
 ```{r}
-growthSite <- growthDF2 %>%
-  dplyr::group_by(block, Class, Site_Code) %>%
-  dplyr::summarise(rCap=mean(r, na.rm=T))
+parameters <- unique(dplyr::select(climAll, Block, Class, Site_ID))
+#a -- bite rate
+parameters$a <- ((1.93/10000)*27*(27-10.25)*((38.32-27)^0.5))
+#adjust negatives
+parameters$a[parameters$a<0] <- 0
+parameters$a[is.na(parameters$a)] <- 0
+
+# PDR - parasite development rate
+parameters$PDR <- ((1.09/10000)*27*(27-10.39)*((43.05-27)^0.5))
+#adjust negatives
+parameters$PDR[parameters$PDR<0] <- 0
+parameters$PDR[is.na(parameters$PDR)] <- 0
+
+# lf - mosquito lifespan
+parameters$lf <- -1.43*(27- 13.41)*(27-31.51)
+#adjust for zeros
+parameters$lf[parameters$lf<0] <- 0
+parameters$lf[is.na(parameters$lf)] <- 0
+
+# we will then calculate the mean and se for these parameters per site and hour, then sum them up for a daily value
+library(dplyr)
+
+paramRate <- parameters
+
+paramRate <- dplyr::rename(paramRate, Site_Code=Site_ID)
+paramRate <- dplyr::rename(paramRate, block=Block)
+
+## u - daily probability of mosquito mortality
+paramRate$mu <- 1/paramRate$lf
+
+## EIP -
+#paramRate$EIP <- 1/paramRate$PDR
+
+paramRate$block <- tolower(paramRate$block)
+paramRate$Class <- tolower(paramRate$Class)
+```
+
+Combine these calculated parameters with field EFD, survival, and emergence rates and vector competence:
+
+```{r}
+#EFD: from wing length
+EFD  <- allWing %>%
+  group_by(block, Class=class, Site_Code=site) %>%
+  dplyr::summarise(wingL=mean(mm, na.rm=T)) %>%
+  ungroup() %>%
+  mutate(fecundity=-121.240 + (78.02*wingL))
+EFD$block <- tolower(EFD$block)
+EFD$Class <- tolower(EFD$Class)
+
+#pEA: larval survival
+pEA <- survClim %>%
+  group_by(block, Class, Site_Code) %>%
+  dplyr::summarise(pEA=mean((percSurv/50), na.rm=T))
+pEA$block <- tolower(pEA$block)
+pEA$Class <- tolower(pEA$Class)
+
+#MDR: emergence rate (day^-1)
+MDR <- emergExpF %>%
+  group_by(block, Class, Site_Code) %>%
+  dplyr::summarise(emerDay=mean(Exp_Day, na.rm=T)) %>%
+  mutate(MDR=1/emerDay)
+MDR$block <- tolower(MDR$block)
+MDR$Class <- tolower(MDR$Class)
+
+#bc
+bc <- seasonInfSite %>%
+  select(block, Class=class, Site_Code=site, bc=Saliva_mean)
+bc$block <- tolower(bc$block)
+bc$Class <- tolower(bc$Class)
+```
+
+Merge all of the estimated and measured traits together
+
+```{r}
+paramRate <- full_join(paramRate, EFD, by=c("block", "Class", "Site_Code"))
+paramRate <- full_join(paramRate, pEA, by=c("block", "Class", "Site_Code"))
+paramRate <- full_join(paramRate, MDR, by=c("block", "Class", "Site_Code"))
+paramRate <- full_join(paramRate, bc, by=c("block", "Class", "Site_Code"))
+```
+
+Calculate EFD with total eggs and gonotrophic cycle duration (assumed to be inverse of bite rate re: Mordecai et al.)
+```{r}
+paramRate$EFD <- paramRate$fecundity*paramRate$a
 ```
 
 ```{r}
