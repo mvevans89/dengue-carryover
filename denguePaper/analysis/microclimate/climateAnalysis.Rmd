@@ -106,17 +106,15 @@ rm(summer,fall)
 
 climTray <- climBlocks %>%
   group_by(Block, Tray_ID, Day, Site_ID, Class) %>%
-  summarise(meanT=mean(Temp), minT=min(Temp), maxT=max(Temp), meanRH=mean(RH), maxRH=max(RH), minRH=min(RH), DTR=max(Temp)- min(Temp), DHR=max(RH)- min(RH))
+  dplyr::summarise(meanT=mean(Temp), minT=min(Temp), maxT=max(Temp), meanRH=mean(RH), maxRH=max(RH), minRH=min(RH), DTR=max(Temp)- min(Temp), DHR=max(RH)- min(RH))
 
 climTray$classxBlock <- interaction(climTray$Class, climTray$Block)
 ```
 
-```{r}
-ggplot(data=climTray[climTray$Block=="Summer",], aes(x=Tray_ID, y=meanT))+
-  geom_boxplot()
-```
+Temperature:
 
 ```{r}
+##------------ Mean T
 climModMean <- lmer(meanT~0 + Class*Block+ (1|Day) + (1|Site_ID), data=climTray)
 plot(climModMean)
 summary(climModMean)
@@ -135,6 +133,8 @@ summary(glht(intMod, linfct = mcp(classxBlock = "Tukey"), test = adjusted("holm"
 
 anova(climModMean, intMod)
 
+##------------ Min T
+
 climModMin <- lmer(minT~0+Class*Block + (1|Day) + (1|Site_ID), data=climTray)
 plot(climModMin)
 summary(climModMin)
@@ -151,7 +151,7 @@ summary(glht(climModMin, linfct = mcp(Block = "Tukey"), test = adjusted("holm"))
 intMod <- lmer(minT~classxBlock+ (1|Day) + (1|Site_ID), data=climTray)
 summary(glht(intMod, linfct = mcp(classxBlock = "Tukey"), test = adjusted("holm")))
 
-
+##------------ Max T
 climModMax <- lmer(maxT~0+Class*Block + (1|Day)+ (1|Site_ID), data=climTray)
 plot(climModMax)
 summary(climModMax)
@@ -165,12 +165,94 @@ summary(glht(climModMax, linfct = mcp(Class = "Tukey"), test = adjusted("holm"))
 #pairwise stats
 summary(glht(climModMax, linfct = mcp(Block = "Tukey"), test = adjusted("holm")))
 
+##------------ DTR
+climModDTR <- lmer(DTR~0+Class*Block + (1|Day)+ (1|Site_ID), data=climTray)
+plot(climModDTR)
+summary(climModDTR)
+confint(climModDTR)
+
+car::Anova(climModDTR)
+
+#pairwise stats
+summary(glht(climModDTR, linfct = mcp(Class = "Tukey"), test = adjusted("holm")))
+
+#pairwise stats
+summary(glht(climModDTR, linfct = mcp(Block = "Tukey"), test = adjusted("holm")))
 ```
 
 Urban sites are significantly hotter than rural and suburban sites, where there is no difference. This is exactly what we found last year. Surprisingly, rural sites had the hottest maximum temperature. This may explain some of our differences from 2015.
 
-## Compare summer and fall
+Relative Humidity:
+```{r}
+## ------ mean RH
+climModMeanRH <- lmer(meanRH~0 + Class*Block+ (1|Day) + (1|Site_ID), data=climTray)
+plot(climModMeanRH)
+summary(climModMeanRH)
+confint(climModMeanRH)
+AIC(climModMeanRH)
+car::Anova(climModMeanRH)
 
+#pairwise stats
+summary(glht(climModMeanRH, linfct = mcp(Class = "Tukey"), test = adjusted("holm")))
+
+summary(glht(climModMeanRH, linfct = mcp(Block = "Tukey"), test = adjusted("holm")))
+
+#pairwise stats-interaction
+intMod <- lmer(meanRH~classxBlock+ (1|Day) + (1|Site_ID), data=climTray)
+summary(glht(intMod, linfct = mcp(classxBlock = "Tukey"), test = adjusted("holm")))
+
+anova(climModMeanRH, intMod)
+
+## ------ min RH
+
+climModMinRH <- lmer(minRH~0+Class*Block + (1|Day) + (1|Site_ID), data=climTray)
+plot(climModMinRH)
+summary(climModMinRH)
+confint(climModMinRH)
+AIC(climModMinRH)
+car::Anova(climModMinRH)
+
+#pairwise stats
+summary(glht(climModMinRH, linfct = mcp(Class = "Tukey"), test = adjusted("holm")))
+
+summary(glht(climModMinRH, linfct = mcp(Block = "Tukey"), test = adjusted("holm")))
+
+#pairwise stats-interaction
+intMod <- lmer(minRH~classxBlock+ (1|Day) + (1|Site_ID), data=climTray)
+summary(glht(intMod, linfct = mcp(classxBlock = "Tukey"), test = adjusted("holm")))
+
+## ------ max RH: can't do becuase of crazy distribution
+
+# climModMaxRH <- lmer(maxRH~0+Class*Block + (1|Day)+ (1|Site_ID), data=climTray)
+# plot(climModMaxRH)
+# summary(climModMaxRH)
+# confint(climModMaxRH)
+# 
+# car::Anova(climModMaxRH)
+# 
+# #pairwise stats
+# summary(glht(climModMaxRH, linfct = mcp(Class = "Tukey"), test = adjusted("holm")))
+# 
+# #pairwise stats
+# summary(glht(climModMaxRH, linfct = mcp(Block = "Tukey"), test = adjusted("holm")))
+
+## ------ DHR
+
+climModDHR <- lmer(DHR~0+Class*Block + (1|Day)+ (1|Site_ID), data=climTray)
+plot(climModDHR)
+summary(climModDHR)
+confint(climModDHR)
+
+car::Anova(climModDHR)
+
+#pairwise stats
+summary(glht(climModDHR, linfct = mcp(Class = "Tukey"), test = adjusted("holm")))
+
+#pairwise stats
+summary(glht(climModDHR, linfct = mcp(Block = "Tukey"), test = adjusted("holm")))
+```
+
+## Compare summer and fall
 
 ```{r}
 ggplot(data=climTray, aes(x=Block, y=meanT)) +
@@ -179,4 +261,13 @@ ggplot(data=climTray, aes(x=Block, y=meanT)) +
 summary(aov(Temp~Block, data=climBlocks))
 ```
 
-Summer is definitely hotter than the fall (seem unnecessary to plot but there you go)
+Summer is definitely hotter than the fall (seems unnecessary to plot but there you go)
+
+```{r}
+ggplot(data=climTray, aes(x=Class, y=DHR)) +
+  geom_boxplot() +
+  facet_wrap(~Block)
+
+summary(aov(Temp~Block, data=climBlocks))
+```
+
