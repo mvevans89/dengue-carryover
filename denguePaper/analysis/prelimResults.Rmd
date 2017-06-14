@@ -403,6 +403,7 @@ mixModelseasonsHead21 <- lme4::glmer(Head~class + block  + (1|site),
                           family=binomial(link="logit"))
 Head21Aov <- car::Anova(mixModelseasonsHead21) #Wald test
 #confint(mixModelseasonsHead21) #profiled confidence interval
+drop1(mixModelseasonsHead21, test="Chisq")
 
 mixModelseasonsSaliva21 <- lme4::glmer(Saliva~class + block  + (1|site), 
                           data=seasons[seasons$DPI=="21",],
@@ -410,13 +411,15 @@ mixModelseasonsSaliva21 <- lme4::glmer(Saliva~class + block  + (1|site),
 summary(mixModelseasonsSaliva21) #z-test
 Saliva21Aov <- car::Anova((mixModelseasonsSaliva21)) #Wald test
 #confint(mixModelseasonsSaliva21) #profiled confidence interval
+drop1(mixModelseasonsSaliva21, test="Chisq")
 ```
 
-We found that infection in the body and head was significantly lower in the summer than the fall. Although there was a trend towards higher infection in the saliva in the summer, this was not significant (p=0.05676).  Land class also influence infection of both the body and head, with urban mosquitoes having lower rates of infection than rural and suburban mosquitoes. Saliva infections were unaffected by land class, however.
+We found that infection in the body and head was significantly lower in the summer than the fall. Although there was a trend towards higher infection in the saliva in the summer, this was not significant (p=0.05676).  Land class also influenced infection of both the body and head, with urban mosquitoes having lower rates of infection than rural and suburban mosquitoes. Saliva infections were unaffected by land class, however.
 
 ```{r seasonal infection tables, results='asis', eval=T}
 knitr::kable(Body21Aov, caption="Mixed model Wald Test for body level infections.")
 knitr::kable(Head21Aov, caption="Mixed model Wald Test for head infections.")
+knitr::kable(Saliva21Aov, caption="Mixed model Wald Test for Saliva infections.")
 ```
 
 
@@ -694,6 +697,9 @@ seasonSite <- seasons %>%
 
 #group with temperature data
 seasonInfSite <- merge(seasonSite, rbind(augEnvVar,octEnvVar), by.x=c("block", "site"), by.y=c("block", "Site_Code"))
+
+#correlations
+cor(seasonInfSite[,10:18])
 ```
 
 Based on our findings above, we wanted to investigate if these patterns across season and class could be driven by microclimate, and how.
@@ -712,21 +718,39 @@ LASSO regression identified mean, minimum, and maximum temperatures and daily te
 
 ```{r body inf x climate stats}
 respV <- "Body_mean"
-predVs <- c("Temp_mean_mean","RH_mean_mean","Temp_min_mean","RH_min_mean", "Temp_max_mean", "DTR_mean", "hoursAbove31_mean", "hoursBelow16_mean")
+predVs <- c("Temp_mean_mean","RH_mean_mean")
 
-myCols <- c(respV, predVs, "block")
+myCols <- c(respV, predVs, "block", "site")
 modDF <- seasonInfSite %>%
   dplyr::select(one_of(myCols)) 
 modDF <- na.omit(modDF)
 
+ggplot(data=modDF, aes(y=Temp_mean_mean, x=RH_mean_mean))+ #can include RH if I want becuase corr=0.74 and vif is good
+  geom_point(aes(size=Body_mean))
+
+ggplot(data=modDF, aes(x=log(Temp_mean_mean), y=Body_mean))+
+  geom_point()+
+  geom_smooth(method="lm")
+
+ggplot(data=modDF, aes(x=RH_mean_mean, y=Body_mean))+
+  geom_point()
+
 #modDF$scaleTemp <- scale(modDF$Temp_mean_mean, center=T, scale = F)
 
-finalBody <- lm(exp(Body_mean)~ Temp_mean_mean, data=modDF)
-plot(finalBody)
+finalBody <- lm(Body_mean ~ Temp_mean_mean+ RH_mean_mean, data=modDF)
+AIC(finalBody)
+qqPlot(finalBody, labels=modDF$site)
+plot(cooks.distance(finalBody))
+abline(h=4/length(modDF), lty=2)
 car::Anova(finalBody)
-confint(finalBody)
+#confint(finalBody)
 summary(finalBody)
-with(modDF,plot(y=exp(Body_mean), x=Temp_mean_mean))
+
+outlierTest(finalBody)
+leveragePlots(finalBody)
+vif(finalBody)
+sqrt(vif(finalBody))>2
+
 ```
 
 ```{r body x meanT plot, fig.width=6, fig.height=4}
@@ -747,7 +771,7 @@ ggplot(data=seasonInfSite, aes(x=Temp_mean_mean, y=Body_mean))+
   xlab("Mean Daily Temperature (C)") +  
   ggtitle("Infection Rates and Mean Temp.") +
   theme(legend.position="right", legend.direction="vertical") +
-  stat_function(fun=function(Temp_mean_mean) 0.6038 - (9.646*10^(-13))*exp(Temp_mean_mean))
+  stat_function(fun=function(Temp_mean_mean) 1.31354 - 0.03624*(Temp_mean_mean))
 #dev.off()
 ```
 
@@ -826,6 +850,62 @@ finalSal <- lm(Saliva_mean~ Temp_mean_mean, data=modDF)
 Anova(finalSal)
 plot(finalSal)
 summary(finalSal)
+```
+
+Three panel plot of infection dynamics and temperature
+```{r}
+  
+#png(file="../figures/forMS/InfxTemp3Panel.png", width = 4, height=7, units="in", res=500, family="sans")
+plotBody <- ggplot(data=seasonInfSite, aes(x=Temp_mean_mean, y=Body_mean))+
+  geom_errorbar(aes(ymin=Body_mean-Body_se, ymax=Body_mean+Body_se), color="gray20", width=0.1) +
+  #geom_errorbarh(aes(xmin=Temp_mean_mean-Temp_mean_se, xmax=Temp_mean_mean+Temp_mean_se, y=Body_mean),color="gray20", height=0.05) + #not enough error to see
+  geom_point(aes(color=class, shape=block), size=4.5) + 
+  scale_color_manual(values=c(colRural, colSuburban, colUrban)) +
+  theme_fivethirtyeight() +
+    theme(panel.background = element_rect(fill = "transparent", colour = NA), 
+        plot.background = element_rect(fill = "transparent", colour = NA),
+        legend.key = element_blank())+
+  theme(legend.background = element_rect(fill = "transparent", colour = NA)) +
+    theme(axis.title = element_text(), axis.title.x = element_text()) +
+  ylab("Prop. Infected")+
+  xlab("Mean Daily Temperature (C)") +  
+  theme(legend.position="none")
+
+plotHead <- ggplot(data=seasonInfSite, aes(x=Temp_mean_mean, y=Head_mean))+
+   geom_errorbar(aes(ymin=Head_mean-Head_se, ymax=Head_mean+Head_se), color="gray20", width=0.1) +
+  #geom_errorbarh(aes(xmin=Temp_mean_mean-Temp_mean_se, xmax=Temp_mean_mean+Temp_mean_se), color="gray20", height=0.05) +
+  geom_point(aes(color=class, shape=block), size=4) + 
+  scale_color_manual(values=c(colRural, colSuburban, colUrban)) +
+  theme_fivethirtyeight() +
+    theme(panel.background = element_rect(fill = "transparent", colour = NA), 
+        plot.background = element_rect(fill = "transparent", colour = NA),
+        legend.key = element_blank())+
+  theme(legend.background = element_rect(fill = "transparent", colour = NA)) +
+    theme(axis.title = element_text(), axis.title.x = element_text())+
+  ylab("Prop. Disseminated")+
+  xlab("Mean Daily Temperature (C)")+
+  theme(legend.position="none")
+
+plotSaliva <- ggplot(data=seasonInfSite, aes(x=Temp_mean_mean, y=Saliva_mean))+
+  geom_errorbar(aes(ymin=Saliva_mean-Saliva_se, ymax=Saliva_mean+Saliva_se), color="gray20", width=0.1) +
+  #geom_errorbarh(aes(xmin=Temp_mean_mean-Temp_mean_se, xmax=Temp_mean_mean+Temp_mean_se, y=Body_mean),color="gray20", height=0.05) + #not enough error to see
+  geom_point(aes(color=class, shape=block), size=4.5) + 
+  scale_color_manual(values=c(colRural, colSuburban, colUrban)) +
+  theme_fivethirtyeight() +
+    theme(panel.background = element_rect(fill = "transparent", colour = NA), 
+        plot.background = element_rect(fill = "transparent", colour = NA),
+        legend.key = element_blank())+
+  theme(legend.background = element_rect(fill = "transparent", colour = NA)) +
+    theme(axis.title = element_text(), axis.title.x = element_text()) +
+  ylab("Prop. Infectious")+
+  xlab("Mean Daily Temperature (C)") +  
+  scale_y_continuous(limits=c(0,1))+
+  #theme(legend.position="right", legend.direction="vertical")
+  theme(legend.position="none")
+
+
+plot_grid(plotBody, plotHead, plotSaliva, labels=c("A", "B", "C"), ncol=3)
+#dev.off()
 ```
 
 # Emergence and Survival Results
