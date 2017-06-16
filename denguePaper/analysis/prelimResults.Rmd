@@ -720,13 +720,14 @@ LASSO regression identified mean, minimum, and maximum temperatures and daily te
 respV <- "Body_mean"
 predVs <- c("Temp_mean_mean","RH_mean_mean")
 
-myCols <- c(respV, predVs, "block", "site")
+myCols <- c(respV, predVs, "block","class", "site")
 modDF <- seasonInfSite %>%
   dplyr::select(one_of(myCols)) 
 modDF <- na.omit(modDF)
 
 ggplot(data=modDF, aes(y=Temp_mean_mean, x=RH_mean_mean))+ #can include RH if I want becuase corr=0.74 and vif is good
-  geom_point(aes(size=Body_mean))
+  geom_point(aes(size=Body_mean, color=class), pch=1)+
+  theme_base()
 
 ggplot(data=modDF, aes(x=log(Temp_mean_mean), y=Body_mean))+
   geom_point()+
@@ -737,7 +738,7 @@ ggplot(data=modDF, aes(x=RH_mean_mean, y=Body_mean))+
 
 #modDF$scaleTemp <- scale(modDF$Temp_mean_mean, center=T, scale = F)
 
-finalBody <- lm(Body_mean ~ Temp_mean_mean+ RH_mean_mean, data=modDF)
+finalBody <- lm(Body_mean ~ Temp_mean_mean + RH_mean_mean, data=modDF)
 AIC(finalBody)
 qqPlot(finalBody, labels=modDF$site)
 plot(cooks.distance(finalBody))
