@@ -1,0 +1,362 @@
+---
+title: "EvansCode"
+author: "Michelle Evans"
+date: ""
+output: html_document
+---
+
+#Set-Up
+
+```{r knitr setup}
+knitr::opts_chunk$set(echo = T)
+knitr::opts_chunk$set(cache=TRUE)
+knitr::opts_chunk$set(message=FALSE)
+knitr::opts_chunk$set(warning=FALSE)
+```
+
+```{r package and color setup}
+library(xtable)
+library(tidyr)
+library(ggplot2) 
+library(lme4) #mixed models
+library(car)
+library(MASS)
+library(gridExtra) #for facet grids later
+library(caret)
+library(ggthemes)
+library(piecewiseSEM) #marginal rsquared
+library(survival)
+library(DHARMa) #mixed model residuals
+library(survminer) #extracts survival objects
+library(dplyr)
+
+colR <- colRural <- "dodgerblue"
+colS <- colSuburban <- "gray80"
+colU <- colUrban <- "maroon"
+```
+
+# Data Loading and Formatting
+
+
+```{r data loading and formatting}
+formatData <- function(month){
+  #' format infection data
+  #' @params month (ie. "august")
+  #' @returns dataframe of properly formatted data
+  #adjust wingLength
+  monthDf <- read.csv(paste0("../data/infections/raw/", month,"Dengue.csv"))
+  #convert wingLength and drop extra columns
+  monthDf$Wing <- monthDf$WingLength*monthDf$conversion..mm.bar.
+  monthDf <- dplyr::select(monthDf, -WingLength, -conversion..mm.bar.)
+  
+  #dpi as factor
+  monthDf$DPI <- as.factor(monthDf$DPI)
+  
+  #add in class and site
+  monthDf$site <- as.factor(substr(as.character(monthDf$Individual), 1, 2))
+  monthDf$class <- NULL
+  for (i in 1:nrow(monthDf)){
+    if (substr(monthDf$site[i], 1,1)=="R"){
+    monthDf$class[i] <- "Rural"
+    } else if (substr(monthDf$site[i], 1,1)=="S"){
+    monthDf$class[i] <- "Suburban"
+    } else if (substr(monthDf$site[i], 1,1)=="U"){
+    monthDf$class[i] <- "Urban"
+    }
+  }
+  monthDf$class <- as.factor(monthDf$class)
+  
+  #convert Y and N to 1 and 0 for statistics
+  levels(monthDf$Body) <- c("NA", 0, 1)
+  monthDf$Body <- as.numeric(as.character(monthDf$Body))
+  levels(monthDf$Saliva) <- c("NA", 0, 1)
+  monthDf$Saliva <- as.numeric(as.character(monthDf$Saliva))
+  # august had no contaminated heads, so different corrections
+  if (month=="august"){
+    levels(monthDf$Head) <- c(0, 1)
+  } else levels(monthDf$Head) <- c("NA",0, 1)
+  monthDf$Head <- as.numeric(as.character(monthDf$Head))
+  
+  ##Fix false negatievs
+  #adjust so that if saliva is positive, so is head
+  #ddjust so that is head is positive, so is body
+  monthDf$Head[monthDf$Saliva>0] <- 1
+  monthDf$Body[monthDf$Head>0] <- 1
+  
+  return(monthDf)
+}
+
+august <- formatData("august")
+oct <- formatData("october")
+seasons <- rbind(august,oct)
+seasons$block <- as.factor(c(rep("summer", nrow(august)), rep("fall", nrow(oct))))
+
+seasonSumm <- seasons %>%
+  filter(DPI==21) %>%
+  #drop individual
+  dplyr::select(-Individual, -site, -Wing, -DPI) %>%
+  group_by(block, class) %>%
+  summarise_each(funs(mean(.,na.rm=T),sd(.,na.rm=T),se=(sd(., na.rm=T)/sqrt(n())))) %>%
+  ungroup()
+```
+
+```{r season plot function}
+seasonPlot <- function(bodyPart, summTable=seasonSumm){
+  cols <- c(1,2,grep(bodyPart, colnames(summTable)))
+  tempLarge <- summTable[,cols]
+  colnames(tempLarge)[3:5] <- c("mean", "sd", "se")
+    
+  tempMean <- tempLarge %>%
+    dplyr::select(-sd,-se) %>%
+    spread(block, mean) %>%
+    dplyr::select(-class)
+  
+  #put summer before fall
+  tempMean <- tempMean[,c(2,1)]
+
+  
+  rownames(tempMean) <- levels(tempLarge$class)
+  tempMean <- t(as.matrix(tempMean))
+  
+  colvec <- c(rep(colRural,2), rep(colSuburban,2), 
+                            rep(colUrban,2))
+  
+  barCenters <- barplot(tempMean, 
+                      beside=T,
+                      col=colvec,
+                      density = c(40,NA),
+                      names.arg=colnames(tempMean),
+                      ylim=c(0,0.80)
+                      )
+  
+  tempSE <- tempLarge %>%
+    dplyr::select(-sd,-mean) %>%
+    spread(block, se) %>%
+    dplyr::select(-class)
+  
+   #put summer before fall
+  tempSE <- tempSE[,c(2,1)]
+  
+   tempSE <- t(tempSE)
+  
+  #add se bars
+  segments(barCenters, tempMean - tempSE , barCenters,
+         tempMean + tempSE, lwd = 1.5)
+  
+  arrows(barCenters, tempMean - tempSE , barCenters,
+         tempMean + tempSE,
+         lwd = 1.5, 
+         angle = 90,
+         code = 3, length = 0.03)
+  
+  #legend("topright", legend=c("Summer", "Fall"), density = c(40,NA),
+       #bty = "n", col = "gray80")
+}
+```
+
+```{r load and format microclimate data}
+climate <- read.csv('../data/microclimate/clean/2016TrialsAdult.csv')[,-1]
+#toss out ridiculous levels
+climate <- climate[climate$Temp<75,]
+#format date
+climate$Date <- strptime(climate$Date, format="%Y-%m-%d %H:%M:%S")
+#draw out day
+climate$Day <- as.Date(climate$Date)
+
+# add tray id to climate data
+trayID <- read.csv("../data/microclimate/trayLoggerID.csv") #read in IDs
+climate <- merge(climate, trayID, by="Pot_ID")
+
+#fix duplicates for R1T1
+climate <- unique(climate)
+
+#U2T2 and U1T2 are missing data
+# range(climate[climate$Tray_ID=="U2T2", 'Date']) 
+# range(climate[climate$Tray_ID=="U1T2", 'Date']) 
+
+#drop U2T2 becuase it only has data until August 5th
+inds <- which(climate$Tray_ID=="U2T2")
+climate <- climate[-inds,]
+rm(inds)
+
+#U2T4 wasn't working right, reporting temps above 40C in October
+inds <- which(climate$Tray_ID=="U2T4")
+climate <- climate[-inds,]
+rm(inds)
+
+```
+
+```{r load emergence data,echo=FALSE}
+augEmerg <- read.csv("../data/emergence/raw/AugustEmergence.csv")
+augEmerg$block <- as.factor("summer")
+octEmerg <- read.csv("../data/emergence/raw/OctoberEmergence.csv")
+octEmerg$block <- as.factor("fall")
+
+allEmerg <- rbind(augEmerg, octEmerg)
+```
+
+```{r standardize and correct for emergence, echo=FALSE}
+#filter out only days when infected mosquitoes were in the trays
+octInf <- octEmerg %>%
+  filter(Sex=="F") %>%
+  filter((Site_Code %in% c("U3", "R3") & Day <= 21) |
+           (Site_Code %in% c("U2", "U1", "S3") & Day <= 20) |
+           (Site_Code %in% c("S1", "S2", "R1", "R2") & Day <= 24))
+
+augInf <- augEmerg %>%
+  filter(Sex=="F") %>%
+    filter((Site_Code %in% c("U2", "U1", "S3", "R1") & Day <= 14) |
+           (Site_Code %in% c("S1", "S2", "R2", "R3", "U3") & Day <= 17))
+```
+
+```{r process october climate, message=F, echo=FALSE}
+
+octClim <- climate %>%
+  dplyr::select(-Date) %>%
+  filter(Day >= as.Date("2016-09-26","%Y-%m-%d")) %>%
+  #filter out appropriate days
+  filter((Site_ID %in% c("U3", "R3") & Day <= "2016-10-21") |
+           (Site_ID %in% c("U2", "U1", "S3") & Day <= "2016-10-20") |
+           (Site_ID %in% c("S1", "S2", "R1", "R2") & Day <= "2016-10-24")) %>%
+  dplyr::select(-Site_ID, -Pot_ID, -Class) %>%
+  #get daily averages by Tray
+  group_by(Tray_ID, Day) %>%
+  summarise_each(funs(mean(., na.rm=T), min(., na.rm=T), max(., na.rm=T))) %>%
+  #calculate DTR
+  mutate(DTR=Temp_max-Temp_min) %>%
+  #get overall average over study period per tray (average daily values)
+  ungroup() %>%
+  dplyr::select(-Day) %>%
+  group_by(Tray_ID) %>%
+  summarise_each(funs(mean))
+
+#calculate hours above a set Tmax and below a set Tmin based on Mordecai et al min and max r0, min=16C, max= 31 C
+
+#calculate percent of time above and below temperatures
+
+octBelow16 <- climate %>%
+  dplyr::select(-Date) %>%
+  filter(Day >= as.Date("2016-09-26","%Y-%m-%d")) %>%
+  #filter out appropriate days
+  filter((Site_ID %in% c("U3", "R3") & Day <= "2016-10-21") |
+           (Site_ID %in% c("U2", "U1", "S3") & Day <= "2016-10-20") |
+           (Site_ID %in% c("S1", "S2", "R1", "R2") & Day <= "2016-10-24")) %>%
+  filter(Temp<16) %>%
+  group_by(Tray_ID) %>%
+  dplyr::summarise(Tcount=n()) %>%
+  mutate(hoursBelow16=Tcount/6) %>%
+  dplyr::select(-Tcount)
+
+
+
+octAbove31 <- climate %>%
+  dplyr::select(-Date) %>%
+  filter(Day >= as.Date("2016-09-26","%Y-%m-%d")) %>%
+  #filter out appropriate days
+  filter((Site_ID %in% c("U3", "R3") & Day <= "2016-10-21") |
+           (Site_ID %in% c("U2", "U1", "S3") & Day <= "2016-10-20") |
+           (Site_ID %in% c("S1", "S2", "R1", "R2") & Day <= "2016-10-24")) %>%
+  filter(Temp>31) %>%
+  group_by(Tray_ID) %>%
+  summarise(Tcount=n()) %>%
+  mutate(hoursAbove31=Tcount/6) %>%
+  dplyr::select(-Tcount)
+
+
+#merge climate variables together
+octClim <- merge(octClim, octBelow16, by="Tray_ID", all.x=T)
+octClim <- merge(octClim, octAbove31, by="Tray_ID", all.x=T)
+
+#add 0s
+octClim$hoursAbove31[is.na(octClim$hoursAbove31)] <- 0
+octClim$hoursBelow16[is.na(octClim$hoursBelow16)] <- 0
+
+##new method of weighting climate by expanded infection
+octInfExp <- octInf[rep(seq.int(1,nrow(octInf)), octInf$Num_Emerge),]
+test <- merge(octInfExp, octClim, by.x="Tray_Code", by.y="Tray_ID", all.x=T)
+
+octEnvVar <- test %>%
+  dplyr::select(-Tray_Code,-Site, -Tray, - Class, - Month, - Day, - Exp_Day, - Sex, -Num_Emerge) %>%
+  group_by(block,Site_Code) %>%
+  summarise_each(funs(mean(.,na.rm=T),se=(sd(., na.rm=T)/sqrt(n())))) 
+
+  
+rm(test) #clear unused temporary dataframe
+```
+
+```{r august climate formatting, message=F, echo=FALSE}
+##repeat above for August
+augClim <- climate %>%
+  dplyr::select(-Date) %>%
+  filter(Day >= as.Date("2016-08-01","%Y-%m-%d")) %>%
+    filter((Site_ID %in% c("U2", "U1", "S3", "R1") & Day <= "2016-08-14") |
+           (Site_ID %in% c("S1", "S2", "R2", "R3", "U3") & Day <= "2016-08-17")) %>%
+  dplyr::select(-Site_ID, -Pot_ID, -Class) %>%
+  #get daily averages by Tray
+  group_by(Tray_ID, Day) %>%
+  summarise_each(funs(mean(., na.rm=T), min(., na.rm=T), max(., na.rm=T))) %>%
+  #calculate DTR
+  mutate(DTR=Temp_max-Temp_min) %>%
+  #get overall average over study period per tray (average daily values)
+  ungroup() %>%
+  dplyr::select(-Day) %>%
+  group_by(Tray_ID) %>%
+  summarise_each(funs(mean))
+
+#calculate hours above a set Tmax and below a set Tmin based on Mordecai et al min and max r0, min=16C, max= 31 C
+
+#calculate number of hours above and below temperatures
+#there are no hours below 16 in august
+# augBelow16 <- climate %>%
+#   dplyr::select(-Date) %>%
+#   filter(Day >= as.Date("2016-08-01","%Y-%m-%d")) %>%
+#     filter((Site_ID %in% c("U2", "U1", "S3", "R1") & Day <= "2016-08-14") |
+#            (Site_ID %in% c("S1", "S2", "R2", "R3", "U3") & Day <= "2016-08-17")) %>%
+#   filter(Temp<16) %>%
+#   group_by(Tray_ID) %>%
+#   summarise(Tcount=n()) %>%
+#   mutate(hoursBelow16=Tcount/6) %>%
+#   select(-Tcount)
+
+augAbove31 <- climate %>%
+  dplyr::select(-Date) %>%
+  filter(Day >= as.Date("2016-08-01","%Y-%m-%d")) %>%
+  filter((Site_ID %in% c("U2", "U1", "S3", "R1") & Day <= "2016-08-14") |
+           (Site_ID %in% c("S1", "S2", "R2", "R3", "U3") & Day <= "2016-08-17")) %>%
+  filter(Temp>31) %>%
+  group_by(Tray_ID) %>%
+  dplyr::summarise(Tcount=n()) %>%
+  mutate(hoursAbove31=Tcount/6) %>%
+  dplyr::select(-Tcount)
+
+
+#merge climate variables together
+augClim <- merge(augClim, augAbove31, by="Tray_ID", all.x=T)
+
+#add 0s
+augClim$hoursAbove31[is.na(augClim$hoursAbove31)] <- 0
+augClim$hoursBelow16 <- 0
+
+##new method of weighting climate by expanded infection
+augInfExp <- augInf[rep(seq.int(1,nrow(augInf)), augInf$Num_Emerge),]
+test <- merge(augInfExp, augClim, by.x="Tray_Code", by.y="Tray_ID", all.x=T)
+
+augEnvVar <- test %>%
+  dplyr::select(-Tray_Code,-Site, -Tray, - Class, - Month, - Day, - Exp_Day, - Sex, -Num_Emerge) %>%
+  group_by(block,Site_Code) %>%
+  summarise_each(funs(mean(.,na.rm=T),se=(sd(., na.rm=T)/sqrt(n())))) 
+
+rm(test)
+
+```
+
+```{r, echo=FALSE}
+#merge the summer and fall into one dataframe
+oct$block <- as.factor("fall")
+august$block <- as.factor("summer")
+seasonInf <- merge(rbind(oct, august[august$DPI=="21",]), rbind(augEnvVar,octEnvVar), by.x=c("block", "site"), by.y=c("block", "Site_Code"))
+```
+
+# Infection Dynamics
+
+
