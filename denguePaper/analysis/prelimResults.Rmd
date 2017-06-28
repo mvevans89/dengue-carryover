@@ -1759,9 +1759,7 @@ Comparison Plot:
 VCplot <- paramAll %>%
   select(block, Class, Site_Code, VC, VC2) %>%
   mutate(VCdiff=(VC-VC2)/VC2*100)
-VCplot$block <- as.factor(VCplot$block)
-levels(VCplot$block) <- c("Fall", "Summer")
-levels(VCplot$block) <- levels(VCplot$block)[c(2,1)]
+VCplot$block <- factor(VCplot$block, levels=c("summer", "fall"))
 
 #get mean and se summary
 VCplotsumm <- VCplot %>%
@@ -1799,7 +1797,6 @@ plotCOE <- ggplot(data=VCplotsumm, aes(x=factor(Class), group=block)) +
   theme(legend.position = "none")
 
 #third plot: difference
-
 plotDiff <- ggplot(data=VCplotsumm, aes(x=factor(Class), group=block)) +
   geom_bar(stat='identity',aes(y=VCdiff_mean, fill=Class, alpha=block), color="black", position=position_dodge(0.9)) + 
   #geom_errorbar(aes(ymin=meandiff-sediff, ymax=meandiff+sediff), position=position_dodge(0.9), width=0.4)+
@@ -1810,7 +1807,7 @@ plotDiff <- ggplot(data=VCplotsumm, aes(x=factor(Class), group=block)) +
   scale_x_discrete(labels=c("Rural", "Suburban", "Urban"))+
   scale_fill_manual(values=c(colR, colS, colU), labels=c("Rural", "Suburban", "Urban")) +
   scale_alpha_discrete(range=c(1,0.3), name="Season", guide=guide_legend())+
-  labs(fill=c("Class","Rural", "Suburban", "Urban"))+
+  labs(fill=c("Class","Rural", "Suburban", "Urban"), alpha=c("Season", "Summer", "Fall"))+
   geom_hline(aes(yintercept=0))
   
 
