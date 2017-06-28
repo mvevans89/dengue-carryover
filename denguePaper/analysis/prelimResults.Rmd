@@ -480,7 +480,7 @@ confint(bodyWing)
 #curve(4.6320-1.8761*x, 1.5, 3, add=T, lwd=2)
 #with(bodyWingDF, abline(lm(Body~Wing)))
 ggplot(data=bodyWingDF, aes(x=factor(Body), y=Wing))+
-  geom_violin() +
+  geom_boxplot() +
   geom_jitter(shape=16, position=position_jitter(0.3), aes(color=factor(class))) +
     theme_fivethirtyeight()+
   theme(axis.title = element_text()) +
@@ -1650,7 +1650,7 @@ EFD$block <- tolower(EFD$block)
 EFD$Class <- tolower(EFD$Class)
 
 #pEA: larval survival
-pEA <- survClim %>%
+pEA <- survSumm %>%
   group_by(block, Class, Site_Code) %>%
   dplyr::summarise(pEA=mean((percSurv/50), na.rm=T))
 pEA$block <- tolower(pEA$block)
@@ -1693,20 +1693,20 @@ Quad: y ~ a * (x-t0) * (x-Tmax)
 ```{r}
 paramNoCOE <- dplyr::select(climAll, Block, Class, Site_ID, Tray_ID, Temp, Day, Hour)
 
-paramNoCOE$fecundity2 <- ((4.88/100)*paramNoCOE$Temp*(paramNoCOE$Temp-8.02)*((35.65-paramNoCOE$Temp)^0.5))/24
+paramNoCOE$fecundity2 <- ((4.88/100)*27*(27-8.02)*((35.65-27)^0.5))/24
 paramNoCOE$fecundity2[paramNoCOE$fecundity2<0] <- 0
 paramNoCOE$fecundity2[is.na(paramNoCOE$fecundity2)] <- 0
 
 #pEA and MDR are not included because they are direct effects of microclimate, not COEs
-# paramNoCOE$pEA <- ((-3.61/1000)* (paramNoCOE$Temp-9.04)*(paramNoCOE$Temp-39.33))/24
+# paramNoCOE$pEA <- ((-3.61/1000)* (27-9.04)*(27-39.33))/24
 # paramNoCOE$pEA[paramNoCOE$pEA<0] <- 0
 # paramNoCOE$pEA[is.na(paramNoCOE$pEA)] <- 0
 # 
-# paramNoCOE$MDR <- ((6.38/100000)*paramNoCOE$Temp*(paramNoCOE$Temp-8.60)*((39.66-paramNoCOE$Temp)^0.5))/24
+# paramNoCOE$MDR <- ((6.38/100000)*27*(27-8.60)*((39.66-27)^0.5))/24
 # paramNoCOE$MDR[paramNoCOE$MDR<0] <- 0
 # paramNoCOE$MDR[is.na(paramNoCOE$MDR)] <- 0
 
-paramNoCOE$bc2 <- (((7.35/10000)*paramNoCOE$Temp*(paramNoCOE$Temp-15.84)*((36.40-paramNoCOE$Temp)^0.5)) * ((4.39/10000)*paramNoCOE$Temp*(paramNoCOE$Temp-3.62)*((36.82-paramNoCOE$Temp)^0.5)))/24
+paramNoCOE$bc2 <- (((7.35/10000)*27*(27-15.84)*((36.40-27)^0.5)) * ((4.39/10000)*27*(27-3.62)*((36.82-27)^0.5)))/24
 paramNoCOE$bc2[paramNoCOE$bc2<0] <- 0
 paramNoCOE$bc2[is.na(paramNoCOE$bc2)] <- 0
 
@@ -1748,39 +1748,13 @@ paramAll <- mutate(paramAll,
                        VC2=(((a^2)*bc2*(exp(-mu/PDR))*EFD2*pEA*(MDR^2))/((mu^3)))^(1/2))
 ```
 
-
-Plot:
-
-```{r}
-paramRate$block <- as.factor(paramRate$block)
-levels(paramRate$block) <- c("Fall","Summer")
-#png(file="figures/forMS/relativeR0.png", width = 6, height=4, units="in", res=500, family="sans")
-ggplot(data=paramRate, aes(x=factor(Class), y=R0))+
-  #geom_boxplot(aes(color=Class))+
-  geom_point(aes(color=Class), size=3) +
-  facet_wrap(~factor(block))+
-  theme_fivethirtyeight() +
-  scale_color_manual(values=c(colR, colS, colU)) +
-  theme(panel.background = element_rect(fill = "transparent", colour = NA), 
-        plot.background = element_rect(fill = "transparent", colour = NA),
-        legend.key = element_blank())+
-  theme(legend.background = element_rect(fill = "transparent", colour = NA)) +
-    theme(axis.title = element_text(), axis.title.x = element_text()) +
-  ylab("Relative R0")+
-  xlab("Land Class") +  
-  scale_x_discrete(name=c("Rural", "Suburban", "Urban"))+
-  theme(legend.position="right", legend.direction="vertical")+
-  guides(fill=F, color=F) 
-#dev.off()
-```
-
 Comparison Plot:
 
 ```{r}
 #make data long
-VCplot <- paramAll %>%
-  select(block, Class, Site_Code, VC, VC2) %>%
-  gather(COE, value, -block,-Class,-Site_Code)
+# VCplot <- paramAll %>%
+#   select(block, Class, Site_Code, VC, VC2) %>% #VC2 is without COE
+#   gather(COE, value, -block,-Class,-Site_Code)
 #or use the difference
 VCplot <- paramAll %>%
   select(block, Class, Site_Code, VC, VC2) %>%
@@ -1791,20 +1765,65 @@ levels(VCplot$block) <- levels(VCplot$block)[c(2,1)]
 
 #get mean and se summary
 VCplotsumm <- VCplot %>%
+  dplyr::select(-Site_Code) %>%
   group_by(block, Class) %>%
-  dplyr::summarise(meandiff=mean(VCdiff, na.rm=T), sediff=sd(VCdiff)/sqrt(n()))
-ggplot(data=VCplotsumm, aes(x=factor(Class), group=block)) +
-  geom_bar(stat='identity',aes(y=meandiff, fill=Class, alpha=block), color="black", position=position_dodge(0.9)) + 
-  geom_errorbar(aes(ymin=meandiff-sediff, ymax=meandiff+sediff), position=position_dodge(0.9), width=0.4)+
+  dplyr::summarise_each(funs(mean=mean(., na.rm=T), se=sd(.)/sqrt(n())))
+
+#first plot: without COE
+plotNoCOE <- ggplot(data=VCplotsumm, aes(x=factor(Class), group=block)) +
+  geom_bar(stat='identity',aes(y=VC2_mean, fill=Class, alpha=block), color="black", position=position_dodge(0.9)) + 
+  geom_errorbar(aes(ymin=VC2_mean-VC2_se, ymax=VC2_mean+VC2_se), position=position_dodge(0.9), width=0.4)+
   theme_base()+
-  ylab("Percent Change in VC due to COEs")+
+  ylab("Vectorial Capacity")+
   #ggtitle("Effect of COEs on vectorial capacity") +
   xlab("Class")+
   scale_x_discrete(labels=c("Rural", "Suburban", "Urban"))+
   scale_fill_manual(values=c(colR, colS, colU), labels=c("Rural", "Suburban", "Urban")) +
   scale_alpha_discrete(range=c(1,0.3), name="Season", guide=guide_legend())+
   labs(fill=c("Rural", "Suburban", "Urban"))+
+  theme(legend.position = "none")
+
+#second plot: with COE
+plotCOE <- ggplot(data=VCplotsumm, aes(x=factor(Class), group=block)) +
+  geom_bar(stat='identity',aes(y=VC_mean, fill=Class, alpha=block), color="black", position=position_dodge(0.9)) + 
+  geom_errorbar(aes(ymin=VC_mean-VC_se, ymax=VC_mean+VC_se), position=position_dodge(0.9), width=0.4)+
+  theme_base()+
+  ylab("Vectorial Capacity")+
+  ylim(0,60)+
+  #ggtitle("Effect of COEs on vectorial capacity") +
+  xlab("Class")+
+  scale_x_discrete(labels=c("Rural", "Suburban", "Urban"))+
+  scale_fill_manual(values=c(colR, colS, colU), labels=c("Rural", "Suburban", "Urban")) +
+  scale_alpha_discrete(range=c(1,0.3), name="Season", guide=guide_legend())+
+  labs(fill=c("Rural", "Suburban", "Urban"))+
+  theme(legend.position = "none")
+
+#third plot: difference
+
+plotDiff <- ggplot(data=VCplotsumm, aes(x=factor(Class), group=block)) +
+  geom_bar(stat='identity',aes(y=VCdiff_mean, fill=Class, alpha=block), color="black", position=position_dodge(0.9)) + 
+  #geom_errorbar(aes(ymin=meandiff-sediff, ymax=meandiff+sediff), position=position_dodge(0.9), width=0.4)+
+  theme_base()+
+  ylab("Percent Change in VC")+
+  #ggtitle("Effect of COEs on vectorial capacity") +
+  xlab("Class")+
+  scale_x_discrete(labels=c("Rural", "Suburban", "Urban"))+
+  scale_fill_manual(values=c(colR, colS, colU), labels=c("Rural", "Suburban", "Urban")) +
+  scale_alpha_discrete(range=c(1,0.3), name="Season", guide=guide_legend())+
+  labs(fill=c("Class","Rural", "Suburban", "Urban"))+
   geom_hline(aes(yintercept=0))
+  
+
+#legend
+plotLegend <- get_legend(plotDiff)
+
+# get rid of legend in third
+plotDiff <- plotDiff + theme(legend.position = "none")
+
+#cowplot them together
+pgrid <- plot_grid(plotNoCOE, plotCOE, plotDiff, plotLegend, ncol=4, rel_widths = c(1,1,1,0.4))
+
+pgrid
 ```
 
 ```{r}
