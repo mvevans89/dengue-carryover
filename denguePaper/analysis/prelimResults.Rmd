@@ -1777,7 +1777,34 @@ ggplot(data=paramRate, aes(x=factor(Class), y=R0))+
 Comparison Plot:
 
 ```{r}
+#make data long
+VCplot <- paramAll %>%
+  select(block, Class, Site_Code, VC, VC2) %>%
+  gather(COE, value, -block,-Class,-Site_Code)
+#or use the difference
+VCplot <- paramAll %>%
+  select(block, Class, Site_Code, VC, VC2) %>%
+  mutate(VCdiff=(VC-VC2)/VC2*100)
+VCplot$block <- as.factor(VCplot$block)
+levels(VCplot$block) <- c("Fall", "Summer")
+levels(VCplot$block) <- levels(VCplot$block)[c(2,1)]
 
+#get mean and se summary
+VCplotsumm <- VCplot %>%
+  group_by(block, Class) %>%
+  dplyr::summarise(meandiff=mean(VCdiff, na.rm=T), sediff=sd(VCdiff)/sqrt(n()))
+ggplot(data=VCplotsumm, aes(x=factor(Class), group=block)) +
+  geom_bar(stat='identity',aes(y=meandiff, fill=Class, alpha=block), color="black", position=position_dodge(0.9)) + 
+  geom_errorbar(aes(ymin=meandiff-sediff, ymax=meandiff+sediff), position=position_dodge(0.9), width=0.4)+
+  theme_base()+
+  ylab("Percent Change in VC due to COEs")+
+  #ggtitle("Effect of COEs on vectorial capacity") +
+  xlab("Class")+
+  scale_x_discrete(labels=c("Rural", "Suburban", "Urban"))+
+  scale_fill_manual(values=c(colR, colS, colU), labels=c("Rural", "Suburban", "Urban")) +
+  scale_alpha_discrete(range=c(1,0.3), name="Season", guide=guide_legend())+
+  labs(fill=c("Rural", "Suburban", "Urban"))+
+  geom_hline(aes(yintercept=0))
 ```
 
 ```{r}
@@ -1796,3 +1823,10 @@ anova(r0mod)
 ```
 
 There was a significant difference across season, but not land class.
+
+Does including COEs make a difference for VC?
+
+```{r}
+
+```
+
