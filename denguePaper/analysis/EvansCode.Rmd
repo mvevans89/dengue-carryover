@@ -632,4 +632,128 @@ plotSimulatedResiduals(simulationOutput = simulationOutput)
 
 # Emergence and Survival
 
+## Data Format and Loading
+
+```{r}
+emergAug <- read.csv("../data/emergence/raw/AugustEmergence.csv")
+emergAug$block <- "summer"
+
+emergOct <- read.csv("../data/emergence/raw/OctoberEmergence.csv")
+emergOct$block <- "fall"
+#drop U3T1 in fall because it was eaten by ants
+emergOct <- filter(emergOct, Tray_Code!="U3T1")
+emergOct <- filter(emergOct, Tray_Code!="S1T3") #dumped
+emergOct <- filter(emergOct, Tray_Code!="U1T4") #dumped
+
+emergAll <- rbind(emergOct, emergAug)
+#expand so each mosquito gets one row
+emergExp <- emergAll[rep(seq.int(1,nrow(emergAll)), emergAll$Num_Emerge),
+                      c(11, 2,4,5,6:9)]
+#sum(emergAll$Num_Emerge)==nrow(emergExp) #quick check this worked
+
+#get survival per tray
+survSumm <- emergExp %>%
+  filter(Sex=="F") %>%
+  group_by(block, Tray_Code) %>%
+  dplyr::mutate(percSurv=n()) %>%
+  ungroup() %>%
+  dplyr::select(block, Class, Site_Code, Tray_Code, percSurv)
+survSumm <- unique(survSumm)
+```
+
+```{r fillIn function}
+fillIn <- function(df, endDay, totalMosq=50){
+  #' Fill In Emergence Dates
+  #' this function fills in for those mosquitoes that did not emerge so we do not have data for, it gives them an observation/event of 0 on the last day we found a mosquito emerged
+  #' @param df the data frame you wish to fill in, in our case by pot
+  #' @param endDay the last day of emergence
+  #' @param totalMosq estimated starting number of mosquitoes per pot
+  #' @returns dataframe with census data filled in for mosquitoes that did not emerge
+  toRep <- df[1,]
+  toRep$Exp_Day <- endDay
+  toRep$event <- 0
+  if(nrow(df)<totalMosq){
+    toAdd <- toRep[rep(1, (totalMosq-nrow(df))),]
+    allTest <- rbind(df, toAdd)
+  } else {
+    toAdd <- NA
+    allTest <- NA
+  }
+  return(allTest)
+}
+```
+
+```{r apply FillIn function}
+applyFill <- function(season, allData=emergExp){
+  #' Apply FillIn function
+  #' @param season "fall" or "summer"
+  #' @param allData full dataframe with row for each mosquito that emerged
+  #' @returns censused data for the full season
+  tempList <- list()
+  tempDF <- allData
+  tempDF <- tempDF[tempDF$Sex=="F",]
+  tempDF <- tempDF[tempDF$block==season,]
+  tempDF$event <- 1 #add emergence event
+  for (i in 1:length(unique(tempDF$Tray_Code))){ 
+    df <- tempDF[tempDF$Tray_Code==unique(tempDF$Tray_Code)[i],]
+    endDay <- max(tempDF$Exp_Day)
+    tempList[[i]] <- fillIn(df=df, endDay=endDay)
+  }
+  allSurv <- do.call(rbind.data.frame, tempList)
+  return(allSurv)
+}
+```
+
+```{r}
+summerSurv <- applyFill(season="summer")
+fallSurv <- applyFill(season="fall")
+allSurv <- rbind(summerSurv, fallSurv)
+```
+
 ## Class x Block
+
+### Survival
+
+```{r survival stats}
+siteSumm <- emergExp %>%
+  filter(Sex=="F") %>%
+  group_by(block, Tray_Code) %>%
+  dplyr::mutate(numSurv=n()) %>%
+  ungroup() %>%
+  dplyr::select(block, Class, Site_Code, numSurv)
+siteSumm <- unique(siteSumm)
+
+siteSumm$block <- as.factor(siteSumm$block)
+
+siteEmerg <- lmer(numSurv ~ 0 + Class + block + (1|Site_Code), data=siteSumm)
+summary(siteEmerg)
+plot(siteEmerg)
+
+#pairwise
+summary(multcomp::glht(siteEmerg, linfct = multcomp::mcp(block = "Tukey"), test = multcomp::adjusted("holm")))
+
+summary(multcomp::glht(siteEmerg, linfct = multcomp::mcp(Class = "Tukey"), test = multcomp::adjusted("holm")))
+```
+
+### Emergence
+
+```{r}
+emergExpF <- filter(emergExp, Sex=="F")
+
+emergExpF$block <- as.factor(emergExpF$block)
+
+mixEmerge <- lmer(Exp_Day ~  0 + Class + (1|Site_Code), 
+                 data=emergExpF[emergExpF$block=="fall",]
+                   )
+plot(mixEmerge)
+qqnorm(resid(mixEmerge))
+summary(mixEmerge)
+#confint(mixEmerge)
+
+#pairwise
+summary(glht(mixEmerge, linfct = mcp(block = "Tukey"), test = adjusted("holm")))
+
+summary(glht(mixEmerge, linfct = mcp(Class = "Tukey"), test = adjusted("holm")))
+```
+
+## Microclimate
