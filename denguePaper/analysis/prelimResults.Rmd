@@ -403,6 +403,7 @@ mixModelseasonsHead21 <- lme4::glmer(Head~class + block  + (1|site),
                           family=binomial(link="logit"))
 Head21Aov <- car::Anova(mixModelseasonsHead21) #Wald test
 #confint(mixModelseasonsHead21) #profiled confidence interval
+drop1(mixModelseasonsHead21, test="Chisq")
 
 mixModelseasonsSaliva21 <- lme4::glmer(Saliva~class + block  + (1|site), 
                           data=seasons[seasons$DPI=="21",],
@@ -410,13 +411,15 @@ mixModelseasonsSaliva21 <- lme4::glmer(Saliva~class + block  + (1|site),
 summary(mixModelseasonsSaliva21) #z-test
 Saliva21Aov <- car::Anova((mixModelseasonsSaliva21)) #Wald test
 #confint(mixModelseasonsSaliva21) #profiled confidence interval
+drop1(mixModelseasonsSaliva21, test="Chisq")
 ```
 
-We found that infection in the body and head was significantly lower in the summer than the fall. Although there was a trend towards higher infection in the saliva in the summer, this was not significant (p=0.05676).  Land class also influence infection of both the body and head, with urban mosquitoes having lower rates of infection than rural and suburban mosquitoes. Saliva infections were unaffected by land class, however.
+We found that infection in the body and head was significantly lower in the summer than the fall. Although there was a trend towards higher infection in the saliva in the summer, this was not significant (p=0.05676).  Land class also influenced infection of both the body and head, with urban mosquitoes having lower rates of infection than rural and suburban mosquitoes. Saliva infections were unaffected by land class, however.
 
 ```{r seasonal infection tables, results='asis', eval=T}
 knitr::kable(Body21Aov, caption="Mixed model Wald Test for body level infections.")
 knitr::kable(Head21Aov, caption="Mixed model Wald Test for head infections.")
+knitr::kable(Saliva21Aov, caption="Mixed model Wald Test for Saliva infections.")
 ```
 
 
@@ -694,6 +697,9 @@ seasonSite <- seasons %>%
 
 #group with temperature data
 seasonInfSite <- merge(seasonSite, rbind(augEnvVar,octEnvVar), by.x=c("block", "site"), by.y=c("block", "Site_Code"))
+
+#correlations
+cor(seasonInfSite[,10:18])
 ```
 
 Based on our findings above, we wanted to investigate if these patterns across season and class could be driven by microclimate, and how.
@@ -712,21 +718,40 @@ LASSO regression identified mean, minimum, and maximum temperatures and daily te
 
 ```{r body inf x climate stats}
 respV <- "Body_mean"
-predVs <- c("Temp_mean_mean","RH_mean_mean","Temp_min_mean","RH_min_mean", "Temp_max_mean", "DTR_mean", "hoursAbove31_mean", "hoursBelow16_mean")
+predVs <- c("Temp_mean_mean","RH_mean_mean")
 
-myCols <- c(respV, predVs, "block")
+myCols <- c(respV, predVs, "block","class", "site")
 modDF <- seasonInfSite %>%
   dplyr::select(one_of(myCols)) 
 modDF <- na.omit(modDF)
 
+ggplot(data=modDF, aes(y=Temp_mean_mean, x=RH_mean_mean))+ #can include RH if I want becuase corr=0.74 and vif is good
+  geom_point(aes(size=Body_mean, color=class), pch=1)+
+  theme_base()
+
+ggplot(data=modDF, aes(x=log(Temp_mean_mean), y=Body_mean))+
+  geom_point()+
+  geom_smooth(method="lm")
+
+ggplot(data=modDF, aes(x=RH_mean_mean, y=Body_mean))+
+  geom_point()
+
 #modDF$scaleTemp <- scale(modDF$Temp_mean_mean, center=T, scale = F)
 
-finalBody <- lm(exp(Body_mean)~ Temp_mean_mean, data=modDF)
-plot(finalBody)
+finalBody <- lm(Body_mean ~ Temp_mean_mean + RH_mean_mean, data=modDF)
+AIC(finalBody)
+qqPlot(finalBody, labels=modDF$site)
+plot(cooks.distance(finalBody))
+abline(h=4/length(modDF), lty=2)
 car::Anova(finalBody)
-confint(finalBody)
+#confint(finalBody)
 summary(finalBody)
-with(modDF,plot(y=exp(Body_mean), x=Temp_mean_mean))
+
+outlierTest(finalBody)
+leveragePlots(finalBody)
+vif(finalBody)
+sqrt(vif(finalBody))>2
+
 ```
 
 ```{r body x meanT plot, fig.width=6, fig.height=4}
@@ -747,7 +772,7 @@ ggplot(data=seasonInfSite, aes(x=Temp_mean_mean, y=Body_mean))+
   xlab("Mean Daily Temperature (C)") +  
   ggtitle("Infection Rates and Mean Temp.") +
   theme(legend.position="right", legend.direction="vertical") +
-  stat_function(fun=function(Temp_mean_mean) 0.6038 - (9.646*10^(-13))*exp(Temp_mean_mean))
+  stat_function(fun=function(Temp_mean_mean) 1.31354 - 0.03624*(Temp_mean_mean))
 #dev.off()
 ```
 
@@ -828,6 +853,62 @@ plot(finalSal)
 summary(finalSal)
 ```
 
+Three panel plot of infection dynamics and temperature
+```{r}
+  
+#png(file="../figures/forMS/InfxTemp3Panel.png", width = 4, height=7, units="in", res=500, family="sans")
+plotBody <- ggplot(data=seasonInfSite, aes(x=Temp_mean_mean, y=Body_mean))+
+  geom_errorbar(aes(ymin=Body_mean-Body_se, ymax=Body_mean+Body_se), color="gray20", width=0.1) +
+  #geom_errorbarh(aes(xmin=Temp_mean_mean-Temp_mean_se, xmax=Temp_mean_mean+Temp_mean_se, y=Body_mean),color="gray20", height=0.05) + #not enough error to see
+  geom_point(aes(color=class, shape=block), size=4.5) + 
+  scale_color_manual(values=c(colRural, colSuburban, colUrban)) +
+  theme_fivethirtyeight() +
+    theme(panel.background = element_rect(fill = "transparent", colour = NA), 
+        plot.background = element_rect(fill = "transparent", colour = NA),
+        legend.key = element_blank())+
+  theme(legend.background = element_rect(fill = "transparent", colour = NA)) +
+    theme(axis.title = element_text(), axis.title.x = element_text()) +
+  ylab("Prop. Infected")+
+  xlab("Mean Daily Temperature (C)") +  
+  theme(legend.position="none")
+
+plotHead <- ggplot(data=seasonInfSite, aes(x=Temp_mean_mean, y=Head_mean))+
+   geom_errorbar(aes(ymin=Head_mean-Head_se, ymax=Head_mean+Head_se), color="gray20", width=0.1) +
+  #geom_errorbarh(aes(xmin=Temp_mean_mean-Temp_mean_se, xmax=Temp_mean_mean+Temp_mean_se), color="gray20", height=0.05) +
+  geom_point(aes(color=class, shape=block), size=4) + 
+  scale_color_manual(values=c(colRural, colSuburban, colUrban)) +
+  theme_fivethirtyeight() +
+    theme(panel.background = element_rect(fill = "transparent", colour = NA), 
+        plot.background = element_rect(fill = "transparent", colour = NA),
+        legend.key = element_blank())+
+  theme(legend.background = element_rect(fill = "transparent", colour = NA)) +
+    theme(axis.title = element_text(), axis.title.x = element_text())+
+  ylab("Prop. Disseminated")+
+  xlab("Mean Daily Temperature (C)")+
+  theme(legend.position="none")
+
+plotSaliva <- ggplot(data=seasonInfSite, aes(x=Temp_mean_mean, y=Saliva_mean))+
+  geom_errorbar(aes(ymin=Saliva_mean-Saliva_se, ymax=Saliva_mean+Saliva_se), color="gray20", width=0.1) +
+  #geom_errorbarh(aes(xmin=Temp_mean_mean-Temp_mean_se, xmax=Temp_mean_mean+Temp_mean_se, y=Body_mean),color="gray20", height=0.05) + #not enough error to see
+  geom_point(aes(color=class, shape=block), size=4.5) + 
+  scale_color_manual(values=c(colRural, colSuburban, colUrban)) +
+  theme_fivethirtyeight() +
+    theme(panel.background = element_rect(fill = "transparent", colour = NA), 
+        plot.background = element_rect(fill = "transparent", colour = NA),
+        legend.key = element_blank())+
+  theme(legend.background = element_rect(fill = "transparent", colour = NA)) +
+    theme(axis.title = element_text(), axis.title.x = element_text()) +
+  ylab("Prop. Infectious")+
+  xlab("Mean Daily Temperature (C)") +  
+  scale_y_continuous(limits=c(0,1))+
+  #theme(legend.position="right", legend.direction="vertical")
+  theme(legend.position="none")
+
+
+plot_grid(plotBody, plotHead, plotSaliva, labels=c("A", "B", "C"), ncol=3)
+#dev.off()
+```
+
 # Emergence and Survival Results
 
 ##  Class and Block
@@ -859,9 +940,6 @@ survSumm <- emergExp %>%
   ungroup() %>%
   dplyr::select(block, Class, Site_Code, Tray_Code, percSurv)
 survSumm <- unique(survSumm)
-
-
-  
 ```
 
 ```{r fillIn function}
@@ -914,7 +992,7 @@ allSurv <- rbind(summerSurv, fallSurv)
 ```
 
 ```{r kaplan meier curves, fig.width=6, fig.height=4}
-km.fit <- survival::survfit(Surv(Exp_Day, event) ~ block + Class, data=allSurv, type="kaplan-meier", se.fit=T, conf.int=0.95)
+km.fit <- survival::survfit(Surv(Exp_Day, event) ~ block + Site_Code, data=allSurv, type="kaplan-meier", se.fit=T, conf.int=0.95)
 
 
   data <- eval(km.fit$call$data)
@@ -1451,9 +1529,9 @@ confint(growthMix)
 
 I will calculate the vectorial capacity with the equation from Mordecai et al. 2017:
 
-$$ R_0(T) = \left (\frac{a(T)^2b(T)c(T)e^{-\mu (T)/PDR(T)}EFD(T)p_{EA}(T)MDR(T)} {Nr\mu(T)^3}  \right ) ^{1/2} $$
+$$ VC(T) = \left (\frac{a(T)^2b(T)c(T)e^{-\mu (T)/PDR(T)}EFD(T)p_{EA}(T)MDR(T)} {\mu(T)^3}  \right ) ^{1/2} $$
 
-Bite rate, EIP, and adult survival will be calculated using rate summation from Mordecai et al 2017.  Vector competence, eggs per female per day, egg to adult survival probability and mosquito immature development rate are empirically measured. Human population density and recovery rate are held constant.
+Bite rate, EIP, and adult survival will be calculated using rate summation from Mordecai et al 2017.  Vector competence, eggs per female per day, egg to adult survival probability and mosquito immature development rate are empirically measured. 
 
 ```{r}
 #from cleaned climate
@@ -1553,11 +1631,10 @@ paramRate <- dplyr::rename(paramRate, block=Block)
 ## u - daily probability of mosquito mortality
 paramRate$mu <- 1/paramRate$lf
 
-## EIP -
-#paramRate$EIP <- 1/paramRate$PDR
-
 paramRate$block <- tolower(paramRate$block)
 paramRate$Class <- tolower(paramRate$Class)
+
+paramRateOld <- paramRate
 ```
 
 Combine these calculated parameters with field EFD, survival, and emergence rates and vector competence:
@@ -1608,13 +1685,67 @@ Calculate EFD with total eggs and gonotrophic cycle duration (assumed to be inve
 paramRate$EFD <- paramRate$fecundity*paramRate$a
 ```
 
-Calculate R_0
+###Calculate VC w/o carry over effects
+
+Briere:  y ~ a * x * (x - t0) * (tmax - x)^(1/2)
+Quad: y ~ a * (x-t0) * (x-Tmax)
 
 ```{r}
-N=100000 #human density
-r=0.1 # human recovery rate
-paramRate <- mutate(paramRate, 
-                    R0=(((a^2)*bc*(exp(-mu/PDR))*EFD*pEA*(MDR^2))/(N*r*(mu^3)))^(1/2))
+paramNoCOE <- dplyr::select(climAll, Block, Class, Site_ID, Tray_ID, Temp, Day, Hour)
+
+paramNoCOE$fecundity2 <- ((4.88/100)*paramNoCOE$Temp*(paramNoCOE$Temp-8.02)*((35.65-paramNoCOE$Temp)^0.5))/24
+paramNoCOE$fecundity2[paramNoCOE$fecundity2<0] <- 0
+paramNoCOE$fecundity2[is.na(paramNoCOE$fecundity2)] <- 0
+
+#pEA and MDR are not included because they are direct effects of microclimate, not COEs
+# paramNoCOE$pEA <- ((-3.61/1000)* (paramNoCOE$Temp-9.04)*(paramNoCOE$Temp-39.33))/24
+# paramNoCOE$pEA[paramNoCOE$pEA<0] <- 0
+# paramNoCOE$pEA[is.na(paramNoCOE$pEA)] <- 0
+# 
+# paramNoCOE$MDR <- ((6.38/100000)*paramNoCOE$Temp*(paramNoCOE$Temp-8.60)*((39.66-paramNoCOE$Temp)^0.5))/24
+# paramNoCOE$MDR[paramNoCOE$MDR<0] <- 0
+# paramNoCOE$MDR[is.na(paramNoCOE$MDR)] <- 0
+
+paramNoCOE$bc2 <- (((7.35/10000)*paramNoCOE$Temp*(paramNoCOE$Temp-15.84)*((36.40-paramNoCOE$Temp)^0.5)) * ((4.39/10000)*paramNoCOE$Temp*(paramNoCOE$Temp-3.62)*((36.82-paramNoCOE$Temp)^0.5)))/24
+paramNoCOE$bc2[paramNoCOE$bc2<0] <- 0
+paramNoCOE$bc2[is.na(paramNoCOE$bc2)] <- 0
+
+#take mean of each hour and sum up
+library(dplyr)
+paramRateNoCOE <- paramNoCOE %>%
+  group_by(Block, Class, Site_ID, Hour) %>%
+  select(-Temp, -Day) %>%
+  summarise_each(funs(mean(.,na.rm=T))) %>%
+  ungroup() %>%
+  group_by(Block, Class, Site_ID) %>%
+  summarise_each(funs(sum)) %>%
+  ungroup()
+
+paramRateNoCOE <- dplyr::rename(paramRateNoCOE, Site_Code=Site_ID)
+paramRateNoCOE <- dplyr::rename(paramRateNoCOE, block=Block)
+
+paramRateNoCOE$Class <- tolower(paramRateNoCOE$Class)
+
+```
+
+Merge together with other traits
+
+```{r}
+paramAll <- full_join(paramRate, paramRateNoCOE, by=c("block", "Class", "Site_Code"))
+
+#calculate EFD
+#calculate EFD 
+paramAll$EFD2 <- paramAll$fecundity2*paramAll$a
+```
+
+Calculate VC
+
+```{r}
+paramAll <- mutate(paramAll, 
+                    VC=(((a^2)*bc*(exp(-mu/PDR))*EFD*pEA*(MDR^2))/((mu^3)))^(1/2))
+
+paramAll <- mutate(paramAll,
+                       VC2=(((a^2)*bc2*(exp(-mu/PDR))*EFD2*pEA*(MDR^2))/((mu^3)))^(1/2))
 ```
 
 
@@ -1642,6 +1773,18 @@ ggplot(data=paramRate, aes(x=factor(Class), y=R0))+
   guides(fill=F, color=F) 
 #dev.off()
 ```
+
+Comparison Plot:
+
+```{r}
+
+```
+
+```{r}
+ggplot()
+```
+
+
 
 Stats:
 
