@@ -37,7 +37,7 @@ colU <- "maroon"
 
 # Data Loading and Formatting
 
-
+Load and format infection data:
 ```{r data loading and formatting}
 formatData <- function(month){
   #' format infection data
@@ -100,6 +100,7 @@ seasonSumm <- seasons %>%
   ungroup()
 ```
 
+Load and format microclimate data
 ```{r load and format microclimate data}
 climate <- read.csv('../data/microclimate/clean/2016TrialsAdult.csv')[,-1]
 #toss out ridiculous levels
@@ -131,6 +132,7 @@ climate <- climate[-inds,]
 rm(inds)
 ```
 
+Load and format emergence data
 ```{r load emergence data,echo=FALSE}
 augEmerg <- read.csv("../data/emergence/raw/AugustEmergence.csv")
 augEmerg$block <- as.factor("summer")
@@ -140,6 +142,7 @@ octEmerg$block <- as.factor("fall")
 allEmerg <- rbind(augEmerg, octEmerg)
 ```
 
+Crop and standardize emergence data to be used with infections
 ```{r standardize and correct for emergence, echo=FALSE}
 #filter out only days when infected mosquitoes were in the trays
 octInf <- octEmerg %>%
@@ -230,6 +233,7 @@ seasonInf <- merge(rbind(oct, august[august$DPI=="21",]), rbind(augEnvVar,octEnv
 
 ## Infection by Class and Season
 
+Function to Plot Infections
 ```{r season plot function}
 seasonPlot <- function(bodyPart, summTable=seasonSumm){
   cols <- c(1,2,grep(bodyPart, colnames(summTable)))
@@ -284,7 +288,7 @@ seasonPlot <- function(bodyPart, summTable=seasonSumm){
 }
 ```
 
-
+Bar graph of infection by season and land class:
 ```{r season by class infection plot, fig.width=4, fig.height=6}
 #png(file="../figures/forMS/seasonInfections.png", width = 4, height=6, units="in", res=500, family="sans")
 par(mfrow=c(3,1), las=1, par(mar=c(5.1,6.1,4.1,2.1)))
@@ -309,6 +313,7 @@ mtext("Saliva")
 #dev.off()
 ```
 
+Statistics on infection by season and land class
 ```{r seasonal infection stats}
 #model #there was no interaction of class and block
 mixModelseasonsBody21 <- lme4::glmer(Body~class + block + (1|site), 
@@ -335,6 +340,8 @@ drop1(mixModelseasonsSaliva21, test="Chisq")
 ```
 
 ### Infection Efficiency
+
+Format data for infection efficiency
 
 ```{r create and format efficiency data}
 bodyEff <- seasons %>%
@@ -384,6 +391,7 @@ meltAll <- full_join(meltMean, meltSE, by=c("class", "block", "type")) %>%
   select(-variable.x, -variable.y)
 ```
 
+Plot of infection efficiency
 ```{r plot efficiency}
 #supplemental plot
 ggplot(data=meltAll[order(meltAll$block, decreasing=F),], aes(x=class, group=block))+
@@ -399,6 +407,7 @@ ggplot(data=meltAll[order(meltAll$block, decreasing=F),], aes(x=class, group=blo
   #theme(legend.title=element_text("Season"))
 ```
 
+Infection efficiency statistics
 ```{r efficiency stats}
 #model 
 mixModelseasonsBody21 <- lme4::glmer(Body~class * block + (1|site), 
@@ -430,7 +439,7 @@ seasonSite <- seasons %>%
 seasonInfSite <- merge(seasonSite, rbind(augEnvVar,octEnvVar), by.x=c("block", "site"), by.y=c("block", "Site_Code"))
 
 # inspect variable correlations
-cor(seasonInfSite[,10:18])
+# cor(seasonInfSite[,10:18])
 ```
 
 ```{r body x climate stats}
@@ -441,6 +450,10 @@ myCols <- c(respV, predVs, "block","class", "site")
 modDF <- seasonInfSite %>%
   dplyr::select(one_of(myCols)) 
 modDF <- na.omit(modDF)
+
+#standardize IVs
+modDF$Temp_mean_mean <- scale(modDF$Temp_mean_mean, center=T, scale=T)
+modDF$RH_mean_mean <- scale(modDF$RH_mean_mean, center=T, scale=T)
 
 finalBody <- lm(Body_mean ~ Temp_mean_mean+RH_mean_mean, data=modDF)
 qqPlot(finalBody, labels=modDF$site)
@@ -465,6 +478,10 @@ modDF <- seasonInfSite %>%
   dplyr::select(one_of(myCols)) 
 modDF <- na.omit(modDF)
 
+#standardize IVs
+modDF$Temp_mean_mean <- scale(modDF$Temp_mean_mean, center=T, scale=T)
+modDF$RH_mean_mean <- scale(modDF$RH_mean_mean, center=T, scale=T)
+
 finalHead <- lm(Head_mean ~ Temp_mean_mean+RH_mean_mean, data=modDF)
 qqPlot(finalHead, labels=modDF$site)
 plot(cooks.distance(finalHead))
@@ -485,6 +502,10 @@ myCols <- c(respV, predVs, "block","class", "site")
 modDF <- seasonInfSite %>%
   dplyr::select(one_of(myCols)) 
 modDF <- na.omit(modDF)
+
+#standardize IVs
+modDF$Temp_mean_mean <- scale(modDF$Temp_mean_mean, center=T, scale=T)
+modDF$RH_mean_mean <- scale(modDF$RH_mean_mean, center=T, scale=T)
 
 finalSal <- lm(Saliva_mean ~ Temp_mean_mean+RH_mean_mean, data=modDF)
 qqPlot(finalSal, labels=modDF$site)
