@@ -519,8 +519,10 @@ outlierTest(finalSal)
 leveragePlots(finalSal)
 ```
 
+Infection x Temperature Plot
+
 ```{r three panel temp x infection plot}
-png(file="figures/forMS/InfxTemp3Panel.png", width = 7, height=3, units="in", res=500, family="sans")
+#png(file="figures/forMS/InfxTemp3Panel.png", width = 7, height=3, units="in", res=500, family="sans")
 plotBody <- ggplot(data=seasonInfSite, aes(x=Temp_mean_mean, y=Body_mean))+
   geom_errorbar(aes(ymin=Body_mean-Body_se, ymax=Body_mean+Body_se), color="gray20", width=0.1) +
   #geom_errorbarh(aes(xmin=Temp_mean_mean-Temp_mean_se, xmax=Temp_mean_mean+Temp_mean_se, y=Body_mean),color="gray20", height=0.05) + #not enough error to see
@@ -570,7 +572,62 @@ plotSaliva <- ggplot(data=seasonInfSite, aes(x=Temp_mean_mean, y=Saliva_mean))+
 
 
 plot_grid(plotBody, plotHead, plotSaliva, labels=c("A", "B", "C"), ncol=3)
-dev.off()
+#dev.off()
+```
+
+Infection x Relative Humidity Plot
+```{r}
+#png(file="figures/forMS/InfxRH3Panel.png", width = 7, height=3, units="in", res=500, family="sans")
+plotBody <- ggplot(data=seasonInfSite, aes(x=RH_mean_mean, y=Body_mean))+
+  geom_errorbar(aes(ymin=Body_mean-Body_se, ymax=Body_mean+Body_se), color="gray20", width=0.1) +
+  #geom_errorbarh(aes(xmin=RH_mean_mean-RH_mean_se, xmax=RH_mean_mean+RH_mean_se, y=Body_mean),color="gray20", height=0.05) + #not enough error to see
+  geom_point(aes(color=class, shape=block), size=4.5) + 
+  scale_color_manual(values=c(colR, colS, colU)) +
+  theme_fivethirtyeight() +
+    theme(panel.background = element_rect(fill = "transparent", colour = NA), 
+        plot.background = element_rect(fill = "transparent", colour = NA),
+        legend.key = element_blank())+
+  theme(legend.background = element_rect(fill = "transparent", colour = NA)) +
+    theme(axis.title = element_text(), axis.title.x = element_text(), axis.title.y=element_blank()) +
+  ylab("Prop. Infected")+
+  xlab("") +  
+  theme(legend.position="none")
+
+plotHead <- ggplot(data=seasonInfSite, aes(x=RH_mean_mean, y=Head_mean))+
+   geom_errorbar(aes(ymin=Head_mean-Head_se, ymax=Head_mean+Head_se), color="gray20", width=0.1) +
+  #geom_errorbarh(aes(xmin=RH_mean_mean-RH_mean_se, xmax=RH_mean_mean+RH_mean_se), color="gray20", height=0.05) +
+  geom_point(aes(color=class, shape=block), size=4) + 
+  scale_color_manual(values=c(colR, colS, colU)) +
+  theme_fivethirtyeight() +
+    theme(panel.background = element_rect(fill = "transparent", colour = NA), 
+        plot.background = element_rect(fill = "transparent", colour = NA),
+        legend.key = element_blank())+
+  theme(legend.background = element_rect(fill = "transparent", colour = NA)) +
+    theme(axis.title = element_text(), axis.title.x = element_text(), axis.title.y=element_blank())+
+  #ylab("Prop. Disseminated")+
+  xlab("Mean Relative Humidity (%)")+
+  theme(legend.position="none")
+
+plotSaliva <- ggplot(data=seasonInfSite, aes(x=RH_mean_mean, y=Saliva_mean))+
+  geom_errorbar(aes(ymin=Saliva_mean-Saliva_se, ymax=Saliva_mean+Saliva_se), color="gray20", width=0.1) +
+  #geom_errorbarh(aes(xmin=RH_mean_mean-RH_mean_se, xmax=RH_mean_mean+RH_mean_se, y=Body_mean),color="gray20", height=0.05) + #not enough error to see
+  geom_point(aes(color=class, shape=block), size=4.5) + 
+  scale_color_manual(values=c(colR, colS, colU)) +
+  theme_fivethirtyeight() +
+    theme(panel.background = element_rect(fill = "transparent", colour = NA), 
+        plot.background = element_rect(fill = "transparent", colour = NA),
+        legend.key = element_blank())+
+  theme(legend.background = element_rect(fill = "transparent", colour = NA)) +
+    theme(axis.title = element_text(), axis.title.x = element_text(), axis.title.y=element_blank()) +
+  #ylab("Prop. Infectious")+
+  xlab("") +  
+  scale_y_continuous(limits=c(0,1))+
+  #theme(legend.position="right", legend.direction="vertical")
+  theme(legend.position="none")
+
+
+plot_grid(plotBody, plotHead, plotSaliva, labels=c("A", "B", "C"), ncol=3)
+#dev.off()
 ```
 
 ## Infection and Body Size
@@ -763,9 +820,7 @@ emergExpF <- filter(emergExp, Sex=="F")
 
 emergExpF$block <- as.factor(emergExpF$block)
 
-mixEmerge <- lmer(Exp_Day ~  0 + Class + (1|Site_Code), 
-                 data=emergExpF[emergExpF$block=="fall",]
-                   )
+mixEmerge <- lmer(Exp_Day ~  0 + Class + block + (1|Site_Code), data=emergExpF)
 plot(mixEmerge)
 qqnorm(resid(mixEmerge))
 summary(mixEmerge)
@@ -776,5 +831,53 @@ summary(glht(mixEmerge, linfct = mcp(block = "Tukey"), test = adjusted("holm")))
 
 summary(glht(mixEmerge, linfct = mcp(Class = "Tukey"), test = adjusted("holm")))
 ```
+
+### Plots
+
+Adjust factors for plotting:
+```{r}
+levels(emergExpF$block) <- c("Fall", "Summer")
+emergExpF <- mutate(emergExpF, block=fct_rev(block))
+levels(emergExpF$Class) <- c("Rural", "Suburban", "Urban")
+
+levels(siteSumm$block) <- c("Fall", "Summer")
+siteSumm <- mutate(siteSumm, block=fct_rev(block))
+levels(siteSumm$Class) <- c("Rural", "Suburban", "Urban")
+```
+
+
+Survival and Emergence Plot
+
+```{r}
+#png(file="figures/forMS/emergSurvPlots.png", width = 4, height=6, units="in", res=500, family="sans")
+#Survival plot
+survPlot <- ggplot(data=siteSumm, aes(x=Class, y=(numSurv*2)))+
+  geom_boxplot(aes(fill=Class, alpha=0.5), width=0.4)+
+  scale_fill_manual(values=c(colR, colS, colU), labels=c("Rural", "Suburban", "Urban"))+
+  facet_wrap(~block, ncol=2)+
+  ylab("Percent Survial")+
+  theme(legend.position="none")+
+  theme(axis.title = element_text(size=12))+
+  theme(axis.title.x = element_blank(), axis.text.x = element_blank())
+
+#Emergence Plot
+emergePlot <- ggplot(emergExpF, aes(x=Class, y=Exp_Day))+
+  geom_boxplot(aes(fill=Class, alpha=0.5), width=0.4)+
+  scale_fill_manual(values=c(colR, colS, colU), labels=c("Rural", "Suburban", "Urban"))+
+  facet_wrap(~block, ncol=2)+
+  ylab("Time to Emergence (Days)")+
+  theme(legend.position="none") +
+  theme(strip.background = element_blank(),
+       strip.text.x = element_blank()) +
+  xlab("Land Class") +
+  theme(axis.text.x = element_text(size=8)) +
+  theme(axis.title = element_text(size=12))
+
+#grid together
+plot_grid(survPlot, emergePlot, labels=c("A", "B"), nrow=2)
+
+#dev.off()
+```
+
 
 ## Microclimate
