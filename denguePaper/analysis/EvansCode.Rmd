@@ -520,7 +520,7 @@ leveragePlots(finalSal)
 ```
 
 ```{r three panel temp x infection plot}
-#png(file="../figures/forMS/InfxTemp3Panel.png", width = 4, height=7, units="in", res=500, family="sans")
+png(file="figures/forMS/InfxTemp3Panel.png", width = 7, height=3, units="in", res=500, family="sans")
 plotBody <- ggplot(data=seasonInfSite, aes(x=Temp_mean_mean, y=Body_mean))+
   geom_errorbar(aes(ymin=Body_mean-Body_se, ymax=Body_mean+Body_se), color="gray20", width=0.1) +
   #geom_errorbarh(aes(xmin=Temp_mean_mean-Temp_mean_se, xmax=Temp_mean_mean+Temp_mean_se, y=Body_mean),color="gray20", height=0.05) + #not enough error to see
@@ -531,9 +531,9 @@ plotBody <- ggplot(data=seasonInfSite, aes(x=Temp_mean_mean, y=Body_mean))+
         plot.background = element_rect(fill = "transparent", colour = NA),
         legend.key = element_blank())+
   theme(legend.background = element_rect(fill = "transparent", colour = NA)) +
-    theme(axis.title = element_text(), axis.title.x = element_text()) +
+    theme(axis.title = element_text(), axis.title.x = element_text(), axis.title.y=element_blank()) +
   ylab("Prop. Infected")+
-  xlab("Mean Daily Temperature (C)") +  
+  xlab("") +  
   theme(legend.position="none")
 
 plotHead <- ggplot(data=seasonInfSite, aes(x=Temp_mean_mean, y=Head_mean))+
@@ -546,8 +546,8 @@ plotHead <- ggplot(data=seasonInfSite, aes(x=Temp_mean_mean, y=Head_mean))+
         plot.background = element_rect(fill = "transparent", colour = NA),
         legend.key = element_blank())+
   theme(legend.background = element_rect(fill = "transparent", colour = NA)) +
-    theme(axis.title = element_text(), axis.title.x = element_text())+
-  ylab("Prop. Disseminated")+
+    theme(axis.title = element_text(), axis.title.x = element_text(), axis.title.y=element_blank())+
+  #ylab("Prop. Disseminated")+
   xlab("Mean Daily Temperature (C)")+
   theme(legend.position="none")
 
@@ -561,16 +561,16 @@ plotSaliva <- ggplot(data=seasonInfSite, aes(x=Temp_mean_mean, y=Saliva_mean))+
         plot.background = element_rect(fill = "transparent", colour = NA),
         legend.key = element_blank())+
   theme(legend.background = element_rect(fill = "transparent", colour = NA)) +
-    theme(axis.title = element_text(), axis.title.x = element_text()) +
-  ylab("Prop. Infectious")+
-  xlab("Mean Daily Temperature (C)") +  
+    theme(axis.title = element_text(), axis.title.x = element_text(), axis.title.y=element_blank()) +
+  #ylab("Prop. Infectious")+
+  xlab("") +  
   scale_y_continuous(limits=c(0,1))+
   #theme(legend.position="right", legend.direction="vertical")
   theme(legend.position="none")
 
 
 plot_grid(plotBody, plotHead, plotSaliva, labels=c("A", "B", "C"), ncol=3)
-#dev.off()
+dev.off()
 ```
 
 ## Infection and Body Size
