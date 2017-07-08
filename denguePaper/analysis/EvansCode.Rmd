@@ -861,17 +861,17 @@ survPlot <- ggplot(data=siteSumm, aes(x=Class, y=(numSurv*2)))+
   theme(axis.title.x = element_blank(), axis.text.x = element_blank())
 
 #Emergence Plot
-emergePlot <- ggplot(emergExpF, aes(x=Class, y=Exp_Day))+
+emergePlot <- ggplot(emergExpF, aes(x=Class, y=(1/Exp_Day)))+
   geom_boxplot(aes(fill=Class, alpha=0.5), width=0.4)+
   scale_fill_manual(values=c(colR, colS, colU), labels=c("Rural", "Suburban", "Urban"))+
   facet_wrap(~block, ncol=2)+
-  ylab("Time to Emergence (Days)")+
+  ylab("Development\nRate")+
   theme(legend.position="none") +
   theme(strip.background = element_blank(),
        strip.text.x = element_blank()) +
   xlab("Land Class") +
   theme(axis.text.x = element_text(size=8)) +
-  theme(axis.title = element_text(size=12))
+  theme(axis.title = element_text(size=12), axis.title.y= element_text(size=12))
 
 #grid together
 plot_grid(survPlot, emergePlot, labels=c("A", "B"), nrow=2)
@@ -881,3 +881,335 @@ plot_grid(survPlot, emergePlot, labels=c("A", "B"), nrow=2)
 
 
 ## Microclimate
+
+Tie in tray-level climate data:
+```{r}
+allClim <- rbind(augClim, octClim)
+allClim$block <- rep(c("summer", "fall"), each=34)
+survClim <- merge(survSumm, allClim, by.x=c("block","Tray_Code"), by.y=c("block","Tray_ID"))
+```
+
+### Survival
+
+Statistics
+```{r}
+modDF <- survClim
+#standardize environmental variables
+modDF$Temp_mean <- scale(modDF$Temp_mean, center=T, scale=T)
+modDF$RH_mean <- scale(modDF$RH_mean, center=T, scale=T)
+survClimModmix <- lmer(percSurv~Temp_mean+(1|Site_Code), #RH has no significant effect
+                    data=survClim)
+
+plot(survClimModmix)
+qqnorm(resid(survClimModmix))
+summary(survClimModmix)
+coef(survClimModmix)
+AIC(survClimModmix)
+
+anova(survClimModmix)
+```
+
+
+### Development Rate
+
+```{r}
+allClim$block <- as.factor(allClim$block)
+levels(allClim$block) <- c("Fall", "Summer")
+emergClim <- merge(emergExpF, allClim, by.x=c("block","Tray_Code"), by.y=c("block","Tray_ID"))
+emergClim <- mutate(emergClim, devRate =1/Exp_Day)
+```
+
+Statistics:
+```{r}
+survClimMod <- lmer(devRate~Temp_mean*RH_mean +(1|Site_Code),
+                    data=emergClim)
+
+plot(survClimMod)
+qqnorm(resid(survClimMod))
+summary(survClimMod)
+coef(survClimMod)
+
+car::Anova(survClimMod)
+```
+
+#Body Size
+
+Load body size data:
+```{r load body size data}
+augWing <- read.csv("../data/emergence/raw/AugustWingLength.csv", stringsAsFactors = F)
+octWing <- read.csv("../data/emergence/raw/OctoberWingLength.csv",  stringsAsFactors = F)
+
+
+#convert to mm & clean
+augWing$mm <- augWing$Bars*augWing$Conversion.mm.bars.
+octWing$mm <- octWing$Bars*octWing$Conversion.bars.mm.
+
+octWing$site <- as.factor(substr(as.character(octWing$TrayCode), 1, 2))
+augWing$site <- as.factor(substr(as.character(augWing$TrayCode), 1, 2))
+
+getClass <- function(monthDf){
+  monthDf$class <- NULL
+  for (i in 1:nrow(monthDf)){
+    if (substr(monthDf$site[i], 1,1)=="R"){
+    monthDf$class[i] <- "Rural"
+    }
+    if (substr(monthDf$site[i], 1,1)=="S"){
+    monthDf$class[i] <- "Suburban"
+    }
+    if (substr(monthDf$site[i], 1,1)=="U"){
+    monthDf$class[i] <- "Urban"
+    }
+  }
+  monthDf$class <- as.factor(monthDf$class)
+  return(monthDf)
+}
+
+augWing <- getClass(augWing)
+octWing <- getClass(octWing)
+
+octWing$block <- "fall"
+augWing$block <- "summer"
+
+augWing$Date <- as.Date(as.character(augWing$Date), format="%m/%d/%Y")
+octWing$Date <- as.Date(as.character(octWing$Date), format="%m/%d/%Y")
+
+#add day of experiment
+augWing$Exp_Day <- as.numeric(augWing$Date-as.Date("2016-08-01", format="%Y-%m-%d"))
+octWing$Exp_Day <- as.numeric(octWing$Date-as.Date("2016-09-26", format="%Y-%m-%d"))
+
+#rename traycode column to match
+colnames(augWing)[1] <- "Tray_ID"
+colnames(octWing)[1] <- "Tray_ID"
+
+#combine
+fallWing <- octWing %>%
+  dplyr::select(block, class, site, Tray_ID, Exp_Day, mm)
+
+summerWing <- augWing %>%
+  dplyr::select(block, class, site, Tray_ID, Exp_Day, mm)
+
+allWing <- rbind(summerWing, fallWing)
+allWing$block<- as.factor(allWing$block)
+
+#drop outlier in S2 (wing size =1.56 mm)
+allWing <- allWing %>%
+  filter(mm>1.6)
+```
+
+Statistics:
+```{r}
+wingMix <- lmer(mm~0 + class*block +(1|site),
+                data=allWing)
+summary(wingMix)
+plot(wingMix)
+car::Anova(wingMix)
+coef(wingMix)
+```
+
+```{r}
+allWingSumm <- summarySE(allWing, measurevar="mm", groupvars=c("class", "block"))
+
+ggplot(data=allWingSumm, aes(x=class, y=mm, group=block))+
+  geom_point(aes(y=mm, shape=factor(block), color=factor(class)), position=position_dodge(width=-0.9), size=5)+
+  scale_color_manual(values=c(colRural, colSuburban, colU))+
+  scale_alpha_discrete(range=c(1,0.3), name="Season", labels=c("Fall", "Summer"), guide=guide_legend(reverse=T))+
+  scale_shape_discrete(name="Season",labels=c("Fall", "Summer"), guide=guide_legend(reverse=T))+
+  geom_errorbar(aes(ymin=mm-se, ymax=mm+se), width=0.2, color="gray20", position =position_dodge(-0.9))+
+  ylim(2.2,2.6)+
+  theme_fivethirtyeight() +
+  theme(panel.background = element_rect(fill = "transparent", colour = NA), 
+        plot.background = element_rect(fill = "transparent", colour = NA),
+        legend.key = element_blank())+
+  theme(legend.background = element_rect(fill = "transparent", colour = NA)) +
+    theme(axis.title = element_text(), axis.title.x = element_text()) +
+  ylab("Uninfected Wing Size")+
+  xlab("Land Class") +  
+  #ggtitle("Body Size ") +
+  theme(legend.position="right", legend.direction="vertical")+
+  guides(fill=F, color=F) 
+```
+
+## Climate and Wing Length
+
+Load Data
+```{r}
+climate <- read.csv(file='../data/microclimate/clean/2016TrialsAdultCleaned.csv', stringsAsFactors = F)
+
+climate$Day <- as.Date(climate$Day, format="%Y-%m-%d")
+climate$Site_ID <- as.factor(climate$Site_ID)
+climate$Tray_ID <- as.factor(climate$Tray_ID)
+
+getClimate <- function(indMosq, climateDF=climate, season){
+  #' This is a function to apply over the rows of the octWing and augWing data frames. Must have climate data loaded
+  
+  #' @param indMosq row of the dataframe for each individual mosquito
+  #' @param climateDF the dataframe containing climate data every 10 minutes
+  #' @param season, either "summer" or "fall"
+  #' @returns formatted data with climate and winglength for the individual mosquito
+  
+  
+  #get date range
+  startDate <- ifelse(season=="summer", "2016-08-01", "2016-09-26")
+  startDate <- as.Date(startDate, format="%Y-%m-%d")
+  endDate <- indMosq$Date
+  
+  #subset temperature data
+  try(climSubset <- climateDF %>%
+    filter(Tray_ID==as.character(indMosq$Tray_ID)) %>%
+    filter(Day>startDate & Day<endDate),
+    silent=T)
+  
+  #now take mean temperature
+  tempMean <- climSubset %>%
+    summarise(Tmean=mean(Temp, na.rm=T))
+  
+  # if (nrow(climSubset)<1000){
+  #   climSubset <- climate %>%
+  #     filter(Site_ID==indMosq$site) %>%
+  #     filter(Day>startDate & Day<endDate)
+  # }
+  
+  #merge this all together
+  #mosqFormat <- cbind(indMosq[,c('block','class','site','Tray_ID','Exp_Day', 'mm')], Tmean=tempMean$Tmean)
+  
+  return(tempMean$Tmean)
+}
+
+augWing$Temp <- NA
+for(i in 1:nrow(augWing)){
+  indMosq <- augWing[i,]
+  augWing$Temp[i] <- getClimate(indMosq, season="summer")
+}
+
+octWing$Temp <- NA
+for(i in 1:nrow(octWing)){
+  indMosq <- octWing[i,]
+  octWing$Temp[i] <- getClimate(indMosq, season="fall")
+}
+
+#combine
+fallWing <- octWing %>%
+  dplyr::select(block, class, site, Tray_ID, Exp_Day, mm, Temp)
+
+summerWing <- augWing %>%
+    dplyr::select(block, class, site, Tray_ID, Exp_Day, mm, Temp)
+
+allWing <- rbind(summerWing, fallWing)
+allWing$block<- as.factor(allWing$block)
+
+#drop outlier in S2 (wing size =1.56 mm)
+allWing <- allWing %>%
+  filter(mm>1.6)
+```
+
+
+```{r}
+ggplot(data=allWing, aes(x=Temp, y=mm)) +
+  geom_point(aes(col=factor(class), shape=factor(block))) + 
+  geom_smooth(method="auto")+
+  theme_fivethirtyeight() +
+  theme(panel.background = element_rect(fill = "transparent", colour = NA), 
+        plot.background = element_rect(fill = "transparent", colour = NA),
+        legend.key = element_blank())+
+  theme(legend.background = element_rect(fill = "transparent", colour = NA)) +
+    theme(axis.title = element_text(), axis.title.x = element_text()) +
+  ylab("Uninfected Wing Size")+
+  xlab("Mean Temperature (C)") +
+  scale_color_manual(values=c(colRural, "gray40", colU), name="Class", labels=c("Rural", "Suburban", "Urban"))+
+  #scale_alpha_discrete(range=c(1,0.3), name="Season", labels=c("Fall", "Summer"), guide=guide_legend(reverse=T))+
+  scale_shape_discrete(name="Season",labels=c("Fall", "Summer"), guide=guide_legend(reverse=T)) +
+  theme(legend.position="right", legend.direction="vertical")+
+  guides(shape=F) 
+```
+
+# Growth Rate
+
+```{r}
+#calculate means per Exp_Day and Tray
+growthWing <- allWing %>%
+  dplyr::group_by(block,class,site,Tray_ID, Exp_Day) %>%
+  dplyr::summarise(meanWing=mean(mm, na.rm=T)) %>%
+  dplyr::ungroup()
+
+growthWing$class <- tolower(growthWing$class)
+
+#merge with emergence data
+growthDF <- merge(allEmerg, growthWing, by.x=c("block", "Class", "Site_Code", "Tray_Code", "Exp_Day"), by.y=c("block", "class", "site", "Tray_ID", "Exp_Day"), all.x=T) 
+
+trayMeans <- allWing %>%
+  dplyr::group_by(block, Tray_ID) %>%
+  dplyr::summarise(meanWing=mean(mm, na.rm=T))
+
+#fill in missing with mean of tray during that block
+for (i in 1:nrow(growthDF)){
+  if (is.na(growthDF$meanWing[i])){
+    temp <- trayMeans$meanWing[trayMeans$block==growthDF$block[i] & trayMeans$Tray_ID==growthDF$Tray_Code[i]]
+    if (length(temp)==0) next
+    growthDF$meanWing[i] <- temp
+  } else next
+}
+
+#some trays had no mosquitoes emerge that weren't infected, so we take the site level mean for them
+
+siteMeans <- allWing %>%
+  dplyr::group_by(site, block) %>%
+  dplyr::summarise(meanWing=mean(mm, na.rm=T))
+
+for (i in 1:nrow(growthDF)){
+  if (is.na(growthDF$meanWing[i])){
+    temp <- siteMeans$meanWing[siteMeans$block==growthDF$block[i] & siteMeans$site==growthDF$Site_Code[i]]
+    if (length(temp)==0) next
+    growthDF$meanWing[i] <- temp
+  } else next
+}
+
+```
+
+```{r}
+growthDF$Fwx <- -121.240 + (78.02 * growthDF$meanWing)
+growthDF$AxFwx <- growthDF$Num_Emerge*growthDF$Fwx
+growthDF$xAxFwx <- growthDF$Exp_Day*growthDF$AxFwx
+
+#get sum per day
+
+growthDF2 <- growthDF %>%
+  dplyr::group_by(block, Tray_Code, Class, Site_Code) %>%
+  dplyr::summarise(xAxFwx = sum(xAxFwx), AxFwx=sum(AxFwx))
+
+growthDF2 <- growthDF2 %>%
+  mutate(r=(log((1/50)*AxFwx))/(14+(xAxFwx/AxFwx)))
+
+levels(growthDF2$block) <- c("Summer", "Fall")
+levels(growthDF2$Class) <- c("Rural", "Suburban", "Urban")
+```
+
+Plot
+```{r}
+#png(file="figures/forMS/growthRateFig.png", width = 6, height=4, units="in", res=500, family="sans")
+ggplot(data=growthDF2, aes(x=Class, y=r))+
+  geom_boxplot(aes(fill=Class), alpha=0.5)+
+  geom_jitter(aes(color=Class), width=0.1, height=0)+
+  facet_wrap(~block)+
+  theme_fivethirtyeight() +
+  theme(panel.background = element_rect(fill = "transparent", colour = NA), 
+        plot.background = element_rect(fill = "transparent", colour = NA),
+        legend.key = element_blank())+
+  theme(legend.background = element_rect(fill = "transparent", colour = NA)) +
+    theme(axis.title = element_text(), axis.title.x = element_text()) +
+  ylab("Per Capita Growth Rate (r')")+
+  xlab("Land Class") +  
+  scale_color_manual(values=c(colR, "gray30", colU)) +
+  scale_fill_manual(values=c(colR, colS, colU)) +
+  theme(legend.position="right", legend.direction="vertical")+
+  guides(fill=F, color=F) 
+#dev.off()
+```
+
+Statistics:
+```{r}
+growthMix <- lmer(r~ block + Class + (1|Site_Code), data=growthDF2)
+summary(growthMix)
+anova(growthMix) #only block is significant
+plot(growthMix)
+confint(growthMix)
+```
