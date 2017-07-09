@@ -1112,11 +1112,11 @@ ggplot(data=survClim, aes(x=Temp_mean, y=percSurv))+
 
 
 ```{r}
-survClimMod <- lm(percSurv~Temp_mean, data=survClim)
-ggplot(data=survClim, aes(y=percSurv, x=Temp_mean))+
+survClimMod <- lm(percSurv~RH_mean, data=survClim)
+ggplot(data=survClim, aes(y=percSurv, x=RH_mean))+
   geom_point()+
-  geom_smooth(method="lm")+
-  facet_wrap(~block)
+  geom_smooth(method="lm")
+  #facet_wrap(~block)
 survClimModmix <- lmer(log(percSurv)~Temp_mean + (1|Site_Code),
                     data=survClim)
 
@@ -1300,7 +1300,7 @@ ggplot(data=allWingSumm, aes(x=class, y=mm, group=block))+
   scale_alpha_discrete(range=c(1,0.3), name="Season", labels=c("Fall", "Summer"), guide=guide_legend(reverse=T))+
   scale_shape_discrete(name="Season",labels=c("Fall", "Summer"), guide=guide_legend(reverse=T))+
   geom_errorbar(aes(ymin=mm-se, ymax=mm+se), width=0.2, color="gray20", position =position_dodge(-0.9))+
-  ylim(2,2.75)+
+  ylim(2.2,2.6)+
   theme_fivethirtyeight() +
   theme(panel.background = element_rect(fill = "transparent", colour = NA), 
         plot.background = element_rect(fill = "transparent", colour = NA),

@@ -1377,6 +1377,7 @@ VCplot <- merge(paramAll, siteTemps, by.x=c("block", "Site_Code"), by.y=c("block
 
 Comparison Line Plot
 ```{r}
+#png(file="figures/forMS/VCxTemp.png", width = 4, height=4, units="in", res=500, family="sans")
 ggplot(data=VCplot, aes(x=Temp_mean_mean))+
   geom_point(aes(y=VC, color="WithCOE")) +
   geom_point(aes(y=VC2, color="WithoutCOE"))+
@@ -1392,6 +1393,6 @@ ggplot(data=VCplot, aes(x=Temp_mean_mean))+
   xlab("Temperature(C)")+
   ylab("Vectorial Capacity")+
   scale_colour_manual(name="VC Calcuation", values=c(WithCOE="dodgerblue", WithoutCOE="maroon"), labels=c("With Carry-Over", "Without Carry-Over"))
-  
+#dev.off()
 ```
 
