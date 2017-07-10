@@ -1373,12 +1373,16 @@ Add Temperature Back in For Comparison Plots
 siteTemps <- select(seasonInfSite, block, site, class, Temp_mean_mean)
 levels(paramAll$Class) <- c("Rural", "Suburban", "Urban")
 VCplot <- merge(paramAll, siteTemps, by.x=c("block", "Site_Code"), by.y=c("block", "site"))
+VCplot <- VCplot %>%
+  dplyr::select(block, Class, Site_Code, VC, VC2, Temp_mean_mean) %>%
+  mutate(VCdiff=(VC-VC2)/VC2*100)
+VCplot$block <- factor(VCplot$block, levels=c("summer", "fall"))
 ```
 
 Comparison Line Plot
 ```{r}
 #png(file="figures/forMS/VCxTemp.png", width = 4, height=4, units="in", res=500, family="sans")
-ggplot(data=VCplot, aes(x=Temp_mean_mean))+
+VCLinePlot <- ggplot(data=VCplot, aes(x=Temp_mean_mean))+
   geom_point(aes(y=VC, color="WithCOE")) +
   geom_point(aes(y=VC2, color="WithoutCOE"))+
   geom_smooth(aes(y=VC, color="WithCOE"), method="lm")+
@@ -1393,6 +1397,89 @@ ggplot(data=VCplot, aes(x=Temp_mean_mean))+
   xlab("Temperature(C)")+
   ylab("Vectorial Capacity")+
   scale_colour_manual(name="VC Calcuation", values=c(WithCOE="dodgerblue", WithoutCOE="maroon"), labels=c("With Carry-Over", "Without Carry-Over"))
+VCLinePlot
 #dev.off()
 ```
+
+```{r}
+#get mean and se summary
+VCplotsumm <- VCplot %>%
+  dplyr::select(-Site_Code) %>%
+  group_by(block, Class) %>%
+  dplyr::summarise_each(funs(mean=mean(., na.rm=T), se=sd(.)/sqrt(n())))
+```
+
+Panel Plot with Comparison Line and Bar Graphs
+```{r}
+png(file="figures/forMS/VCCompareVertical.png", width = 3, height=5, units="in", res=500, family="sans")
+
+#first plot: without COE
+plotNoCOE <- ggplot(data=VCplotsumm, aes(x=factor(Class), group=block)) +
+  geom_bar(stat='identity',aes(y=VC2_mean, fill=Class, alpha=block), color="black", position=position_dodge(0.9), width=0.7) + 
+  geom_errorbar(aes(ymin=VC2_mean-VC2_se, ymax=VC2_mean+VC2_se), position=position_dodge(0.9), width=0.4)+
+  theme_base()+
+  ylab("Vectorial Capacity")+
+  #ggtitle("Effect of COEs on vectorial capacity") +
+  xlab("")+
+  scale_x_discrete(labels=c("Rural", "Suburban", "Urban"))+
+  scale_fill_manual(values=c(colR, colS, colU), labels=c("Rural", "Suburban", "Urban")) +
+  scale_alpha_discrete(range=c(1,0.3), name="Season", guide=guide_legend())+
+  labs(fill=c("Rural", "Suburban", "Urban"))+
+  theme(legend.position = "none", axis.title.x = element_blank(), axis.text.x=element_blank(), axis.title.y=element_text(size=10))
+
+#second plot: with COE
+plotCOE <- ggplot(data=VCplotsumm, aes(x=factor(Class), group=block)) +
+  geom_bar(stat='identity',aes(y=VC_mean, fill=Class, alpha=block), color="black", position=position_dodge(0.9), width=0.7) + 
+  geom_errorbar(aes(ymin=VC_mean-VC_se, ymax=VC_mean+VC_se), position=position_dodge(0.9), width=0.4)+
+  theme_base()+
+  ylab("Vectorial Capacity")+
+  ylim(0,60)+
+  #ggtitle("Effect of COEs on vectorial capacity") +
+  xlab("Class")+
+  scale_x_discrete(labels=c("Rural", "Suburban", "Urban"))+
+  scale_fill_manual(values=c(colR, colS, colU), labels=c("Rural", "Suburban", "Urban")) +
+  scale_alpha_discrete(range=c(1,0.3), name="Season", guide=guide_legend())+
+  labs(fill=c("Rural", "Suburban", "Urban"))+
+  theme(legend.position = "none", axis.title.x = element_blank(), axis.text.x=element_blank(), axis.title.y=element_text(size=10))
+
+#third plot: difference
+plotDiff <- ggplot(data=VCplotsumm, aes(x=factor(Class), group=block)) +
+  geom_bar(stat='identity',aes(y=VCdiff_mean, fill=Class, alpha=block), color="black", position=position_dodge(0.9), width=0.7) + 
+  #geom_errorbar(aes(ymin=meandiff-sediff, ymax=meandiff+sediff), position=position_dodge(0.9), width=0.4)+
+  theme_base()+
+  ylab("Percent Change\nin VC")+
+  #ggtitle("Effect of COEs on vectorial capacity") +
+  xlab("Class")+
+  scale_x_discrete(labels=c("Rural", "Suburban", "Urban"))+
+  scale_fill_manual(values=c(colR, colS, colU), labels=c("Rural", "Suburban", "Urban")) +
+  scale_alpha_discrete(range=c(1,0.3), name="Season", guide=guide_legend(), labels=c("Summer", "Fall"))+
+  labs(fill=c("Class","Rural", "Suburban", "Urban"), alpha=c("Season", "Summer", "Fall"))+
+  geom_hline(aes(yintercept=0))+
+  theme(legend.position="bottom", axis.title.y=element_text(size=10), axis.title.x = element_text(size=12), legend.text=element_text(size=6), legend.title = element_text(size=8), legend.key.size = unit(0.1, "in"), legend.direction = "horizontal", legend.box = "vertical")
+  
+
+#legend
+plotLegend <- get_legend(plotDiff)
+
+# get rid of legend in third
+plotDiff <- plotDiff + theme(legend.position = "none")
+
+#cowplot them together
+pgrid <- plot_grid(plotNoCOE, plotCOE, plotDiff, plotLegend, nrow=4, rel_heights = c(1,1,1.2,0.4))
+
+pgrid
+# dev.off()
+```
+
+VC Stats:
+```{r}
+VCclass <- lmer(VC~Class*block+ (1|Site_Code), data=VCplot)
+plot(VCclass)
+summary(VCclass)
+car::Anova(VCclass)
+
+#make long for comparison of with and without carry-over
+VCtempMix <- glm(VC~Temp_mean_mean, data=VCplot)
+```
+
 
