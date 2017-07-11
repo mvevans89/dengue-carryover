@@ -1325,6 +1325,7 @@ Calcuate VC w/o carry-over effects
 ```{r}
 paramNoCOE <- dplyr::select(climAll, Block, Class, Site_ID, Tray_ID, Temp, Day, Hour)
 
+#based on model
 paramNoCOE$fecundity2 <- ((4.88/100)*27*(27-8.02)*((35.65-27)^0.5))/24
 paramNoCOE$fecundity2[paramNoCOE$fecundity2<0] <- 0
 paramNoCOE$fecundity2[is.na(paramNoCOE$fecundity2)] <- 0
@@ -1332,6 +1333,7 @@ paramNoCOE$fecundity2[is.na(paramNoCOE$fecundity2)] <- 0
 paramNoCOE$bc2 <- (((7.35/10000)*27*(27-15.84)*((36.40-27)^0.5)) * ((4.39/10000)*27*(27-3.62)*((36.82-27)^0.5)))/24
 paramNoCOE$bc2[paramNoCOE$bc2<0] <- 0
 paramNoCOE$bc2[is.na(paramNoCOE$bc2)] <- 0
+
 
 #take mean of each hour and sum up
 library(dplyr)
@@ -1354,18 +1356,27 @@ Merge w/ and w/o carry-over effects together
 ```{r}
 paramAll <- full_join(paramRate, paramRateNoCOE, by=c("block", "Class", "Site_Code"))
 
-#calculate EFD
 #calculate EFD 
 paramAll$EFD2 <- paramAll$fecundity2*paramAll$a
 ```
 
-Calculate VC from traits (VC2 is w/o carry-over)
+Without carry-over effects using block mean as a control
+```{r}
+paramAll <- paramRate %>%
+  group_by(block) %>%
+  mutate(fecundity2 = mean(fecundity)) %>%
+  mutate(bc2 = mean(bc)) %>%
+  mutate(EFD2 = fecundity2 * a)
+```
+
+
+Calculate VC from traits (VCnoCOE is w/o carry-over)
 ```{r}
 paramAll <- mutate(paramAll, 
                     VC=(((a^2)*bc*(exp(-mu/PDR))*EFD*pEA*(MDR^2))/((mu^3)))^(1/2))
 
 paramAll <- mutate(paramAll,
-                       VC2=(((a^2)*bc2*(exp(-mu/PDR))*EFD2*pEA*(MDR^2))/((mu^3)))^(1/2))
+                   VCnoCOE=(((a^2)*bc2*(exp(-mu/PDR))*EFD2*pEA*(MDR^2))/((mu^3)))^(1/2))
 ```
 
 Add Temperature Back in For Comparison Plots
@@ -1374,21 +1385,21 @@ siteTemps <- select(seasonInfSite, block, site, class, Temp_mean_mean)
 levels(paramAll$Class) <- c("Rural", "Suburban", "Urban")
 VCplot <- merge(paramAll, siteTemps, by.x=c("block", "Site_Code"), by.y=c("block", "site"))
 VCplot <- VCplot %>%
-  dplyr::select(block, Class, Site_Code, VC, VC2, Temp_mean_mean) %>%
-  mutate(VCdiff=(VC-VC2)/VC2*100)
+  dplyr::select(block, Class, Site_Code, VC, VCnoCOE, Temp_mean_mean) %>%
+  mutate(VCdiff=(VC-VCnoCOE)/VCnoCOE*100)
 VCplot$block <- factor(VCplot$block, levels=c("summer", "fall"))
 ```
 
 Comparison Line Plot
 ```{r}
-png(file="figures/forMS/VCxTemp.png", width = 4, height=4, units="in", res=500, family="sans")
+#png(file="figures/forMS/VCxTemp.png", width = 4, height=4, units="in", res=500, family="sans")
 ggplot(data=VCplot, aes(x=Temp_mean_mean))+
   geom_smooth(aes(y=VC, color="WithCOE"), method="lm", show.legend=F)+
-  geom_smooth(aes(y=VC2, color="WithoutCOE"),  method="lm", show.legend=F)+
+  geom_smooth(aes(y=VCnoCOE, color="WithoutCOE"),  method="lm", show.legend=F)+
   geom_smooth(aes(y=VC, color="WithCOE"), method="lm", fill=NA)+
-  geom_smooth(aes(y=VC2, color="WithoutCOE"),  method="lm", fill=NA)+
+  geom_smooth(aes(y=VCnoCOE, color="WithoutCOE"),  method="lm", fill=NA)+
   geom_point(aes(y=VC, color="WithCOE")) +
-  geom_point(aes(y=VC2, color="WithoutCOE"))+
+  geom_point(aes(y=VCnoCOE, color="WithoutCOE"))+
   theme_fivethirtyeight()+
   theme(panel.background = element_rect(fill = "transparent", colour = NA),
         plot.background = element_rect(fill = "transparent", colour = NA),
@@ -1412,21 +1423,21 @@ dev.off()
 #get mean and se summary
 VCplotsumm <- VCplot %>%
   dplyr::select(-Site_Code) %>%
-  gather(calc, value, VC, VC2, VCdiff) %>%
+  gather(calc, value, VC, VCnoCOE, VCdiff) %>%
   group_by(block, Class, calc) %>%
   dplyr::summarise_each(funs(mean=mean(., na.rm=T), se=sd(.)/sqrt(n()))) %>%
   ungroup()
 #add in facet labels
 VCplotsumm$labels <- case_when(
   VCplotsumm$calc=="VC" ~ "Vectorial Capacity",
-  VCplotsumm$calc=="VC2" ~ "Vectorial Capacity",
+  VCplotsumm$calc=="VCnoCOE" ~ "Vectorial Capacity",
   VCplotsumm$calc=="VCdiff" ~ "Change in Vectorial Capacity"
 )
 ```
 
 Panel Plot with Comparison Line and Bar Graphs
 ```{r}
-png(file="figures/forMS/VCCompareVertical.png", width = 3, height=4, units="in", res=500, family="sans")
+#png(file="figures/forMS/VCCompareVertical.png", width = 3, height=4, units="in", res=500, family="sans")
 ggplot(data=VCplotsumm, aes(x=factor(Class), group=block)) +
   geom_bar(stat='identity',
            aes(y=value_mean, fill=Class, alpha=block), 
