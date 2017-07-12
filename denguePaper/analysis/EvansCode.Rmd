@@ -1339,7 +1339,7 @@ paramNoCOE$bc2[is.na(paramNoCOE$bc2)] <- 0
 library(dplyr)
 paramRateNoCOE <- paramNoCOE %>%
   group_by(Block, Class, Site_ID, Hour) %>%
-  select(-Temp, -Day) %>%
+  select(-Temp, -Day, -Tray_ID) %>%
   summarise_each(funs(mean(.,na.rm=T))) %>%
   ungroup() %>%
   group_by(Block, Class, Site_ID) %>%
@@ -1360,13 +1360,12 @@ paramAll <- full_join(paramRate, paramRateNoCOE, by=c("block", "Class", "Site_Co
 paramAll$EFD2 <- paramAll$fecundity2*paramAll$a
 ```
 
-Without carry-over effects using block mean as a control
+Without carry-over effects using experimental mean as a control
 ```{r}
-paramAll <- paramRate %>%
-  group_by(block) %>%
-  mutate(fecundity2 = mean(fecundity)) %>%
-  mutate(bc2 = mean(bc)) %>%
-  mutate(EFD2 = fecundity2 * a)
+# paramAll <- paramRate %>%
+#   mutate(fecundity2 = mean(fecundity)) %>%
+#   mutate(bc2 = mean(bc)) %>%
+#   mutate(EFD2 = fecundity2 * a)
 ```
 
 
@@ -1392,7 +1391,7 @@ VCplot$block <- factor(VCplot$block, levels=c("summer", "fall"))
 
 Comparison Line Plot
 ```{r}
-#png(file="figures/forMS/VCxTemp.png", width = 4, height=4, units="in", res=500, family="sans")
+png(file="figures/forMS/VCxTemp.png", width = 4, height=4, units="in", res=500, family="sans")
 ggplot(data=VCplot, aes(x=Temp_mean_mean))+
   geom_smooth(aes(y=VC, color="WithCOE"), method="lm", show.legend=F)+
   geom_smooth(aes(y=VCnoCOE, color="WithoutCOE"),  method="lm", show.legend=F)+
@@ -1429,15 +1428,18 @@ VCplotsumm <- VCplot %>%
   ungroup()
 #add in facet labels
 VCplotsumm$labels <- case_when(
-  VCplotsumm$calc=="VC" ~ "Vectorial Capacity",
-  VCplotsumm$calc=="VCnoCOE" ~ "Vectorial Capacity",
-  VCplotsumm$calc=="VCdiff" ~ "Change in Vectorial Capacity"
+  VCplotsumm$calc=="VC" ~ "With COEs" ,
+  VCplotsumm$calc=="VCnoCOE" ~ "No COEs",
+  VCplotsumm$calc=="VCdiff" ~ "Difference due to COEs"
 )
+VCplotsumm$labels <- factor(VCplotsumm$labels, levels=c("No COEs", "With COEs", "Difference due to COEs"))
+#order factor
+VCplotsumm$calc <- factor(VCplotsumm$calc, levels=c("VCnoCOE", "VC", "VCdiff"))
 ```
 
-Panel Plot with Comparison Line and Bar Graphs
+Panel Plot with Bar Graphs
 ```{r}
-#png(file="figures/forMS/VCCompareVertical.png", width = 3, height=4, units="in", res=500, family="sans")
+png(file="figures/forMS/VCCompareVertical.png", width = 3, height=4, units="in", res=500, family="sans")
 ggplot(data=VCplotsumm, aes(x=factor(Class), group=block)) +
   geom_bar(stat='identity',
            aes(y=value_mean, fill=Class, alpha=block), 
@@ -1447,7 +1449,7 @@ ggplot(data=VCplotsumm, aes(x=factor(Class), group=block)) +
   geom_errorbar(aes(ymin=value_mean-value_se, ymax=value_mean+value_se),
                 position=position_dodge(0.9), 
                 width=0.4)+
-  facet_wrap(~calc, nrow=3) +
+  facet_wrap(~labels, nrow=3) +
   theme_fivethirtyeight() +
   ylab("Vectorial Capacity")+
   xlab("Land Class")+
@@ -1475,7 +1477,7 @@ ggplot(data=VCplotsumm, aes(x=factor(Class), group=block)) +
         legend.box = "vertical",
         panel.grid.major.x = element_blank(),
         strip.background = element_blank()) +
- theme(strip.text.x = element_blank()) #this has to be seperate for some reason?
+ theme(strip.text.x = element_text()) #this has to be seperate for some reason?
 dev.off()
 ```
 
@@ -1488,7 +1490,7 @@ car::Anova(VCclass)
 
 #make long for comparison of with and without carry-over
 VClong <- VCplot %>%
-  gather(COE, value, VC, VC2)
+  gather(COE, value, VC, VCnoCOE)
 
 VCtemp <- lm(value~Temp_mean_mean*COE, data=VClong)
 plot(VCtemp)
