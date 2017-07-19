@@ -63,7 +63,9 @@ ggplot(data=clim, aes(x=Day, group=Class))+
     annotate("rect", xmin=as.Date("2016-09-26", format="%Y-%m-%d"), xmax=as.Date("2016-11-07", format="%Y-%m-%d"), ymin=-Inf, ymax=Inf, fill="darkorange", alpha=0.1)+
   theme(panel.background = element_rect(fill = "transparent", colour = NA), 
         plot.background = element_rect(fill = "transparent", colour = NA),
-        legend.key = element_blank())+
+        legend.key = element_blank(),
+        axis.line=element_line(color=ggthemes_data$fivethirtyeight["dkgray"], size=0.5),
+        panel.grid = element_blank())+
   theme(legend.background = element_rect(fill = "transparent", colour = NA))
 #dev.off()
 ```

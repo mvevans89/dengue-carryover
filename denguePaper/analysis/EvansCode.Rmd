@@ -248,12 +248,12 @@ Plot (summer is alpha=1, fall is alpha=0.3)
 ```{r}
 #png(file="figures/forMS/landClassInf.png", width = 4, height=7, units="in", res=600, family="sans")
 ggplot(data=infLong[order(infLong$block, decreasing=F),], aes(x=class, group=block))+
-  geom_bar(stat="identity", aes(y=mean.inf, alpha=factor(block), fill=factor(class)), color="gray20", position=position_dodge(width=-0.9))+
+  geom_bar(stat="identity", aes(y=mean.inf, alpha=factor(block), fill=factor(class)), color="gray40", position=position_dodge(width=-0.9))+
   facet_wrap(~type, nrow=3, dir="v") +
-  ylim(0,0.8)+
+  ylim(0,1)+
   scale_fill_manual(values=c(colR, colS, colU))+
   scale_alpha_discrete(range=c(0.3,1), name="Season", labels=c("Fall", "Summer"), guide=guide_legend(reverse=T))+
-  geom_errorbar(aes(ymin=mean.inf-se.inf, ymax=mean.inf+se.inf), width=0.2, color="gray20", position =position_dodge(-0.9))+
+  geom_errorbar(aes(ymin=mean.inf-se.inf, ymax=mean.inf+se.inf), width=0.2, color="gray40", position =position_dodge(-0.9))+
   xlab("Land Class") +
   ylab("Infection Efficiency") +
   guides(fill=F, alpha=F) +
@@ -265,7 +265,9 @@ ggplot(data=infLong[order(infLong$block, decreasing=F),], aes(x=class, group=blo
         legend.background = element_rect(fill = "transparent", colour = NA),
         axis.title = element_text(), 
         axis.title.x = element_text(),
-        axis.title.y=element_blank())
+        axis.title.y=element_blank(),
+        axis.line=element_line(color="gray40", size=0.5),
+        panel.grid = element_blank())
 #dev.off()
 ```
 
@@ -480,48 +482,60 @@ leveragePlots(finalSal)
 Infection x Temperature Plot
 
 ```{r three panel temp x infection plot}
-#png(file="figures/forMS/InfxTemp3Panel.png", width = 7, height=3, units="in", res=600, family="sans")
+#png(file="figures/forMS/InfxTemp3PanelPOSTER.png", width = 8, height=3, units="in", res=600, family="sans")
 plotBody <- ggplot(data=seasonInfSite, aes(x=Temp_mean_mean, y=Body_mean))+
-  geom_errorbar(aes(ymin=Body_mean-Body_se, ymax=Body_mean+Body_se), color="gray20", width=0.1) +
+  geom_errorbar(aes(ymin=Body_mean-Body_se, ymax=Body_mean+Body_se), color="gray40", width=0.1) +
   #geom_errorbarh(aes(xmin=Temp_mean_mean-Temp_mean_se, xmax=Temp_mean_mean+Temp_mean_se, y=Body_mean),color="gray20", height=0.05) + #not enough error to see
   geom_point(aes(color=class, shape=block), size=4.5) + 
   scale_color_manual(values=c(colR, colS, colU)) +
   theme_fivethirtyeight() +
-    theme(panel.background = element_rect(fill = "transparent", colour = NA), 
+  theme(panel.background = element_rect(fill = "transparent", colour = NA),
         plot.background = element_rect(fill = "transparent", colour = NA),
-        legend.key = element_blank())+
-  theme(legend.background = element_rect(fill = "transparent", colour = NA)) +
-    theme(axis.title = element_text(), axis.title.x = element_text(), axis.title.y=element_blank()) +
+        legend.key = element_blank(),
+        legend.background = element_rect(fill = "transparent", colour = NA),
+        axis.title = element_text(),
+        axis.title.x = element_text(),
+        axis.title.y=element_blank(),
+        axis.line=element_line(color="gray40", size=0.5),
+        panel.grid = element_blank())+
   ylab("Prop. Infected")+
   xlab("") +  
   theme(legend.position="none")
 
 plotHead <- ggplot(data=seasonInfSite, aes(x=Temp_mean_mean, y=Head_mean))+
-   geom_errorbar(aes(ymin=Head_mean-Head_se, ymax=Head_mean+Head_se), color="gray20", width=0.1) +
+   geom_errorbar(aes(ymin=Head_mean-Head_se, ymax=Head_mean+Head_se), color="gray40", width=0.1) +
   #geom_errorbarh(aes(xmin=Temp_mean_mean-Temp_mean_se, xmax=Temp_mean_mean+Temp_mean_se), color="gray20", height=0.05) +
   geom_point(aes(color=class, shape=block), size=4) + 
   scale_color_manual(values=c(colR, colS, colU)) +
   theme_fivethirtyeight() +
-    theme(panel.background = element_rect(fill = "transparent", colour = NA), 
+    theme(panel.background = element_rect(fill = "transparent", colour = NA),
         plot.background = element_rect(fill = "transparent", colour = NA),
-        legend.key = element_blank())+
-  theme(legend.background = element_rect(fill = "transparent", colour = NA)) +
-    theme(axis.title = element_text(), axis.title.x = element_text(), axis.title.y=element_blank())+
+        legend.key = element_blank(),
+        legend.background = element_rect(fill = "transparent", colour = NA),
+        axis.title = element_text(),
+        axis.title.x = element_text(),
+        axis.title.y=element_blank(),
+        axis.line=element_line(color="gray40", size=0.5),
+        panel.grid = element_blank())+
   #ylab("Prop. Disseminated")+
   xlab("Mean Daily Temperature (C)")+
   theme(legend.position="none")
 
 plotSaliva <- ggplot(data=seasonInfSite, aes(x=Temp_mean_mean, y=Saliva_mean))+
-  geom_errorbar(aes(ymin=Saliva_mean-Saliva_se, ymax=Saliva_mean+Saliva_se), color="gray20", width=0.1) +
+  geom_errorbar(aes(ymin=Saliva_mean-Saliva_se, ymax=Saliva_mean+Saliva_se), color="gray40", width=0.1) +
   #geom_errorbarh(aes(xmin=Temp_mean_mean-Temp_mean_se, xmax=Temp_mean_mean+Temp_mean_se, y=Body_mean),color="gray20", height=0.05) + #not enough error to see
   geom_point(aes(color=class, shape=block), size=4.5) + 
   scale_color_manual(values=c(colR, colS, colU)) +
   theme_fivethirtyeight() +
-    theme(panel.background = element_rect(fill = "transparent", colour = NA), 
+    theme(panel.background = element_rect(fill = "transparent", colour = NA),
         plot.background = element_rect(fill = "transparent", colour = NA),
-        legend.key = element_blank())+
-  theme(legend.background = element_rect(fill = "transparent", colour = NA)) +
-    theme(axis.title = element_text(), axis.title.x = element_text(), axis.title.y=element_blank()) +
+        legend.key = element_blank(),
+        legend.background = element_rect(fill = "transparent", colour = NA),
+        axis.title = element_text(),
+        axis.title.x = element_text(),
+        axis.title.y=element_blank(),
+        axis.line=element_line(color="gray40", size=0.5),
+        panel.grid = element_blank()) +
   #ylab("Prop. Infectious")+
   xlab("") +  
   scale_y_continuous(limits=c(0,1))+
@@ -529,7 +543,9 @@ plotSaliva <- ggplot(data=seasonInfSite, aes(x=Temp_mean_mean, y=Saliva_mean))+
   theme(legend.position="none")
 
 
-plot_grid(plotBody, plotHead, plotSaliva, labels=c("A", "B", "C"), ncol=3)
+plot_grid(plotBody, plotHead, plotSaliva, 
+          #labels=c("A", "B", "C"), 
+          ncol=3)
 #dev.off()
 ```
 
@@ -1352,7 +1368,7 @@ VCplot$block <- factor(VCplot$block, levels=c("summer", "fall"))
 
 Comparison Line Plot
 ```{r}
-png(file="figures/forMS/VCxTemp.png", width = 4, height=4, units="in", res=500, family="sans")
+#png(file="figures/forMS/VCxTempPOSTER.png", width = 4, height=4, units="in", res=500, family="sans")
 ggplot(data=VCplot, aes(x=Temp_mean_mean))+
   geom_smooth(aes(y=VC, color="WithCOE"), method="lm", show.legend=F)+
   geom_smooth(aes(y=VCnoCOE, color="WithoutCOE"),  method="lm", show.legend=F)+
@@ -1369,14 +1385,16 @@ ggplot(data=VCplot, aes(x=Temp_mean_mean))+
         legend.direction="horizontal",
         axis.title = element_text(),
         legend.text=element_text(size=8), 
-        legend.title = element_text(size=10))+
+        legend.title = element_text(size=10),
+        axis.line=element_line(color="gray40", size=0.5),
+        panel.grid = element_blank())+
   guides(colour=guide_legend(title.position="top", title.hjust=0.5))+
   xlab("Temperature (C)")+
   ylab("Vectorial Capacity")+
   scale_colour_manual(name="Calcuation Type", 
                       values=c(WithCOE="#f1a340", WithoutCOE="#998ec3"),
                       labels=c("With COEs", "Without COEs"))
-dev.off()
+#dev.off()
 ```
 
 ```{r}
