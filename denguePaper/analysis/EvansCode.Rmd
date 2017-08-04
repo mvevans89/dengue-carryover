@@ -510,17 +510,20 @@ mixModelseasonsBody21 <- lme4::glmer(Body~class + block + (1|site),
 tidy(mixModelseasonsBody21)
 car::Anova(mixModelseasonsBody21)
 
+
 mixModelseasonsHead21 <- lme4::glmer(Head~block  + (1|site), 
                           data=seasons[seasons$DPI=="21" & seasons$Body==1,],
                           family=binomial(link="logit"))
 tidy(mixModelseasonsHead21)
 car::Anova(mixModelseasonsHead21) #no effect
+drop1(mixModelseasonsHead21, test="Chisq")
 
 mixModelseasonsSaliva21 <- lme4::glmer(Saliva~class + block  + (1|site), 
                           data=seasons[seasons$DPI=="21" & seasons$Head==1,],
                           family=binomial(link="logit"))
 tidy(mixModelseasonsSaliva21)
 car::Anova((mixModelseasonsSaliva21)) #only block is significant
+drop1(mixModelseasonsSaliva21, test="Chisq")
 ```
 
 ## Infection and Microclimate
@@ -536,84 +539,241 @@ seasonSite <- seasons %>%
 seasonInfSite <- merge(seasonSite, rbind(augEnvVar,octEnvVar), by.x=c("block", "site"), by.y=c("block", "Site_Code"))
 
 # inspect variable correlations
-cor(seasonInfSite[,10:18])
+# cor(seasonInfSite[,10:18])
 ```
 
 ```{r body x climate stats}
 respV <- "Body_mean"
-predVs <- c("Temp_mean_mean","RH_mean_mean")
+predVs <- c("Temp_mean_mean","RH_mean_mean", "DTR_mean", "Temp_min_mean", "RH_min_mean", "Temp_max_mean", "RH_max_mean")
 
 myCols <- c(respV, predVs, "block","class", "site")
 modDF <- seasonInfSite %>%
   dplyr::select(one_of(myCols)) 
 modDF <- na.omit(modDF)
 
-#standardize IVs
-modDF$Temp_mean_mean <- scale(modDF$Temp_mean_mean, center=T, scale=T)
-modDF$RH_mean_mean <- scale(modDF$RH_mean_mean, center=T, scale=T)
+#model selection for initial variable (bc of high correlation)
+m1 <- glm(Body_mean ~ Temp_mean_mean, 
+          data=modDF, 
+          family=gaussian(link="log"))
+m2 <- glm(Body_mean ~ RH_mean_mean, 
+          data=modDF, 
+          family=gaussian(link="log"))
+m3 <- glm(Body_mean ~ DTR_mean, 
+          data=modDF, 
+          family=gaussian(link="log"))
+m4 <- glm(Body_mean ~ Temp_min_mean, 
+          data=modDF, 
+          family=gaussian(link="log"))
+m5 <- glm(Body_mean ~ Temp_max_mean, 
+          data=modDF, 
+          family=gaussian(link="log"))
+m6 <- glm(Body_mean ~ RH_min_mean, 
+          data=modDF, 
+          family=gaussian(link="log"))
+m7 <- glm(Body_mean ~ RH_max_mean, 
+          data=modDF, 
+          family=gaussian(link="log"))
 
-finalBody <- lm(Body_mean ~ Temp_mean_mean+RH_mean_mean, data=modDF)
-qqPlot(finalBody, labels=modDF$site)
+modelSums <- do.call(rbind, lapply(list(m1,m2,m3, m4, m5, m6, m7), broom::glance)) #1 seems best
+
+AICc(m1,m2,m3, m4, m5, m6, m7)
+tidy(m1)
+
+#find covariates that aren't correlated
+covars <- data.frame(cor(seasonInfSite[,10:18]))
+rownames(covars[abs(covars$Temp_mean_mean)<0.8,]) #only RH_mean and RH_max
+
+#model selection
+m1 <- glm(Body_mean ~ Temp_mean_mean, 
+          data=modDF, 
+          family=gaussian(link="log"))
+m2 <- glm(Body_mean ~ RH_mean_mean, 
+          data=modDF, 
+          family=gaussian(link="log"))
+
+m3 <- glm(Body_mean ~ Temp_mean_mean+RH_mean_mean, 
+          data=modDF, 
+          family=gaussian(link="log"))
+m4 <- glm(Body_mean ~ Temp_mean_mean*RH_mean_mean, 
+          data=modDF, 
+          family=gaussian(link="log"))
+
+
+
+modelSums <- do.call(rbind, lapply(list(m1,m2, m3, m4), broom::glance)) #3 seems best
+
+AICc(m1,m2, m3, m4)
+tidy(m3)
+
+
+finalBody <- glm(Body_mean ~ Temp_mean_mean+RH_mean_mean, 
+          data=modDF, 
+          family=gaussian(link="log"))
 plot(cooks.distance(finalBody))
 abline(h=4/length(modDF), lty=2)
 car::Anova(finalBody)
 #confint(finalBody)
-summary(finalBody)
+tidy(finalBody)
+drop1(finalBody, test="F")
 
 outlierTest(finalBody)
-leveragePlots(finalBody)
 vif(finalBody)
 sqrt(vif(finalBody))>2
+
+#glm residuals
+simulationOutput <- simulateResiduals(fittedModel = finalBody, n=999)
+plotSimulatedResiduals(simulationOutput = simulationOutput)
+
 ```
 
 ```{r head x climate stats}
 respV <- "Head_mean"
-predVs <- c("Temp_mean_mean","RH_mean_mean")
+predVs <- c("Temp_mean_mean","RH_mean_mean", "DTR_mean", "Temp_min_mean", "RH_min_mean", "Temp_max_mean", "RH_max_mean")
 
 myCols <- c(respV, predVs, "block","class", "site")
 modDF <- seasonInfSite %>%
   dplyr::select(one_of(myCols)) 
 modDF <- na.omit(modDF)
 
-#standardize IVs
-modDF$Temp_mean_mean <- scale(modDF$Temp_mean_mean, center=T, scale=T)
-modDF$RH_mean_mean <- scale(modDF$RH_mean_mean, center=T, scale=T)
+#model selection for initial variable (bc of high correlation)
+m1 <- glm(Head_mean ~ Temp_mean_mean, 
+          data=modDF, 
+          family=gaussian(link="log"))
+m2 <- glm(Head_mean ~ RH_mean_mean, 
+          data=modDF, 
+          family=gaussian(link="log"))
+m3 <- glm(Head_mean ~ DTR_mean, 
+          data=modDF, 
+          family=gaussian(link="log"))
+m4 <- glm(Head_mean ~ Temp_min_mean, 
+          data=modDF, 
+          family=gaussian(link="log"))
+m5 <- glm(Head_mean ~ Temp_max_mean, 
+          data=modDF, 
+          family=gaussian(link="log"))
+m6 <- glm(Head_mean ~ RH_min_mean, 
+          data=modDF, 
+          family=gaussian(link="log"))
+m7 <- glm(Head_mean ~ RH_max_mean, 
+          data=modDF, 
+          family=gaussian(link="log"))
 
-finalHead <- lm(Head_mean ~ Temp_mean_mean+RH_mean_mean, data=modDF)
-qqPlot(finalHead, labels=modDF$site)
+modelSums <- do.call(rbind, lapply(list(m1,m2,m3, m4, m5, m6, m7), broom::glance)) #1 seems best
+tidy(m1)
+
+#model selection
+m1 <- glm(Head_mean ~ Temp_mean_mean, 
+          data=modDF, 
+          family=gaussian(link="log"))
+m2 <- glm(Head_mean ~ RH_mean_mean, 
+          data=modDF, 
+          family=gaussian(link="log"))
+
+m3 <- glm(Head_mean ~ Temp_mean_mean+RH_mean_mean, 
+          data=modDF, 
+          family=gaussian(link="log"))
+m4 <- glm(Head_mean ~ Temp_mean_mean*RH_mean_mean, 
+          data=modDF, 
+          family=gaussian(link="log"))
+
+modelSums <- do.call(rbind, lapply(list(m1,m2, m3, m4), broom::glance)) #3 seems best
+
+AICc(m1,m2, m3, m4)
+tidy(m3)
+
+
+finalHead <- glm(Head_mean ~ Temp_mean_mean+RH_mean_mean, 
+          data=modDF, 
+          family=gaussian)
+
 plot(cooks.distance(finalHead))
 abline(h=4/length(modDF), lty=2)
 car::Anova(finalHead)
 #confint(finalHead)
-summary(finalHead)
+drop1(finalHead, test="F")
+tidy(finalHead)
+
 
 outlierTest(finalHead)
-leveragePlots(finalHead)
+
+#glm residuals
+simulationOutput <- simulateResiduals(fittedModel = finalHead, n=999)
+plotSimulatedResiduals(simulationOutput = simulationOutput)
 ```
 
 ```{r body x climate stats}
 respV <- "Saliva_mean"
-predVs <- c("Temp_mean_mean","RH_mean_mean")
+predVs <- c("Temp_mean_mean","RH_mean_mean", "DTR_mean", "Temp_min_mean", "RH_min_mean", "Temp_max_mean", "RH_max_mean")
 
 myCols <- c(respV, predVs, "block","class", "site")
 modDF <- seasonInfSite %>%
   dplyr::select(one_of(myCols)) 
 modDF <- na.omit(modDF)
 
-#standardize IVs
-modDF$Temp_mean_mean <- scale(modDF$Temp_mean_mean, center=T, scale=T)
-modDF$RH_mean_mean <- scale(modDF$RH_mean_mean, center=T, scale=T)
+#model selection for initial variable (bc of high correlation)
+m1 <- glm(Saliva_mean ~ Temp_mean_mean, 
+          data=modDF, 
+          family=gaussian)
+m2 <- glm(Saliva_mean ~ RH_mean_mean, 
+          data=modDF, 
+          family=gaussian)
+m3 <- glm(Saliva_mean ~ DTR_mean, 
+          data=modDF, 
+          family=gaussian)
+m4 <- glm(Saliva_mean ~ Temp_min_mean, 
+          data=modDF, 
+          family=gaussian)
+m5 <- glm(Saliva_mean ~ Temp_max_mean, 
+          data=modDF, 
+          family=gaussian)
+m6 <- glm(Saliva_mean ~ RH_min_mean, 
+          data=modDF, 
+          family=gaussian)
+m7 <- glm(Saliva_mean ~ RH_max_mean, 
+          data=modDF, 
+          family=gaussian)
 
-finalSal <- lm(Saliva_mean ~ Temp_mean_mean+RH_mean_mean, data=modDF)
-qqPlot(finalSal, labels=modDF$site)
+modelSums <- do.call(rbind, lapply(list(m1,m2,m3, m4, m5, m6, m7), broom::glance)) #2 seems best, but they are all basically the same (dAIC<1)
+tidy(m2)
+
+
+#model selection
+m1 <- glm(Saliva_mean ~ Temp_mean_mean, 
+          data=modDF,
+          family=gaussian)
+m2 <- glm(Saliva_mean ~ RH_mean_mean, 
+          data=modDF,
+          family=gaussian)
+
+m3 <- glm(Saliva_mean ~ Temp_mean_mean+RH_mean_mean, 
+          data=modDF, 
+          family=gaussian)
+m4 <- glm(Saliva_mean ~ Temp_mean_mean*RH_mean_mean, 
+          data=modDF,
+          family=gaussian)
+
+modelSums <- do.call(rbind, lapply(list(m1,m2, m3, m4), broom::glance)) #2 seems best
+
+AICc(m1,m2, m3, m4)
+tidy(m2)
+
+finalSal <- glm(Saliva_mean ~ RH_mean_mean, 
+                data=modDF, #drop outlier
+                family=gaussian)
+
 plot(cooks.distance(finalSal))
 abline(h=4/length(modDF), lty=2)
 car::Anova(finalSal)
 #confint(finalSal)
-summary(finalSal)
+drop1(finalSal, test="F")
+tidy(finalSal)
 
 outlierTest(finalSal)
-leveragePlots(finalSal)
+
+#glm residuals
+simulationOutput <- simulateResiduals(fittedModel = finalHead, n=999)
+plotSimulatedResiduals(simulationOutput = simulationOutput)
+
 ```
 
 Infection x Temperature Plot
@@ -757,13 +917,14 @@ bodyWingDF <- seasonInf %>%
 bodyWing <- glmer(Body~Wing + (1|site),
                           data=bodyWingDF,
                           family=binomial(link="logit"))
-summary(bodyWing)
-require(DHARMa)
-simulationOutput <- simulateResiduals(fittedModel = bodyWing, n=99)
+# bodyWing <- lmer(Wing~Body + (1|site),
+#                           data=bodyWingDF)
+tidy(bodyWing)
+
+simulationOutput <- simulateResiduals(fittedModel = bodyWing, n=999)
 plotSimulatedResiduals(simulationOutput = simulationOutput)
-#plotResiduals(bodyWingDF$Wing,  simulationOutput$scaledResiduals)
-#confint(bodyWing)
 Anova(bodyWing)
+drop1(bodyWing, test="Chisq")
 ```
 
 ```{r body inf x size plot}
@@ -796,11 +957,14 @@ headWingDF <- seasonInf %>%
 headWing <- glmer(Head~Wing + (1|site),
                           data=headWingDF,
                           family=binomial(link="logit"))
-summary(headWing)
+# headWing <- lmer(Wing~Head + (1|site),
+#                           data=headWingDF) #this tests if the wing length is significantly different across infection classes
+tidy(headWing)
 simulationOutput <- simulateResiduals(fittedModel = headWing, n=99)
 plotSimulatedResiduals(simulationOutput = simulationOutput)
-#plotResiduals(headWingDF$Wing,  simulationOutput$scaledResiduals)
+
 Anova(headWing)
+drop1(headWing, test="Chisq")
 ```
 
 ### Saliva Infection
@@ -816,9 +980,12 @@ salWing <- glmer(Saliva~Wing + (1|site),
                           data=salWingDF,
                           family=binomial(link="logit"))
 summary(salWing)
+tidy(salWing)
 simulationOutput <- simulateResiduals(fittedModel = salWing, n=99)
 plotSimulatedResiduals(simulationOutput = simulationOutput)
-#plotResiduals(salWingDF$Wing,  simulationOutput$scaledResiduals)
+
+Anova(salWing)
+drop1(salWing, test="Chisq")
 ```
 
 # Emergence and Survival
