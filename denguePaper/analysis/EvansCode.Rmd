@@ -361,22 +361,24 @@ tidy(m1)
 mixModelseasonsBody21 <- lme4::glmer(Body~class + block + (1|site), 
                           data=seasons[seasons$DPI=="21",],
                           family=binomial(link="logit"))
-Body21Aov <- car::Anova(mixModelseasonsBody21) #Wald test
+tidy(mixModelseasonsBody21)
+car::Anova(mixModelseasonsBody21) #Wald test
 #confint(mixModelseasonsBody21) #profiled confidence interval
 drop1(mixModelseasonsBody21, test="Chisq") #Likelihood ratio test
 
 mixModelseasonsHead21 <- lme4::glmer(Head~class + block  + (1|site), 
                           data=seasons[seasons$DPI=="21",],
                           family=binomial(link="logit"))
-Head21Aov <- car::Anova(mixModelseasonsHead21) #Wald test
+tidy(mixModelseasonsHead21)
+car::Anova(mixModelseasonsHead21) #Wald test
 #confint(mixModelseasonsHead21) #profiled confidence interval
 drop1(mixModelseasonsHead21, test="Chisq")
 
 mixModelseasonsSaliva21 <- lme4::glmer(Saliva~block  + (1|site), 
                           data=seasons[seasons$DPI=="21",],
                           family=binomial(link="logit"))
-summary(mixModelseasonsSaliva21) #z-test
-Saliva21Aov <- car::Anova((mixModelseasonsSaliva21)) #Wald test
+tidy(mixModelseasonsSaliva21) #z-test
+car::Anova((mixModelseasonsSaliva21)) #Wald test
 confint(mixModelseasonsSaliva21) #profiled confidence interval
 drop1(mixModelseasonsSaliva21, test="Chisq")
 ```
@@ -391,7 +393,7 @@ bodyEff <- seasons %>%
   #drop individual
   select(-Individual, -site, -Wing, -DPI) %>%
   group_by(block, class) %>%
-  summarise_each(funs(bodyMean=mean(.,na.rm=T),bodySE=(sd(., na.rm=T)/sqrt(n()))), Body) %>%
+  summarise_all(funs(bodyMean=mean(.,na.rm=T),bodySE=(sd(., na.rm=T)/sqrt(n()))), Body) %>%
   ungroup()
 
 headEff <- seasons %>%
@@ -400,7 +402,7 @@ headEff <- seasons %>%
   #drop individual
   select(-Individual, -site, -Wing, -DPI) %>%
   group_by(block, class) %>%
-  summarise_each(funs(headMean=mean(.,na.rm=T),headSE=(sd(., na.rm=T)/sqrt(n()))), Head) %>%
+  summarise_all(funs(headMean=mean(.,na.rm=T),headSE=(sd(., na.rm=T)/sqrt(n()))), Head) %>%
   ungroup()
 
 salEff <-  seasons %>%
@@ -409,7 +411,7 @@ salEff <-  seasons %>%
   #drop individual
   select(-Individual, -site, -Wing, -DPI) %>%
   group_by(block, class) %>%
-  summarise_each(funs(salMean=mean(.,na.rm=T),salSE=(sd(., na.rm=T)/sqrt(n()))), Saliva) %>%
+  summarise_all(funs(salMean=mean(.,na.rm=T),salSE=(sd(., na.rm=T)/sqrt(n()))), Saliva) %>%
   ungroup()
 
 #group together
@@ -449,23 +451,76 @@ ggplot(data=meltAll[order(meltAll$block, decreasing=F),], aes(x=class, group=blo
   #theme(legend.title=element_text("Season"))
 ```
 
-Infection efficiency statistics
-```{r efficiency stats}
-#model 
-mixModelseasonsBody21 <- lme4::glmer(Body~class * block + (1|site), 
-                          data=seasons[seasons$DPI=="21",],
-                          family=binomial(link="logit"))
-Body21Aov <- car::Anova(mixModelseasonsBody21)
+Model Selection (Body is same as initial infection)
 
-mixModelseasonsHead21 <- lme4::glmer(Head~class * block  + (1|site), 
+```{r head efficiency model comparison}
+#create all the models
+m1 <- glmer(Head~block + (1|site), 
                           data=seasons[seasons$DPI=="21" & seasons$Body==1,],
                           family=binomial(link="logit"))
-Head21Aov <- car::Anova(mixModelseasonsHead21) #no effect
+m2 <- glmer(Head~class +  (1|site), 
+                          data=seasons[seasons$DPI=="21" & seasons$Body==1,],
+                          family=binomial(link="logit"))
+m3 <- glmer(Head~class + block + (1|site), 
+                          data=seasons[seasons$DPI=="21" & seasons$Body==1,],
+                          family=binomial(link="logit"))
+m4 <- glmer(Head~class*block + (1|site), 
+                          data=seasons[seasons$DPI=="21" & seasons$Body==1,],
+                          family=binomial(link="logit"))
+m5 <- glmer(Head~class*(1|site), 
+                          data=seasons[seasons$DPI=="21" & seasons$Body==1,],
+                          family=binomial(link="logit"))
 
-mixModelseasonsSaliva21 <- lme4::glmer(Saliva~class * block  + (1|site), 
+modelSums <- do.call(rbind, lapply(list(m1,m2,m3, m4, m5), broom::glance)) #model 1 is best
+
+AICc(m1,m2,m3,m4, m5)
+tidy(m1)
+```
+
+```{r saliva efficiency model comparison}
+#create all the models
+m1 <- glmer(Saliva~block + (1|site), 
+                          data=seasons[seasons$DPI=="21" & seasons$Body==1,],
+                          family=binomial(link="logit"))
+m2 <- glmer(Saliva~class +  (1|site), 
+                          data=seasons[seasons$DPI=="21" & seasons$Body==1,],
+                          family=binomial(link="logit"))
+m3 <- glmer(Saliva~class + block + (1|site), 
+                          data=seasons[seasons$DPI=="21" & seasons$Body==1,],
+                          family=binomial(link="logit"))
+m4 <- glmer(Saliva~class*block + (1|site), 
+                          data=seasons[seasons$DPI=="21" & seasons$Body==1,],
+                          family=binomial(link="logit"))
+m5 <- glmer(Saliva~class*(1|site), 
+                          data=seasons[seasons$DPI=="21" & seasons$Body==1,],
+                          family=binomial(link="logit"))
+
+modelSums <- do.call(rbind, lapply(list(m1,m2,m3, m4, m5), broom::glance)) #between 1 and 3
+
+AICc(m1,m2,m3,m4, m5)
+tidy(m1)
+tidy(m3)
+```
+
+```{r efficiency stats}
+#model 
+mixModelseasonsBody21 <- lme4::glmer(Body~class + block + (1|site), 
+                          data=seasons[seasons$DPI=="21",],
+                          family=binomial(link="logit"))
+tidy(mixModelseasonsBody21)
+car::Anova(mixModelseasonsBody21)
+
+mixModelseasonsHead21 <- lme4::glmer(Head~block  + (1|site), 
+                          data=seasons[seasons$DPI=="21" & seasons$Body==1,],
+                          family=binomial(link="logit"))
+tidy(mixModelseasonsHead21)
+car::Anova(mixModelseasonsHead21) #no effect
+
+mixModelseasonsSaliva21 <- lme4::glmer(Saliva~class + block  + (1|site), 
                           data=seasons[seasons$DPI=="21" & seasons$Head==1,],
                           family=binomial(link="logit"))
-Saliva21Aov <- car::Anova((mixModelseasonsSaliva21))
+tidy(mixModelseasonsSaliva21)
+car::Anova((mixModelseasonsSaliva21)) #only block is significant
 ```
 
 ## Infection and Microclimate
@@ -475,13 +530,13 @@ seasonSite <- seasons %>%
   filter(DPI=="21") %>%
   dplyr::select(-Individual, -DPI, - Wing) %>%
   dplyr::group_by(block, class, site) %>%
-  summarise_each(funs(mean(.,na.rm=T), se=(sd(., na.rm=T)/sqrt(n()))))
+  summarise_all(funs(mean(.,na.rm=T), se=(sd(., na.rm=T)/sqrt(n()))))
 
 #group with temperature data
 seasonInfSite <- merge(seasonSite, rbind(augEnvVar,octEnvVar), by.x=c("block", "site"), by.y=c("block", "Site_Code"))
 
 # inspect variable correlations
-# cor(seasonInfSite[,10:18])
+cor(seasonInfSite[,10:18])
 ```
 
 ```{r body x climate stats}
