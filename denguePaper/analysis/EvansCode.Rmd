@@ -7,6 +7,8 @@ output: html_document
 
 #Set-Up
 
+*NOTE*: Working directory should be set to source file location.
+
 ```{r knitr setup}
 knitr::opts_chunk$set(echo = T)
 knitr::opts_chunk$set(cache=TRUE)
@@ -19,6 +21,8 @@ library(xtable)
 library(tidyr)
 library(ggplot2) 
 library(lme4) #mixed models
+library(broom) #easy model comparison
+library(MuMIn)
 library(car)
 library(MASS)
 library(gridExtra) #for facet grids later
@@ -96,7 +100,7 @@ seasonSumm <- seasons %>%
   #drop individual
   dplyr::select(-Individual, -site, -Wing, -DPI) %>%
   group_by(block, class) %>%
-  summarise_each(funs(mean(.,na.rm=T),sd(.,na.rm=T),se=(sd(., na.rm=T)/sqrt(n())))) %>%
+  summarise_all(funs(mean(.,na.rm=T),sd(.,na.rm=T),se=(sd(., na.rm=T)/sqrt(n())))) %>%
   ungroup()
 ```
 
@@ -168,14 +172,14 @@ octClim <- climate %>%
   dplyr::select(-Site_ID, -Pot_ID, -Class) %>%
   #get daily averages by Tray
   group_by(Tray_ID, Day) %>%
-  summarise_each(funs(mean(., na.rm=T), min(., na.rm=T), max(., na.rm=T))) %>%
+  summarise_all(funs(mean(., na.rm=T), min(., na.rm=T), max(., na.rm=T))) %>%
   #calculate DTR
   mutate(DTR=Temp_max-Temp_min) %>%
   #get overall average over study period per tray (average daily values)
   ungroup() %>%
   dplyr::select(-Day) %>%
   group_by(Tray_ID) %>%
-  summarise_each(funs(mean))
+  summarise_all(funs(mean))
 
 ##new method of weighting climate by expanded infection
 octInfExp <- octInf[rep(seq.int(1,nrow(octInf)), octInf$Num_Emerge),]
@@ -184,7 +188,7 @@ test <- merge(octInfExp, octClim, by.x="Tray_Code", by.y="Tray_ID", all.x=T)
 octEnvVar <- test %>%
   dplyr::select(-Tray_Code,-Site, -Tray, - Class, - Month, - Day, - Exp_Day, - Sex, -Num_Emerge) %>%
   group_by(block,Site_Code) %>%
-  summarise_each(funs(mean(.,na.rm=T),se=(sd(., na.rm=T)/sqrt(n())))) 
+  summarise_all(funs(mean(.,na.rm=T),se=(sd(., na.rm=T)/sqrt(n())))) 
 
   
 rm(test) #clear unused temporary dataframe
@@ -200,14 +204,14 @@ augClim <- climate %>%
   dplyr::select(-Site_ID, -Pot_ID, -Class) %>%
   #get daily averages by Tray
   group_by(Tray_ID, Day) %>%
-  summarise_each(funs(mean(., na.rm=T), min(., na.rm=T), max(., na.rm=T))) %>%
+  summarise_all(funs(mean(., na.rm=T), min(., na.rm=T), max(., na.rm=T))) %>%
   #calculate DTR
   mutate(DTR=Temp_max-Temp_min) %>%
   #get overall average over study period per tray (average daily values)
   ungroup() %>%
   dplyr::select(-Day) %>%
   group_by(Tray_ID) %>%
-  summarise_each(funs(mean))
+  summarise_all(funs(mean))
 
 ##new method of weighting climate by expanded infection
 augInfExp <- augInf[rep(seq.int(1,nrow(augInf)), augInf$Num_Emerge),]
@@ -216,7 +220,7 @@ test <- merge(augInfExp, augClim, by.x="Tray_Code", by.y="Tray_ID", all.x=T)
 augEnvVar <- test %>%
   dplyr::select(-Tray_Code,-Site, -Tray, - Class, - Month, - Day, - Exp_Day, - Sex, -Num_Emerge) %>%
   group_by(block,Site_Code) %>%
-  summarise_each(funs(mean(.,na.rm=T),se=(sd(., na.rm=T)/sqrt(n())))) 
+  summarise_all(funs(mean(.,na.rm=T),se=(sd(., na.rm=T)/sqrt(n())))) 
 
 rm(test)
 
@@ -234,29 +238,34 @@ seasonInf <- merge(rbind(oct, august[august$DPI=="21",]), rbind(augEnvVar,octEnv
 ## Infection by Class and Season
 
 Make data long
-```{r}
+```{r infection data format}
 infLong <- seasonInf %>%
   gather(type, infection, Body:Saliva) %>%
   dplyr::select(block, class, site, Individual, type, infection) %>%
   dplyr::group_by(block, class, type, site) %>%
   summarise(mean.inf=mean(infection, na.rm=T)) %>%
   group_by(block, class, type) %>%
-  summarise(se.inf=sd(mean.inf, na.rm=T)/n(), mean.inf=mean(mean.inf))
+  summarise(se.inf=sd(mean.inf, na.rm=T)/n(), mean.inf=mean(mean.inf)) %>%
+  ungroup()
 ```
 
 Plot (summer is alpha=1, fall is alpha=0.3)
-```{r}
+```{r land class x season plot}
 #png(file="figures/forMS/landClassInf.png", width = 4, height=7, units="in", res=600, family="sans")
+#pdf(file="figures/forMS/landClassInfPPT.pdf", width = 5, height=7, family="sans")
+
 ggplot(data=infLong[order(infLong$block, decreasing=F),], aes(x=class, group=block))+
-  geom_bar(stat="identity", aes(y=mean.inf, alpha=factor(block), fill=factor(class)), color="gray40", position=position_dodge(width=-0.9))+
-  facet_wrap(~type, nrow=3, dir="v") +
-  ylim(0,1)+
-  scale_fill_manual(values=c(colR, colS, colU))+
-  scale_alpha_discrete(range=c(0.3,1), name="Season", labels=c("Fall", "Summer"), guide=guide_legend(reverse=T))+
-  geom_errorbar(aes(ymin=mean.inf-se.inf, ymax=mean.inf+se.inf), width=0.2, color="gray40", position =position_dodge(-0.9))+
+  geom_bar(stat="identity", aes(y=mean.inf, alpha=block, fill=class, color=factor(class)), position=position_dodge(width=-0.9))+
+  facet_wrap(~factor(type), nrow=3, dir="v") +
+  scale_y_continuous(breaks=c(0,0.5,1), minor_breaks = c(0.25, 0.75), labels=c("0%", "50%", "100%"))+
+  #ylim(0,1)+
+  scale_fill_manual(values=c(colR, "gray40", colU))+
+  scale_color_manual(values=c(colR, "gray40", colU))+
+  scale_alpha_discrete(range=c(0,1), name="Season", labels=c("Fall", "Summer"), guide=guide_legend(reverse=T))+
+  geom_errorbar(aes(ymin=mean.inf-se.inf, ymax=mean.inf+se.inf), width=0.2, color="gray20", position =position_dodge(-0.9))+
   xlab("Land Class") +
-  ylab("Infection Efficiency") +
-  guides(fill=F, alpha=F) +
+  ylab("") +
+  guides(fill=F, alpha=F, color=F) +
   theme_fivethirtyeight() +
   theme(panel.background = element_rect(fill = "transparent", colour = NA), 
         plot.background = element_rect(fill = "transparent", colour = NA),
@@ -266,16 +275,89 @@ ggplot(data=infLong[order(infLong$block, decreasing=F),], aes(x=class, group=blo
         axis.title = element_text(), 
         axis.title.x = element_text(),
         axis.title.y=element_blank(),
+        strip.background = element_blank(),
+        strip.text.x = element_blank(),
         axis.line=element_line(color="gray40", size=0.5),
-        panel.grid = element_blank())
+        panel.grid = element_blank(),
+        axis.text.y=element_text(size=12),
+        axis.text.x=element_text(size=12))
 #dev.off()
 ```
 
 
 
 Statistics on infection by season and land class
-```{r seasonal infection stats}
-#model #there was no interaction of class and block
+
+Body model selection
+
+```{r body model comparison}
+#create all the models
+m1 <- glmer(Body~block + (1|site), 
+                          data=seasons[seasons$DPI=="21",],
+                          family=binomial(link="logit"))
+m2 <- glmer(Body~class +  (1|site), 
+                          data=seasons[seasons$DPI=="21",],
+                          family=binomial(link="logit"))
+m3 <- glmer(Body~class + block + (1|site), 
+                          data=seasons[seasons$DPI=="21",],
+                          family=binomial(link="logit"))
+m4 <- glmer(Body~class*block + (1|site), 
+                          data=seasons[seasons$DPI=="21",],
+                          family=binomial(link="logit"))
+
+modelSums <- do.call(rbind, lapply(list(m1,m2,m3, m4), broom::glance)) #m3 is best
+
+AICc(m1,m2,m3,m4) #still 3
+```
+
+```{r head model comparison}
+#create all the models
+m1 <- glmer(Head~block + (1|site), 
+                          data=seasons[seasons$DPI=="21",],
+                          family=binomial(link="logit"))
+m2 <- glmer(Head~class +  (1|site), 
+                          data=seasons[seasons$DPI=="21",],
+                          family=binomial(link="logit"))
+m3 <- glmer(Head~class + block + (1|site), 
+                          data=seasons[seasons$DPI=="21",],
+                          family=binomial(link="logit"))
+m4 <- glmer(Head~class*block + (1|site), 
+                          data=seasons[seasons$DPI=="21",],
+                          family=binomial(link="logit"))
+
+modelSums <- do.call(rbind, lapply(list(m1,m2,m3, m4), broom::glance)) #model 3 is best
+
+AICc(m1,m2,m3,m4)
+tidy(m3)
+
+```
+
+```{r saliva model comparison}
+#create all the models
+m1 <- glmer(Saliva~block + (1|site), 
+                          data=seasons[seasons$DPI=="21",],
+                          family=binomial(link="logit"))
+m2 <- glmer(Saliva~class +  (1|site), 
+                          data=seasons[seasons$DPI=="21",],
+                          family=binomial(link="logit"))
+m3 <- glmer(Saliva~class + block + (1|site), 
+                          data=seasons[seasons$DPI=="21",],
+                          family=binomial(link="logit"))
+m4 <- glmer(Saliva~class*block + (1|site), 
+                          data=seasons[seasons$DPI=="21",],
+                          family=binomial(link="logit"))
+m5 <- glmer(Saliva~ 1 + (1|site), 
+                          data=seasons[seasons$DPI=="21",],
+                          family=binomial(link="logit")) #null model
+
+modelSums <- do.call(rbind, lapply(list(m1,m2,m3, m4, m5), broom::glance)) #model 1 is best
+
+AICc(m1,m2,m3,m4, m5) #model 1
+tidy(m1)
+```
+
+
+```{r final seasonal infection stats}
 mixModelseasonsBody21 <- lme4::glmer(Body~class + block + (1|site), 
                           data=seasons[seasons$DPI=="21",],
                           family=binomial(link="logit"))
@@ -290,12 +372,12 @@ Head21Aov <- car::Anova(mixModelseasonsHead21) #Wald test
 #confint(mixModelseasonsHead21) #profiled confidence interval
 drop1(mixModelseasonsHead21, test="Chisq")
 
-mixModelseasonsSaliva21 <- lme4::glmer(Saliva~class + block  + (1|site), 
+mixModelseasonsSaliva21 <- lme4::glmer(Saliva~block  + (1|site), 
                           data=seasons[seasons$DPI=="21",],
                           family=binomial(link="logit"))
 summary(mixModelseasonsSaliva21) #z-test
 Saliva21Aov <- car::Anova((mixModelseasonsSaliva21)) #Wald test
-#confint(mixModelseasonsSaliva21) #profiled confidence interval
+confint(mixModelseasonsSaliva21) #profiled confidence interval
 drop1(mixModelseasonsSaliva21, test="Chisq")
 ```
 
@@ -483,6 +565,8 @@ Infection x Temperature Plot
 
 ```{r three panel temp x infection plot}
 #png(file="figures/forMS/InfxTemp3PanelPOSTER.png", width = 8, height=3, units="in", res=600, family="sans")
+
+pdf(file="figures/forMS/InfxTemp3PanelPPT.pdf", width = 8, height=3, family="sans")
 plotBody <- ggplot(data=seasonInfSite, aes(x=Temp_mean_mean, y=Body_mean))+
   geom_errorbar(aes(ymin=Body_mean-Body_se, ymax=Body_mean+Body_se), color="gray40", width=0.1) +
   #geom_errorbarh(aes(xmin=Temp_mean_mean-Temp_mean_se, xmax=Temp_mean_mean+Temp_mean_se, y=Body_mean),color="gray20", height=0.05) + #not enough error to see
@@ -546,7 +630,7 @@ plotSaliva <- ggplot(data=seasonInfSite, aes(x=Temp_mean_mean, y=Saliva_mean))+
 plot_grid(plotBody, plotHead, plotSaliva, 
           #labels=c("A", "B", "C"), 
           ncol=3)
-#dev.off()
+dev.off()
 ```
 
 Infection x Relative Humidity Plot
@@ -823,8 +907,10 @@ levels(siteSumm$Class) <- c("Rural", "Suburban", "Urban")
 Survival and Emergence Plot
 
 ```{r}
-png(file="figures/forMS/emergSurvPlot.png", width = 4, height=6, units="in", res=500, family="sans")
+#png(file="figures/forMS/emergSurvPlot.png", width = 4, height=6, units="in", res=500, family="sans")
 
+#for presentations
+#pdf(file="figures/forMS/survPlotPPT.pdf", width = 6, height=4, family="sans")
 #Survival plot
 survPlot <- ggplot(data=siteSumm, aes(x=Class, y=(numSurv*2)))+
   geom_boxplot(aes(fill=Class, alpha=0.5), width=0.4)+
@@ -832,21 +918,28 @@ survPlot <- ggplot(data=siteSumm, aes(x=Class, y=(numSurv*2)))+
   facet_wrap(~block, ncol=2)+
   ylab("Percent Survival")+
   theme(legend.position="none")+
-  theme(axis.title = element_text(size=12))+
-  theme(axis.title.x = element_blank(), axis.text.x = element_blank())
-
+  #theme(axis.title.x = element_blank(), axis.text.x = element_blank())+
+  theme(axis.title = element_text(size=12))
+survPlot
+# dev.off()
+  
+#for presentations
+# pdf(file="figures/forMS/emergPlotPPT.pdf", width = 6, height=4, family="sans")
 #Emergence Plot
 emergePlot <- ggplot(emergExpF, aes(x=Class, y=(1/Exp_Day)))+
   geom_boxplot(aes(fill=Class, alpha=0.5), width=0.4)+
   scale_fill_manual(values=c(colR, colS, colU), labels=c("Rural", "Suburban", "Urban"))+
   facet_wrap(~block, ncol=2)+
-  ylab("Development\nRate")+
+  ylab("Development Rate")+
   theme(legend.position="none") +
-  theme(strip.background = element_blank(),
-  strip.text.x = element_blank()) +
+  #theme(strip.background = element_blank(),
+  #strip.text.x = element_blank()) +
   xlab("Land Class") +
   theme(axis.text.x = element_text(size=8)) +
   theme(axis.title = element_text(size=12), axis.title.y= element_text(size=12))
+
+emergePlot
+# dev.off()
 
 # grid together
 plot_grid(survPlot, emergePlot,
@@ -1369,8 +1462,10 @@ VCplot$block <- factor(VCplot$block, levels=c("summer", "fall"))
 Comparison Line Plot
 ```{r}
 #png(file="figures/forMS/VCxTempPOSTER.png", width = 4, height=4, units="in", res=500, family="sans")
+pdf(file="figures/forMS/VCxTempPPT.pdf", width = 4, height=4, family="sans")
+
 ggplot(data=VCplot, aes(x=Temp_mean_mean))+
-  geom_smooth(aes(y=VC, color="WithCOE"), method="lm", show.legend=F)+
+  geom_smooth(aes(y=VC, color="WithCOE"), method="lm", show.legend=F, se=F)+
   geom_smooth(aes(y=VCnoCOE, color="WithoutCOE"),  method="lm", show.legend=F)+
   geom_smooth(aes(y=VC, color="WithCOE"), method="lm", fill=NA)+
   geom_smooth(aes(y=VCnoCOE, color="WithoutCOE"),  method="lm", fill=NA)+
@@ -1392,9 +1487,9 @@ ggplot(data=VCplot, aes(x=Temp_mean_mean))+
   xlab("Temperature (C)")+
   ylab("Vectorial Capacity")+
   scale_colour_manual(name="Calcuation Type", 
-                      values=c(WithCOE="#f1a340", WithoutCOE="#998ec3"),
+                      values=c(WithCOE=NA, WithoutCOE="#998ec3"),
                       labels=c("With COEs", "Without COEs"))
-#dev.off()
+dev.off()
 ```
 
 ```{r}
