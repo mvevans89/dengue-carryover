@@ -365,6 +365,8 @@ tidy(mixModelseasonsBody21)
 car::Anova(mixModelseasonsBody21) #Wald test
 #confint(mixModelseasonsBody21) #profiled confidence interval
 drop1(mixModelseasonsBody21, test="Chisq") #Likelihood ratio test
+summary(multcomp::glht(mixModelseasonsBody21, linfct = multcomp::mcp(class = "Tukey"), test = multcomp::adjusted("holm")))
+summary(multcomp::glht(mixModelseasonsBody21, linfct = multcomp::mcp(block = "Tukey"), test = multcomp::adjusted("holm")))
 
 mixModelseasonsHead21 <- lme4::glmer(Head~class + block  + (1|site), 
                           data=seasons[seasons$DPI=="21",],
@@ -373,6 +375,8 @@ tidy(mixModelseasonsHead21)
 car::Anova(mixModelseasonsHead21) #Wald test
 #confint(mixModelseasonsHead21) #profiled confidence interval
 drop1(mixModelseasonsHead21, test="Chisq")
+summary(multcomp::glht(mixModelseasonsHead21, linfct = multcomp::mcp(class = "Tukey"), test = multcomp::adjusted("holm")))
+summary(multcomp::glht(mixModelseasonsHead21, linfct = multcomp::mcp(block = "Tukey"), test = multcomp::adjusted("holm")))
 
 mixModelseasonsSaliva21 <- lme4::glmer(Saliva~block  + (1|site), 
                           data=seasons[seasons$DPI=="21",],
@@ -381,6 +385,8 @@ tidy(mixModelseasonsSaliva21) #z-test
 car::Anova((mixModelseasonsSaliva21)) #Wald test
 confint(mixModelseasonsSaliva21) #profiled confidence interval
 drop1(mixModelseasonsSaliva21, test="Chisq")
+#pairwise comparison
+summary(multcomp::glht(mixModelseasonsSaliva21, linfct = multcomp::mcp(block = "Tukey"), test = multcomp::adjusted("holm")))
 ```
 
 ### Infection Efficiency
@@ -509,6 +515,8 @@ mixModelseasonsBody21 <- lme4::glmer(Body~class + block + (1|site),
                           family=binomial(link="logit"))
 tidy(mixModelseasonsBody21)
 car::Anova(mixModelseasonsBody21)
+summary(multcomp::glht(mixModelseasonsBody21, linfct = multcomp::mcp(class = "Tukey"), test = multcomp::adjusted("holm")))
+summary(multcomp::glht(mixModelseasonsBody21, linfct = multcomp::mcp(block = "Tukey"), test = multcomp::adjusted("holm")))
 
 
 mixModelseasonsHead21 <- lme4::glmer(Head~block  + (1|site), 
@@ -517,6 +525,7 @@ mixModelseasonsHead21 <- lme4::glmer(Head~block  + (1|site),
 tidy(mixModelseasonsHead21)
 car::Anova(mixModelseasonsHead21) #no effect
 drop1(mixModelseasonsHead21, test="Chisq")
+summary(multcomp::glht(mixModelseasonsHead21, linfct = multcomp::mcp(block = "Tukey"), test = multcomp::adjusted("holm")))
 
 mixModelseasonsSaliva21 <- lme4::glmer(Saliva~class + block  + (1|site), 
                           data=seasons[seasons$DPI=="21" & seasons$Head==1,],
@@ -524,6 +533,8 @@ mixModelseasonsSaliva21 <- lme4::glmer(Saliva~class + block  + (1|site),
 tidy(mixModelseasonsSaliva21)
 car::Anova((mixModelseasonsSaliva21)) #only block is significant
 drop1(mixModelseasonsSaliva21, test="Chisq")
+summary(multcomp::glht(mixModelseasonsSaliva21, linfct = multcomp::mcp(class = "Tukey"), test = multcomp::adjusted("holm")))
+summary(multcomp::glht(mixModelseasonsSaliva21, linfct = multcomp::mcp(block = "Tukey"), test = multcomp::adjusted("holm")))
 ```
 
 ## Infection and Microclimate
@@ -1020,7 +1031,7 @@ survSumm <- unique(survSumm)
 ```
 
 ```{r fillIn function}
-fillIn <- function(df, endDay, totalMosq=50){
+fillIn <- function(df, endDay, totalMosq=100){
   #' Fill In Emergence Dates
   #' this function fills in for those mosquitoes that did not emerge so we do not have data for, it gives them an observation/event of 0 on the last day we found a mosquito emerged
   #' @param df the data frame you wish to fill in, in our case by pot
@@ -1049,7 +1060,7 @@ applyFill <- function(season, allData=emergExp){
   #' @returns censused data for the full season
   tempList <- list()
   tempDF <- allData
-  tempDF <- tempDF[tempDF$Sex=="F",]
+  #tempDF <- tempDF[tempDF$Sex=="F",]
   tempDF <- tempDF[tempDF$block==season,]
   tempDF$event <- 1 #add emergence event
   for (i in 1:length(unique(tempDF$Tray_Code))){ 
@@ -1072,23 +1083,56 @@ allSurv <- rbind(summerSurv, fallSurv)
 
 ### Survival
 
-```{r survival stats}
-siteSumm <- emergExp %>%
-  filter(Sex=="F") %>%
-  group_by(block, Tray_Code) %>%
-  dplyr::mutate(numSurv=n()) %>%
-  ungroup() %>%
-  dplyr::select(block, Class, Site_Code, numSurv)
-siteSumm <- unique(siteSumm)
+```{r survival stats females Only}
 
-siteSumm$block <- as.factor(siteSumm$block)
+#model selection
+m1 <- glmer(event ~ Class + (1|Tray_Code)+(1|Site_Code), 
+                   data=allSurv,
+                   family=binomial)
+m2 <- glmer(event ~ block + (1|Tray_Code)+(1|Site_Code), 
+                   data=allSurv,
+                   family=binomial)
+m3 <- glmer(event ~ Sex + (1|Tray_Code)+(1|Site_Code), 
+                   data=allSurv,
+                   family=binomial)
+m4 <- glmer(event ~ block+Sex + (1|Tray_Code)+(1|Site_Code), 
+                   data=allSurv,
+                   family=binomial)
+m5 <- glmer(event ~ block*Sex + (1|Tray_Code)+(1|Site_Code), 
+                   data=allSurv,
+                   family=binomial)
+m6 <- glmer(event ~ Class + Sex + (1|Tray_Code)+(1|Site_Code), 
+                   data=allSurv,
+                   family=binomial)
+m7 <- glmer(event ~ Class * Sex + (1|Tray_Code)+(1|Site_Code), 
+                   data=allSurv,
+                   family=binomial)
+m8 <- glmer(event ~ Class + block + Sex + (1|Tray_Code)+(1|Site_Code), 
+                   data=allSurv,
+                   family=binomial)
+m9 <-  glmer(event ~ Class * block * Sex + (1|Tray_Code)+(1|Site_Code), 
+                   data=allSurv,
+                   family=binomial) #doesn't converge
 
-siteEmerg <- lmer(numSurv ~ 0 + Class + block + (1|Site_Code), data=siteSumm)
+modelSums <- do.call(rbind, lapply(list(m1,m2,m3, m4, m5, m6, m7, m8), broom::glance)) #m5 is best
+
+AICc(m1,m2,m3, m4, m5, m6, m7, m8) #still m5
+
+
+siteEmerg <- glmer(event ~ Class+block + (1|Tray_Code) + (1|Site_Code), 
+                   data=allSurv[allSurv$Sex=="F",],
+                   family=binomial)
+
+#siteEmerg <- lmer(numSurv ~ 0 + Class + block + (1|Site_Code), data=siteSumm)
 summary(siteEmerg)
+tidy(siteEmerg)
 plot(siteEmerg)
+Anova(siteEmerg)
 
 #pairwise
 summary(multcomp::glht(siteEmerg, linfct = multcomp::mcp(block = "Tukey"), test = multcomp::adjusted("holm")))
+
+summary(multcomp::glht(siteEmerg, linfct = multcomp::mcp(Sex = "Tukey"), test = multcomp::adjusted("holm")))
 
 summary(multcomp::glht(siteEmerg, linfct = multcomp::mcp(Class = "Tukey"), test = multcomp::adjusted("holm")))
 ```
