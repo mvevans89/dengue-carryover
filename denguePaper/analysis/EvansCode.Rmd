@@ -1334,11 +1334,11 @@ allWing <- allWing %>%
 
 Statistics:
 ```{r}
-wingMix <- lmer(mm~0 + class*block +(1|site),
+wingMix <- lmer(mm~class*block +(1|site),
                 data=allWing)
 summary(wingMix)
 plot(wingMix)
-car::Anova(wingMix)
+car::Anova(wingMix, type="2")
 coef(wingMix)
 ```
 
@@ -1350,7 +1350,7 @@ ggplot(data=allWingSumm, aes(x=class, y=mm, group=block))+
   scale_color_manual(values=c(colRural, colSuburban, colU))+
   scale_alpha_discrete(range=c(1,0.3), name="Season", labels=c("Fall", "Summer"), guide=guide_legend(reverse=T))+
   scale_shape_discrete(name="Season",labels=c("Fall", "Summer"), guide=guide_legend(reverse=T))+
-  geom_errorbar(aes(ymin=mm-se, ymax=mm+se), width=0.2, color="gray20", position =position_dodge(-0.9))+
+  geom_errorbar(aes(ymin=mm-ci, ymax=mm+ci), width=0.2, color="gray20", position =position_dodge(-0.9))+
   ylim(2.2,2.6)+
   theme_fivethirtyeight() +
   theme(panel.background = element_rect(fill = "transparent", colour = NA), 
@@ -1442,7 +1442,7 @@ allWing <- allWing %>%
 ```{r}
 ggplot(data=allWing, aes(x=Temp, y=mm)) +
   geom_point(aes(col=factor(class), shape=factor(block))) + 
-  geom_smooth(method="auto")+
+  geom_smooth(method="lm")+
   theme_fivethirtyeight() +
   theme(panel.background = element_rect(fill = "transparent", colour = NA), 
         plot.background = element_rect(fill = "transparent", colour = NA),
