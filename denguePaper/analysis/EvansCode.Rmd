@@ -243,29 +243,32 @@ infLong <- seasonInf %>%
   gather(type, infection, Body:Saliva) %>%
   dplyr::select(block, class, site, Individual, type, infection) %>%
   dplyr::group_by(block, class, type, site) %>%
-  summarise(mean.inf=mean(infection, na.rm=T)) %>%
+  summarise(mean.inf=mean(infection, na.rm=T), sampleSize=sum(!is.na(infection))) %>%
   group_by(block, class, type) %>%
-  summarise(se.inf=sd(mean.inf, na.rm=T)/n(), mean.inf=mean(mean.inf)) %>%
+  summarise(se.inf=sd(mean.inf, na.rm=T)/n(), mean.inf=mean(mean.inf), samples=sum(sampleSize)) %>%
   ungroup()
+infLong$sampleLab <- paste0("n=", infLong$samples)
 ```
 
 Plot (summer is alpha=1, fall is alpha=0.3)
-```{r land class x season plot}
-#png(file="figures/forMS/landClassInf.png", width = 4, height=7, units="in", res=600, family="sans")
-#pdf(file="figures/forMS/landClassInfPPT.pdf", width = 5, height=7, family="sans")
 
+
+```{r land class x season plot}
+#png(file="figures/forMS/landclassXseason.png", width = 4, height=7, units="in", res=600, family="sans")
 ggplot(data=infLong[order(infLong$block, decreasing=F),], aes(x=class, group=block))+
   geom_bar(stat="identity", aes(y=mean.inf, alpha=block, fill=class, color=factor(class)), position=position_dodge(width=-0.9))+
-  facet_wrap(~factor(type), nrow=3, dir="v") +
-  scale_y_continuous(breaks=c(0,0.5,1), minor_breaks = c(0.25, 0.75), labels=c("0%", "50%", "100%"))+
+  geom_text(aes(label=samples, y=mean.inf), vjust=-1.7, color="black", position=position_dodge(width=-0.9), size=3)+
+  facet_wrap(~factor(type), nrow=3, dir="v", scales='free') +
+  scale_y_continuous(breaks=c(0,0.5,1), minor_breaks = c(0.25, 0.75), labels=c("0%", "50%", "100%"), limits=c(0,1))+
   #ylim(0,1)+
   scale_fill_manual(values=c(colR, "gray40", colU))+
   scale_color_manual(values=c(colR, "gray40", colU))+
-  scale_alpha_discrete(range=c(0,1), name="Season", labels=c("Fall", "Summer"), guide=guide_legend(reverse=T))+
+  scale_alpha_discrete(range=c(0,1), name="Season", labels=c("Fall", "Summer"))+
   geom_errorbar(aes(ymin=mean.inf-se.inf, ymax=mean.inf+se.inf), width=0.2, color="gray20", position =position_dodge(-0.9))+
   xlab("Land Class") +
-  ylab("") +
-  guides(fill=F, alpha=F, color=F) +
+  ylab("Percent Infected") +
+  guides(fill=F, color= F,
+         alpha=guide_legend(override.aes=list(color="gray40"), reverse=T)) +
   theme_fivethirtyeight() +
   theme(panel.background = element_rect(fill = "transparent", colour = NA), 
         plot.background = element_rect(fill = "transparent", colour = NA),
@@ -274,9 +277,9 @@ ggplot(data=infLong[order(infLong$block, decreasing=F),], aes(x=class, group=blo
         legend.background = element_rect(fill = "transparent", colour = NA),
         axis.title = element_text(), 
         axis.title.x = element_text(),
-        axis.title.y=element_blank(),
-        strip.background = element_blank(),
-        strip.text.x = element_blank(),
+        axis.title.y=element_text(),
+        #strip.background = element_blank(),
+        strip.text.x = element_text(size=12),
         axis.line=element_line(color="gray40", size=0.5),
         panel.grid = element_blank(),
         axis.text.y=element_text(size=12),
