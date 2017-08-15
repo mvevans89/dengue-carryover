@@ -1523,31 +1523,34 @@ Plot
 ```{r}
 #png(file="figures/forMS/growthRateFig.png", width = 6, height=4, units="in", res=500, family="sans")
 ggplot(data=growthDF2, aes(x=Class, y=r))+
-  geom_boxplot(aes(fill=Class), alpha=0.5)+
   geom_jitter(aes(color=Class), width=0.1, height=0)+
+  geom_boxplot(aes(fill=Class), alpha=0.5, outlier.shape=NA)+
   facet_wrap(~block)+
   theme_fivethirtyeight() +
   theme(panel.background = element_rect(fill = "transparent", colour = NA), 
         plot.background = element_rect(fill = "transparent", colour = NA),
-        legend.key = element_blank())+
-  theme(legend.background = element_rect(fill = "transparent", colour = NA)) +
-    theme(axis.title = element_text(), axis.title.x = element_text()) +
+        legend.key = element_blank(),
+        legend.background = element_rect(fill = "transparent", colour = NA),
+        axis.title = element_text(), 
+        axis.title.x = element_text(),
+        legend.position="right", 
+        legend.direction="vertical") +
   ylab("Per Capita Growth Rate (r')")+
   xlab("Land Class") +  
   scale_color_manual(values=c(colR, "gray30", colU)) +
   scale_fill_manual(values=c(colR, colS, colU)) +
-  theme(legend.position="right", legend.direction="vertical")+
   guides(fill=F, color=F) 
 #dev.off()
 ```
 
 Statistics:
 ```{r}
-growthMix <- lmer(r~ block + Class + (1|Site_Code), data=growthDF2)
-summary(growthMix)
-anova(growthMix) #only block is significant
-plot(growthMix)
-confint(growthMix)
+growthMix <- lmer(r~ block+ (1|Site_Code), data=growthDF2) #lowest AICc
+tidy(growthMix)
+car::Anova(growthMix) #Wald test
+#confint(growthMix) #profiled confidence interval
+drop1(growthMix, test="Chisq") #Likelihood ratio test
+
 ```
 
 # Vectorial Capacity
