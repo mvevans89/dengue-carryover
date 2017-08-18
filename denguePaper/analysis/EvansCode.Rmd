@@ -1034,7 +1034,7 @@ survSumm <- unique(survSumm)
 ```
 
 ```{r fillIn function}
-fillIn <- function(df, endDay, totalMosq=100){
+fillIn <- function(df, endDay, totalMosq=50){
   #' Fill In Emergence Dates
   #' this function fills in for those mosquitoes that did not emerge so we do not have data for, it gives them an observation/event of 0 on the last day we found a mosquito emerged
   #' @param df the data frame you wish to fill in, in our case by pot
@@ -1063,7 +1063,7 @@ applyFill <- function(season, allData=emergExp){
   #' @returns censused data for the full season
   tempList <- list()
   tempDF <- allData
-  #tempDF <- tempDF[tempDF$Sex=="F",]
+  tempDF <- tempDF[tempDF$Sex=="F",]
   tempDF <- tempDF[tempDF$block==season,]
   tempDF$event <- 1 #add emergence event
   for (i in 1:length(unique(tempDF$Tray_Code))){ 
@@ -1086,8 +1086,7 @@ allSurv <- rbind(summerSurv, fallSurv)
 
 ### Survival
 
-```{r survival stats females Only}
-
+```{r survival stats females only}
 #model selection
 m1 <- glmer(event ~ Class + (1|Tray_Code)+(1|Site_Code), 
                    data=allSurv,
@@ -1095,38 +1094,24 @@ m1 <- glmer(event ~ Class + (1|Tray_Code)+(1|Site_Code),
 m2 <- glmer(event ~ block + (1|Tray_Code)+(1|Site_Code), 
                    data=allSurv,
                    family=binomial)
-m3 <- glmer(event ~ Sex + (1|Tray_Code)+(1|Site_Code), 
-                   data=allSurv,
-                   family=binomial)
-m4 <- glmer(event ~ block+Sex + (1|Tray_Code)+(1|Site_Code), 
-                   data=allSurv,
-                   family=binomial)
-m5 <- glmer(event ~ block*Sex + (1|Tray_Code)+(1|Site_Code), 
-                   data=allSurv,
-                   family=binomial)
-m6 <- glmer(event ~ Class + Sex + (1|Tray_Code)+(1|Site_Code), 
-                   data=allSurv,
-                   family=binomial)
-m7 <- glmer(event ~ Class * Sex + (1|Tray_Code)+(1|Site_Code), 
-                   data=allSurv,
-                   family=binomial)
-m8 <- glmer(event ~ Class + block + Sex + (1|Tray_Code)+(1|Site_Code), 
-                   data=allSurv,
-                   family=binomial)
-m9 <-  glmer(event ~ Class * block * Sex + (1|Tray_Code)+(1|Site_Code), 
-                   data=allSurv,
-                   family=binomial) #doesn't converge
 
-modelSums <- do.call(rbind, lapply(list(m1,m2,m3, m4, m5, m6, m7, m8), broom::glance)) #m5 is best
-
-AICc(m1,m2,m3, m4, m5, m6, m7, m8) #still m5
-
-
-siteEmerg <- glmer(event ~ Class+block + (1|Tray_Code) + (1|Site_Code), 
-                   data=allSurv[allSurv$Sex=="F",],
+m3 <- glmer(event ~ Class * block + (1|Tray_Code)+(1|Site_Code), 
+                   data=allSurv,
                    family=binomial)
 
-#siteEmerg <- lmer(numSurv ~ 0 + Class + block + (1|Site_Code), data=siteSumm)
+m4 <- glmer(event ~ Class + block + (1|Tray_Code)+(1|Site_Code), 
+                   data=allSurv,
+                   family=binomial)
+
+modelSums <- do.call(rbind, lapply(list(m1,m2,m3, m4), broom::glance)) #m4 is best
+
+AICc(m1,m2,m3, m4) #still m4
+
+
+siteEmerg <- glmer(event ~ Class*block + (1|Tray_Code) + (1|Site_Code), 
+                   data=allSurv,
+                   family=binomial)
+
 summary(siteEmerg)
 tidy(siteEmerg)
 plot(siteEmerg)
@@ -1135,10 +1120,45 @@ Anova(siteEmerg)
 #pairwise
 summary(multcomp::glht(siteEmerg, linfct = multcomp::mcp(block = "Tukey"), test = multcomp::adjusted("holm")))
 
-summary(multcomp::glht(siteEmerg, linfct = multcomp::mcp(Sex = "Tukey"), test = multcomp::adjusted("holm")))
-
 summary(multcomp::glht(siteEmerg, linfct = multcomp::mcp(Class = "Tukey"), test = multcomp::adjusted("holm")))
 ```
+
+```{r survival stats by tray}
+survTray <- allSurv %>%
+  filter(Sex=="F") %>%
+  group_by(Tray_Code, Site_Code, Class, block) %>%
+  summarise(survival=mean(event)*100)
+
+m1 <- lmer(survival ~ Class + (1|Tray_Code)+(1|Site_Code), 
+                   data=survTray)
+m2 <- lmer(survival ~ block + (1|Tray_Code)+(1|Site_Code), 
+                   data=survTray)
+
+m3 <- lmer(survival ~ Class * block + (1|Tray_Code)+(1|Site_Code), 
+                   data=survTray)
+
+m4 <- lmer(survival ~ Class + block + (1|Tray_Code)+(1|Site_Code), 
+                   data=survTray)
+
+modelSums <- do.call(rbind, lapply(list(m1,m2,m3, m4), broom::glance)) #m3 is best
+
+AICc(m1,m2,m3, m4) #still m3
+
+siteSurv <- lmer(survival ~ Class * block + (1|Tray_Code)+(1|Site_Code), 
+                   data=survTray)
+
+summary(siteSurv)
+tidy(siteSurv)
+plot(siteSurv)
+Anova(siteSurv)
+
+#pairwise
+summary(multcomp::glht(siteSurv, linfct = multcomp::mcp(block = "Tukey"), test = multcomp::adjusted("holm")))
+
+summary(multcomp::glht(siteSurv, linfct = multcomp::mcp(Class = "Tukey"), test = multcomp::adjusted("holm")))
+
+```
+
 
 ### Emergence
 
@@ -1147,16 +1167,41 @@ emergExpF <- filter(emergExp, Sex=="F")
 
 emergExpF$block <- as.factor(emergExpF$block)
 
-mixEmerge <- lmer(Exp_Day ~  0 + Class + block + (1|Site_Code), data=emergExpF)
+m1 <- lmer(Exp_Day ~ Class + (1|Tray_Code)+(1|Site_Code), 
+                   data=emergExpF)
+
+m2 <- lmer(Exp_Day  ~ block + (1|Tray_Code)+(1|Site_Code), 
+                   data=emergExpF)
+
+m3 <- lmer(Exp_Day  ~ Class + block + (1|Tray_Code)+(1|Site_Code), 
+                   data=emergExpF)
+
+m4 <- lmer(Exp_Day ~ Class * block + (1|Tray_Code)+(1|Site_Code), 
+                   data=emergExpF)
+
+modelSums <- do.call(rbind, lapply(list(m1,m2,m3, m4), broom::glance)) #m4 is best
+
+AICc(m1,m2,m3, m4) #still m4
+
+
+mixEmerge <- lmer(Exp_Day ~ Class * block + (1|Tray_Code)+(1|Site_Code), 
+                   data=emergExpF)
+summary(mixEmerge)
+tidy(mixEmerge)
 plot(mixEmerge)
 qqnorm(resid(mixEmerge))
 summary(mixEmerge)
 #confint(mixEmerge)
+Anova(mixEmerge)
 
 #pairwise
-summary(glht(mixEmerge, linfct = mcp(block = "Tukey"), test = adjusted("holm")))
+summary(multcomp::glht(mixEmerge, linfct = mcp(block = "Tukey"), test = adjusted("holm")))
 
-summary(glht(mixEmerge, linfct = mcp(Class = "Tukey"), test = adjusted("holm")))
+summary(multcomp::glht(mixEmerge, linfct = mcp(Class = "Tukey"), test = adjusted("holm")))
+
+emergeGrid <-lsmeans::ref.grid(mixEmerge)
+emergePair <- pairs(lsmeans(mixEmerge, ~Class|block))
+lsmeans(mixEmerge, ~block)
 ```
 
 ### Plots
@@ -1164,11 +1209,11 @@ summary(glht(mixEmerge, linfct = mcp(Class = "Tukey"), test = adjusted("holm")))
 Adjust factors for plotting:
 ```{r}
 levels(emergExpF$block) <- c("Fall", "Summer")
-emergExpF <- mutate(emergExpF, block=fct_rev(block))
+emergExpF <- mutate(emergExpF, block=forcats::fct_rev(block))
 levels(emergExpF$Class) <- c("Rural", "Suburban", "Urban")
 
 levels(siteSumm$block) <- c("Fall", "Summer")
-siteSumm <- mutate(siteSumm, block=fct_rev(block))
+siteSumm <- mutate(siteSumm, block=forcats::fct_rev(block))
 levels(siteSumm$Class) <- c("Rural", "Suburban", "Urban")
 ```
 
@@ -1525,26 +1570,69 @@ levels(growthDF2$Class) <- c("Rural", "Suburban", "Urban")
 Plot
 ```{r}
 #png(file="figures/forMS/growthRateFig.png", width = 6, height=4, units="in", res=500, family="sans")
-ggplot(data=growthDF2, aes(x=Class, y=r))+
-  geom_jitter(aes(color=Class), width=0.1, height=0)+
-  geom_boxplot(aes(fill=Class), alpha=0.5, outlier.shape=NA)+
-  facet_wrap(~block)+
-  theme_fivethirtyeight() +
-  theme(panel.background = element_rect(fill = "transparent", colour = NA), 
-        plot.background = element_rect(fill = "transparent", colour = NA),
-        legend.key = element_blank(),
-        legend.background = element_rect(fill = "transparent", colour = NA),
-        axis.title = element_text(), 
-        axis.title.x = element_text(),
-        legend.position="right", 
-        legend.direction="vertical") +
+growthPlot <- ggplot(data=growthDF2, aes(x=Class, y=r))+
+  geom_boxplot(aes(fill=Class, alpha=0.5), width=0.4)+
+  scale_fill_manual(values=c(colR, colS, colU), labels=c("Rural", "Suburban", "Urban"))+
+  facet_wrap(~block, ncol=2)+
+  theme(legend.position="none") +
+  theme(strip.background = element_blank(),
+  strip.text.x = element_blank()) +
   ylab("Per Capita Growth Rate (r')")+
-  xlab("Land Class") +  
-  scale_color_manual(values=c(colR, "gray30", colU)) +
-  scale_fill_manual(values=c(colR, colS, colU)) +
-  guides(fill=F, color=F) 
+  xlab("Land Class") 
+  theme(axis.text.x = element_text(size=8)) +
+  theme(axis.title = element_text(size=12), 
+        axis.title.y= element_text(size=12))
 #dev.off()
 ```
+
+Three panel survival, emergence and growth rate
+
+```{r three panel surv emerge and growth plot}
+png(file="figures/forMS/survEmergeGrowth.png", width = 4, height=7, units="in", res=500, family="sans")
+survPlot <- ggplot(data=siteSumm, aes(x=Class, y=(numSurv*2)))+
+  geom_boxplot(aes(fill=Class, alpha=0.5), width=0.4)+
+  scale_fill_manual(values=c(colR, colS, colU), labels=c("Rural", "Suburban", "Urban"))+
+  facet_wrap(~block, ncol=2)+
+  ylab("Percent Survival")+
+  theme(legend.position="none")+
+  theme(axis.title.x = element_blank(), 
+        axis.text.x = element_blank(),
+        axis.title.y= element_text(size=10),
+        strip.text = element_text(size=10))
+
+#Emergence Plot
+emergePlot <- ggplot(emergExpF, aes(x=Class, y=(1/Exp_Day)))+
+  geom_boxplot(aes(fill=Class, alpha=0.5), width=0.4)+
+  scale_fill_manual(values=c(colR, colS, colU), labels=c("Rural", "Suburban", "Urban"))+
+  facet_wrap(~block, ncol=2)+
+  ylab("Development Rate")+
+  theme(legend.position="none") +
+  theme(strip.background = element_blank(),
+  strip.text.x = element_blank()) +
+  theme(axis.title.x = element_blank(), 
+        axis.text.x = element_blank(),
+        axis.title.y= element_text(size=10))
+
+growthPlot <- ggplot(data=growthDF2, aes(x=Class, y=r))+
+  geom_boxplot(aes(fill=Class, alpha=0.5), width=0.4)+
+  scale_fill_manual(values=c(colR, colS, colU), labels=c("Rural", "Suburban", "Urban"))+
+  facet_wrap(~block, ncol=2)+
+  theme(legend.position="none") +
+  theme(strip.background = element_blank(),
+  strip.text.x = element_blank()) +
+  ylab("Per Capita Growth Rate (r')")+
+  xlab("Land Class") +
+  theme(axis.text.x = element_text(size=8)) +
+  theme(axis.title = element_text(size=10), 
+        axis.title.y= element_text(size=10))
+
+plot_grid(survPlot, emergePlot, growthPlot,
+          labels=c("a)", "b)", "c)"),
+          nrow=3)
+
+dev.off()
+```
+
 
 Statistics:
 ```{r}
