@@ -1082,6 +1082,17 @@ fallSurv <- applyFill(season="fall")
 allSurv <- rbind(summerSurv, fallSurv)
 ```
 
+Calculate sex ratios
+```{r}
+emergSexSeason <- allEmerg %>%
+  group_by(Sex, block) %>%
+  summarise(sum(Num_Emerge))
+
+emergSexClass <- allEmerg %>%
+  group_by(Sex, Class) %>%
+  summarise(sum(Num_Emerge))
+```
+
 ## Class x Block
 
 ### Survival
@@ -1159,6 +1170,20 @@ summary(multcomp::glht(siteSurv, linfct = multcomp::mcp(Class = "Tukey"), test =
 
 ```
 
+Analyzing blocks seperately
+```{r}
+fallSurvMod <- lmer(survival ~ Class+(1|Site_Code), 
+                   data=survTray[survTray$block=="fall",])
+tidy(fallSurvMod)
+summary(fallSurvMod)
+Anova(fallSurvMod)
+
+summerSurvMod <- lmer(survival ~ Class+(1|Site_Code), 
+                   data=survTray[survTray$block=="summer",])
+tidy(summerSurvMod)
+summary(summerSurvMod)
+Anova(summerSurvMod)
+```
 
 ### Emergence
 
@@ -1277,20 +1302,78 @@ survClim <- merge(survSumm, allClim, by.x=c("block","Tray_Code"), by.y=c("block"
 
 Statistics
 ```{r}
-modDF <- survClim
+respV <- "percSurv"
+predVs <- c("Temp_mean","RH_mean", "DTR", "Temp_min", "RH_min", "Temp_max", "RH_max")
+
+myCols <- c(respV, predVs, "block","Class", "Site_Code")
+modDF <- survClim %>%
+  dplyr::select(one_of(myCols)) 
+modDF <- na.omit(modDF)
+
+#model selection for initial variable
+
+m1 <- lmer(percSurv~Temp_mean + (1|Site_Code),
+           data=modDF)
+
+m2 <- lmer(percSurv~RH_mean + (1|Site_Code),
+           data=modDF)
+
+m3 <- lmer(percSurv~DTR + (1|Site_Code),
+           data=modDF)
+
+m4 <- lmer(percSurv~Temp_min + (1|Site_Code),
+           data=modDF)
+
+m5 <- lmer(percSurv~RH_min + (1|Site_Code),
+           data=modDF)
+
+m6 <- lmer(percSurv~Temp_max + (1|Site_Code),
+           data=modDF)
+
+m7 <- lmer(percSurv~RH_max + (1|Site_Code),
+           data=modDF)
+
+modelSums <- do.call(rbind, lapply(list(m1,m2,m3, m4, m5, m6, m7), broom::glance))
+modelSums #m1 or m4
+
+MuMIn::AICc(m1,m2,m3, m4, m5, m6, m7)
+tidy(m1)
+
+#find covariates that aren't correlated
+covars <- data.frame(cor(survClim[,6:12]))
+rownames(covars[abs(covars$Temp_mean)<0.8,]) #only RH_mean and RH_max
+
+#model selection
+m1 <- lmer(percSurv~Temp_mean + (1|Site_Code),
+           data=modDF)
+
+m2 <- lmer(percSurv~Temp_mean + RH_mean + (1|Site_Code),
+           data=modDF)
+
+m3 <- lmer(percSurv~Temp_mean * RH_mean + (1|Site_Code),
+           data=modDF)
+
+m4 <- lmer(percSurv~RH_mean + (1|Site_Code),
+           data=modDF)
+
+modelSums <- do.call(rbind, lapply(list(m1,m2, m3, m4), broom::glance)) #1 seems best
+modelSums
+
+AICc(m1,m2, m3, m4)
+tidy(m1)
+
+
 #standardize environmental variables
-modDF$Temp_mean <- scale(modDF$Temp_mean, center=T, scale=T)
-modDF$RH_mean <- scale(modDF$RH_mean, center=T, scale=T)
-survClimModmix <- lmer(percSurv~Temp_mean+(1|Site_Code), #RH has no significant effect
+survClimModmix <- lmer(percSurv~Temp_mean+(1|Site_Code),
                     data=survClim)
+
+car::Anova(survClimModmix)
+confint(survClimModmix)
+tidy(survClimModmix)
+drop1(survClimModmix, test="Chisq")
 
 plot(survClimModmix)
 qqnorm(resid(survClimModmix))
-summary(survClimModmix)
-coef(survClimModmix)
-AIC(survClimModmix)
-
-anova(survClimModmix)
 ```
 
 
