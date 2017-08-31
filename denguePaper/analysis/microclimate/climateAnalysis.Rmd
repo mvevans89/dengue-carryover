@@ -50,7 +50,8 @@ clim <- climate %>%
 
 Temperature Plot:
 ```{r}
-#png(file="../figures/forMS/seasonClimate.png", width = 6, height=4, units="in", res=500, family="sans")
+#pdf(file="../figures/forMS/temperature.pdf", width = 6, height=4, family="sans")
+
 ggplot(data=clim, aes(x=Day, group=Class))+
   geom_line(aes(y=meanT, col=Class)) + 
   geom_line(aes(y=minT, col=Class), linetype="dotted") +
@@ -72,7 +73,8 @@ ggplot(data=clim, aes(x=Day, group=Class))+
 
 Relative Humidity
 ```{r}
-#png(file="../figures/forMS/supplement/seasonRH.png", width = 6, height=4, units="in", res=500, family="sans")
+#pdf(file="../figures/forMS/supplement/relativeHumidity.pdf", width = 6, height=4, family="sans")
+
 ggplot(data=clim, aes(x=Day, group=Class))+
   geom_line(aes(y=meanRH, col=Class)) + 
   geom_line(aes(y=minRH, col=Class), linetype="dotted") +
@@ -80,7 +82,7 @@ ggplot(data=clim, aes(x=Day, group=Class))+
   theme_fivethirtyeight() +
   scale_color_manual(values=c("dodgerblue", "gray20", "maroon")) +
   theme(axis.title = element_text(), axis.title.x = element_blank()) +
-  ylab("Temperature (C)") + 
+  ylab("Relative Humidity (%)") + 
   annotate("rect", xmin=as.Date("2016-08-01", format="%Y-%m-%d"), xmax=as.Date("2016-09-01", format="%Y-%m-%d"), ymin=-Inf, ymax=Inf, fill="forestgreen", alpha=0.1)+
     annotate("rect", xmin=as.Date("2016-09-26", format="%Y-%m-%d"), xmax=as.Date("2016-11-07", format="%Y-%m-%d"), ymin=-Inf, ymax=Inf, fill="darkorange", alpha=0.1)+
   theme(panel.background = element_rect(fill = "transparent", colour = NA), 
