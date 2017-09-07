@@ -1176,7 +1176,7 @@ siteSurv <- lmer(survival ~ Class * block + (1|Tray_Code)+(1|Site_Code),
 summary(siteSurv)
 tidy(siteSurv)
 plot(siteSurv)
-Anova(siteSurv)
+car::Anova(siteSurv)
 
 #pairwise
 summary(multcomp::glht(siteSurv, linfct = multcomp::mcp(block = "Tukey"), test = multcomp::adjusted("holm")))
@@ -1394,15 +1394,15 @@ emergClim <- mutate(emergClim, devRate =1/Exp_Day)
 
 Statistics:
 ```{r}
-survClimMod <- lmer(devRate~Temp_mean*RH_mean +(1|Site_Code),
+devClimMod <- lmer(devRate~Temp_mean*RH_mean +(1|Site_Code),
                     data=emergClim)
 
-plot(survClimMod)
-qqnorm(resid(survClimMod))
-summary(survClimMod)
-coef(survClimMod)
+plot(devClimMod)
+qqnorm(resid(devClimMod))
+summary(devClimMod)
+coef(devClimMod)
 
-car::Anova(survClimMod)
+car::Anova(devClimMod)
 ```
 
 #Body Size
@@ -1753,6 +1753,8 @@ plot_grid(survPlot, emergePlot, growthPlot,
 
 
 Statistics:
+
+By Block and Site
 ```{r}
 growthMix <- lmer(r~ block+ (1|Site_Code), data=growthDF2) #lowest AICc
 tidy(growthMix)
@@ -1760,6 +1762,21 @@ car::Anova(growthMix) #Wald test
 #confint(growthMix) #profiled confidence interval
 drop1(growthMix, test="Chisq") #Likelihood ratio test
 
+```
+
+Across Temperature
+```{r}
+levels(allClim$block) <- factor(as.character(allClim$block), levels=c("Summer", "Fall"))
+#get temperature data
+growthTemp <- merge(growthDF2, allClim, by.x=c("block","Tray_Code"), by.y=c("block", "Tray_ID"))
+ggplot(data=growthTemp, aes(x=Temp_mean, y=r))+
+  geom_point(aes(color=Class))+
+  geom_smooth(method="lm")
+
+growthTempMod <- lm(r~Temp_mean,
+                      data=growthTemp)
+summary(growthTempMod)
+anova(growthTempMod)
 ```
 
 # Vectorial Capacity

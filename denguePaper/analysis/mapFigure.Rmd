@@ -1,0 +1,53 @@
+---
+title: "MapFigure"
+author: "Michelle Evans"
+date: "9/6/2017"
+output: html_document
+---
+
+Creates map figure of sites around Athens.
+
+```{r}
+library(raster)
+library(sp)
+library(ggplot2)
+library(ggmap)
+library(rgdal)
+library(rasterVis)
+library(RColorBrewer)
+library(viridis)
+```
+
+
+```{r}
+impSurf <- raster("../data/spatial/impSurfFocal.tif")
+sites <- read.csv("../data/spatial/sites.csv", header=T)
+sitesSp <- SpatialPointsDataFrame(sites[,c('X','Y')], data= sites,
+                                  proj4string=crs("+init=EPSG:4326"))
+sitesSp <- spTransform(sitesSp, "+proj=utm +zone=17 +datum=NAD83 +units=m +no_defs +ellps=GRS80 +towgs84=0,0,0")
+```
+
+```{r}
+#bound Athens around sites
+athens <- crop(impSurf, c(262000, 297000, 3748000,3765000))
+```
+
+```{r}
+levelplot(athens, 
+          margin=FALSE,                       
+          colorkey=list(
+            space='bottom',                   
+            labels=list(at=c(0,25,50,75,100), font=4),
+            axis.line=list(col='black')       
+          ),    
+          par.settings=list(
+            axis.line=list(col='transparent') 
+          ),
+          scales=list(draw=FALSE),            
+          col.regions=viridis,                   
+          at=seq(0, 100, len=101)) +           
+  layer(sp.polygons(sitesSp, pch=21, fill=c("dodgerblue", "gray40", "maroon")[sitesSp$CLASS], cex=2, col="white"))
+```
+
+add outline of ACC
+change color scheme
