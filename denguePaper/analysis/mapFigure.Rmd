@@ -16,6 +16,10 @@ library(rgdal)
 library(rasterVis)
 library(RColorBrewer)
 library(viridis)
+library(latticeExtra)
+library(scales)
+library(png)
+library(grid)
 ```
 
 
@@ -23,13 +27,23 @@ library(viridis)
 impSurf <- raster("../data/spatial/impSurfFocal.tif")
 sites <- read.csv("../data/spatial/sites.csv", header=T)
 sitesSp <- SpatialPointsDataFrame(sites[,c('X','Y')], data= sites,
-                                  proj4string=crs("+init=EPSG:4326"))
+                                  proj4string=crs("+init=epsg:4326"))
 sitesSp <- spTransform(sitesSp, "+proj=utm +zone=17 +datum=NAD83 +units=m +no_defs +ellps=GRS80 +towgs84=0,0,0")
+
+counties <- readOGR("../data/spatial/","cb_2016_us_county_500k") #downloaded from US census bureau 2015
+acc <- counties[counties$GEOID==13059,]
+acc <- spTransform(acc, "+proj=utm +zone=17 +datum=NAD83 +units=m +no_defs +ellps=GRS80 +towgs84=0,0,0")
 ```
 
 ```{r}
 #bound Athens around sites
 athens <- crop(impSurf, c(262000, 297000, 3748000,3765000))
+```
+
+```{r}
+#load map of georgia
+gaMap <- readPNG("../data/spatial/accMap.png")
+mapRaster<- as.raster(gaMap)
 ```
 
 ```{r}
@@ -41,13 +55,22 @@ levelplot(athens,
             axis.line=list(col='black')       
           ),    
           par.settings=list(
-            axis.line=list(col='transparent') 
+            axis.line=list(col='gray20') 
           ),
           scales=list(draw=FALSE),            
-          col.regions=viridis,                   
-          at=seq(0, 100, len=101)) +           
-  layer(sp.polygons(sitesSp, pch=21, fill=c("dodgerblue", "gray40", "maroon")[sitesSp$CLASS], cex=2, col="white"))
+          col.regions=c(alpha("dodgerblue",0.5), alpha("gray40",0.5), alpha("maroon",0.5)),
+          at=c(0,5,40,100)) +           
+  layer(sp.polygons(sitesSp, pch=21, fill=c("dodgerblue", "gray40", "maroon")[sitesSp$CLASS], cex=2, lwd=4, col="gray20"))+
+  #layer(sp.polygons(acc, lwd=2, col="black"))+
+  layer(SpatialPolygonsRescale(layout.north.arrow(), offset = c(265000, 3749000), scale = 2000)) +
+  layer({
+    xs <- seq(267000, 269250, by=750)
+    grid.rect(x=xs, y=3750000,
+              width=750, height=300,
+              gp=gpar(fill=rep(c('transparent', 'black'), 2)),
+              default.units='native')
+    grid.text(x=seq(266800, 270000, by=750), y=rep(c(3749500, 3750400), 2), label=c("","", "1.5", "", "3 km"),
+              gp=gpar(cex=0.8), rot=0,
+              default.units='native')
+  })
 ```
-
-add outline of ACC
-change color scheme
