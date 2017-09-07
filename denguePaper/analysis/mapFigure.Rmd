@@ -47,6 +47,7 @@ mapRaster<- as.raster(gaMap)
 ```
 
 ```{r}
+png("figures/forMS/siteMap.png", family="sans", width=7, height=4, units="in", res=500)
 levelplot(athens, 
           margin=FALSE,                       
           colorkey=list(
@@ -66,7 +67,7 @@ levelplot(athens,
                     pch=c(15,16,17)[sitesSp$CLASS], 
                     #fill=c("dodgerblue", "gray40", "maroon")[sitesSp$CLASS],
                     fill="gray20",
-                    cex=2, lwd=2
+                    cex=1, lwd=2
                     #col="gray20",
                     #col=c("dodgerblue", "gray40", "maroon")[sitesSp$CLASS]
                     ))+
@@ -82,7 +83,8 @@ levelplot(athens,
               gp=gpar(fill=rep(c('transparent', 'black'), 2)),
               default.units='native')
     grid.text(x=seq(266800, 270000, by=750), y=rep(c(3749500, 3750400), 2), label=c("","", "1.5", "", "3 km"),
-              gp=gpar(cex=0.8), rot=0,
+              gp=gpar(cex=0.5), rot=0,
               default.units='native')
   })
+dev.off()
 ```
