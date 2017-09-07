@@ -51,16 +51,28 @@ levelplot(athens,
           margin=FALSE,                       
           colorkey=list(
             space='bottom',                   
-            labels=list(at=c(0,25,50,75,100), font=4),
+            labels=list(at=c(0,5,40,100), 
+                        labels=c("0%","5%", "40%", "100%"),
+                        font=4),
             axis.line=list(col='black')       
           ),    
           par.settings=list(
             axis.line=list(col='gray20') 
           ),
-          scales=list(draw=FALSE),            
+          scales=list(draw=FALSE),
           col.regions=c(alpha("dodgerblue",0.5), alpha("gray40",0.5), alpha("maroon",0.5)),
           at=c(0,5,40,100)) +           
-  layer(sp.polygons(sitesSp, pch=21, fill=c("dodgerblue", "gray40", "maroon")[sitesSp$CLASS], cex=2, lwd=4, col="gray20"))+
+  layer(sp.polygons(sitesSp, 
+                    pch=c(15,16,17)[sitesSp$CLASS], 
+                    #fill=c("dodgerblue", "gray40", "maroon")[sitesSp$CLASS],
+                    fill="gray20",
+                    cex=2, lwd=2
+                    #col="gray20",
+                    #col=c("dodgerblue", "gray40", "maroon")[sitesSp$CLASS]
+                    ))+
+  # layer(sp.polygons(sitesSp, 
+  #                   col="black",
+  #                   pch=c("R", "S", "U")[sitesSp$CLASS]))+
   #layer(sp.polygons(acc, lwd=2, col="black"))+
   layer(SpatialPolygonsRescale(layout.north.arrow(), offset = c(265000, 3749000), scale = 2000)) +
   layer({
