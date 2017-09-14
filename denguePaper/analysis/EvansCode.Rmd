@@ -245,26 +245,26 @@ infLong <- seasonInf %>%
   gather(type, infection, Body:Saliva) %>%
   dplyr::select(block, class, site, Individual, type, infection) %>%
   dplyr::group_by(block, class, type, site) %>%
-  summarise(mean.inf=mean(infection, na.rm=T), sampleSize=sum(!is.na(infection))) %>%
+  summarise(mean.inf=mean(infection, na.rm=T), sampleSize=sum(!is.na(infection)), positive=sum(infection, na.rm=T)) %>%
   group_by(block, class, type) %>%
-  summarise(se.inf=sd(mean.inf, na.rm=T)/n(), mean.inf=mean(mean.inf), samples=sum(sampleSize)) %>%
+  summarise(se.inf=sd(mean.inf, na.rm=T)/n(), mean.inf=mean(mean.inf), samples=sum(sampleSize), positives=sum(positive)) %>%
   ungroup() %>%
   mutate(stripLabel=case_when(
     type=="Body" ~ "Infected",
     type=="Head" ~ "Disseminated",
     type=="Saliva" ~ "Infectious"
   ))
-infLong$sampleLab <- paste0("n=", infLong$samples)
+infLong$sampleLab <- paste0(infLong$positives, "(", infLong$samples, ")")
 ```
 
 Plot (summer is alpha=1, fall is alpha=0.3)
 
 ```{r land class x season plot}
-#png(file="figures/forMS/landclassXseasonInfection.png", width = 4, height=7, units="in", res=600, family="sans")
+pdf(file="figures/forMS/landclassXseasonInfection.pdf", width = 4, height=7,  family="sans")
 
 ggplot(data=infLong[order(infLong$block, decreasing=F),], aes(x=class, group=block))+
   geom_bar(stat="identity", aes(y=mean.inf, alpha=block, fill=class, color=factor(class)), position=position_dodge(width=-0.9))+
-  geom_text(aes(label=samples, y=mean.inf), vjust=-1.7, color="black", position=position_dodge(width=-0.9), size=3)+
+  #geom_text(aes(label=sampleLab, y=mean.inf), vjust=-2, color="black", position=position_dodge(width=-0.9), size=2.5)+
   facet_wrap(~factor(stripLabel, levels=c("Infected", "Disseminated", "Infectious")), nrow=3, dir="v", scales='free') +
   scale_y_continuous(breaks=c(0,0.5,1), minor_breaks = c(0.25, 0.75), labels=c("0%", "50%", "100%"), limits=c(0,1))+
   #ylim(0,1)+
@@ -292,7 +292,7 @@ ggplot(data=infLong[order(infLong$block, decreasing=F),], aes(x=class, group=blo
         axis.text.y=element_text(size=12),
         axis.text.x=element_text(size=12))
 
-#dev.off()
+dev.off()
 ```
 
 
