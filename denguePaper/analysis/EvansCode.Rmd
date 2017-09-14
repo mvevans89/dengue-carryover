@@ -33,6 +33,7 @@ library(survival)
 library(DHARMa) #mixed model residuals
 library(survminer) #extracts survival objects
 library(dplyr)
+library(multcomp)
 
 colR <- "dodgerblue"
 colS <- "gray60"
@@ -273,7 +274,7 @@ ggplot(data=infLong[order(infLong$block, decreasing=F),], aes(x=class, group=blo
   scale_alpha_discrete(range=c(0,1), name="Season", labels=c("Fall", "Summer"))+
   geom_errorbar(aes(ymin=mean.inf-se.inf, ymax=mean.inf+se.inf), width=0.2, color=errorColor, position =position_dodge(-0.9))+
   xlab("Land Class") +
-  ylab("Percent Infected") +
+  ylab("Percent Positive") +
   guides(fill=F, color= F,
          alpha=guide_legend(override.aes=list(color=axisColor), reverse=T)) +
   theme_fivethirtyeight() +
@@ -949,6 +950,7 @@ bodyWing <- glmer(Body~Wing + (1|site),
 # bodyWing <- lmer(Wing~Body + (1|site),
 #                           data=bodyWingDF)
 tidy(bodyWing)
+summary(bodyWing)
 
 simulationOutput <- simulateResiduals(fittedModel = bodyWing, n=999)
 plotSimulatedResiduals(simulationOutput = simulationOutput)
@@ -1235,14 +1237,31 @@ summary(mixEmerge)
 Anova(mixEmerge)
 
 #pairwise
-summary(multcomp::glht(mixEmerge, linfct = mcp(block = "Tukey"), test = adjusted("holm")))
+summary(multcomp::glht(mixEmerge, linfct = multcomp::mcp(block = "Tukey"), test = adjusted("holm")))
 
-summary(multcomp::glht(mixEmerge, linfct = mcp(Class = "Tukey"), test = adjusted("holm")))
+summary(multcomp::glht(mixEmerge, linfct = multcomp::mcp(Class = "Tukey"), test = adjusted("holm")))
 
 emergeGrid <-lsmeans::ref.grid(mixEmerge)
-emergePair <- pairs(lsmeans(mixEmerge, ~Class|block))
-lsmeans(mixEmerge, ~block)
+emergePair <- pairs(lsmeans::lsmeans(mixEmerge, ~Class|block))
+lsmeans::lsmeans(mixEmerge, ~block)
 ```
+
+Land use trends were significant in the fall:
+```{r}
+mixEmergeFall <- lmer(Exp_Day ~ Class + (1|Tray_Code)+(1|Site_Code), 
+                   data=emergExpF[emergExpF$block=="Fall",])
+
+summary(mixEmergeFall)
+tidy(mixEmergeFall)
+plot(mixEmergeFall)
+qqnorm(resid(mixEmergeFall))
+summary(mixEmergeFall)
+#confint(mixEmergeFall)
+Anova(mixEmergeFall)
+
+summary(multcomp::glht(mixEmergeFall, linfct = multcomp::mcp(Class = "Tukey"), test = adjusted("holm")))
+```
+
 
 ### Plots
 
@@ -1369,14 +1388,12 @@ AICc(m1,m2, m3, m4)
 tidy(m1)
 
 
-#standardize environmental variables
 survClimModmix <- lmer(percSurv~Temp_mean+(1|Site_Code),
                     data=survClim)
 
-car::Anova(survClimModmix)
+summary(survClimModmix)
 confint(survClimModmix)
 tidy(survClimModmix)
-drop1(survClimModmix, test="Chisq")
 
 plot(survClimModmix)
 qqnorm(resid(survClimModmix))
@@ -2159,11 +2176,24 @@ ggdraw()+
 
 
 VC Stats:
-```{r}
-VCclass <- lmer(VC~Class*block+ (1|Site_Code), data=VCplot)
+```{r VC stats}
+VCplot$VCforStats <- VCplot$VC+0.000000001
+VCplot$VCforStatsnoCOE <- VCplot$VCnoCOE+0.000000001
+VCclass <- glmer(VCforStats~Class*block+ (1|Site_Code), 
+                 data=VCplot,
+                family=Gamma())
+
 plot(VCclass)
 summary(VCclass)
 car::Anova(VCclass)
+
+VCclassnoCOE <- glmer(VCforStatsnoCOE~Class*block+ (1|Site_Code), 
+                 data=VCplot,
+                family=Gamma())
+
+plot(VCclassnoCOE)
+summary(VCclassnoCOE)
+car::Anova(VCclassnoCOE)
 
 #make long for comparison of with and without carry-over
 VClong <- VCplot %>%
