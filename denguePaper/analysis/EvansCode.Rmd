@@ -1019,7 +1019,7 @@ Anova(salWing)
 drop1(salWing, test="Chisq")
 ```
 
-# Emergence and Survival
+# Direct Effects
 
 ## Data Format and Loading
 
@@ -1039,6 +1039,9 @@ emergAll <- rbind(emergOct, emergAug)
 emergExp <- emergAll[rep(seq.int(1,nrow(emergAll)), emergAll$Num_Emerge),
                       c(11, 2,4,5,6:9)]
 #sum(emergAll$Num_Emerge)==nrow(emergExp) #quick check this worked
+emergExpF <- emergExp %>%
+  filter(Sex=="F") %>%
+  mutate(devRate=1/Exp_Day)
 
 #get survival per tray
 survSumm <- emergExp %>%
@@ -1097,68 +1100,74 @@ applyFill <- function(season, allData=emergExp){
 summerSurv <- applyFill(season="summer")
 fallSurv <- applyFill(season="fall")
 allSurv <- rbind(summerSurv, fallSurv)
-```
 
-## Class x Block
-
-### Survival
-
-```{r survival stats by tray}
 survTray <- allSurv %>%
   filter(Sex=="F") %>%
   group_by(Tray_Code, Site_Code, Class, block) %>%
   summarise(survival=mean(event))
+```
 
-m1 <- lmer(survival ~ Class + (1|Tray_Code)+(1|Site_Code), 
-                   data=survTray)
-m2 <- lmer(survival ~ block + (1|Tray_Code)+(1|Site_Code), 
-                   data=survTray)
+Tie in tray-level climate data:
+```{r}
+allClim <- rbind(augClim, octClim)
+allClim$block <- factor(rep(c("summer", "fall"), each=34), levels=c("summer", "fall"))
+survClim <- merge(survTray, allClim, by.x=c("block","Tray_Code"), by.y=c("block","Tray_ID"))
 
-m3 <- lmer(survival ~ Class * block + (1|Tray_Code)+(1|Site_Code), 
-                   data=survTray)
+emergClim <- merge(emergExpF, allClim, by.x=c("block","Tray_Code"), by.y=c("block","Tray_ID"))
+emergClim <- mutate(emergClim, devRate =1/Exp_Day)
+```
 
-m4 <- lmer(survival ~ Class + block + (1|Tray_Code)+(1|Site_Code), 
-                   data=survTray)
 
-modelSums <- do.call(rbind, lapply(list(m1,m2,m3, m4), broom::glance))
-modelSums #m3 is best
+## Survival
 
-AICc(m1,m2,m3, m4) #still m3
+### Class x Season
 
-siteSurv <- glmer(survival ~ Class * block + (1|Tray_Code)+(1|Site_Code),
+```{r survival stats by tray in proportions}
+#model selection by AIC and logLik
+m1 <- glmer(survival ~ block + (1|Site_Code),
                    data=survTray,
                  family=gaussian(link="logit"))
 
-summary(siteSurv)
-tidy(siteSurv)
-plot(siteSurv)
-car::Anova(siteSurv)
+m2 <- glmer(survival ~ Class + (1|Site_Code),
+                   data=survTray,
+                 family=gaussian(link="logit"))
+
+m3 <- glmer(survival ~ Class + block + (1|Site_Code),
+                   data=survTray,
+                 family=gaussian(link="logit"))
+
+m4 <- glmer(survival ~ Class * block + (1|Site_Code),
+                   data=survTray,
+                 family=gaussian(link="logit"))
+
+modelSums <- do.call(rbind, lapply(list(m1,m2,m3, m4), broom::glance))
+modelSums #m1 is best, but near m3 & m4
+
+AICc(m1,m2,m3, m4) #still m1
+
+SurvModSeason <- glmer(survival ~ block + (1|Site_Code),
+                   data=survTray,
+                 family=gaussian(link="logit"))
+
+summary(SurvModSeason)
+modResults <- tidy(SurvModSeason)
+plot(SurvModSeason)
+car::Anova(SurvModSeason)
 
 #pairwise
-survPair <- pairs(lsmeans::lsmeans(siteSurv, ~Class|block))
+survPair <- pairs(lsmeans::lsmeans(SurvModSeason, ~block))
 survPair
+
+#coefficients
+boot::inv.logit(modResults$estimate[1]) #fall
+boot::inv.logit(modResults$estimate[1]+modResults$estimate[2]) #summer
 ```
 
-Analyzing blocks seperately
-```{r}
-fallSurvMod <- lmer(survival ~ Class+(1|Site_Code), 
-                   data=survTray[survTray$block=="fall",])
-tidy(fallSurvMod)
-summary(fallSurvMod)
-Anova(fallSurvMod)
+## Emergence
 
-summerSurvMod <- lmer(survival ~ Class+(1|Site_Code), 
-                   data=survTray[survTray$block=="summer",])
-tidy(summerSurvMod)
-summary(summerSurvMod)
-Anova(summerSurvMod)
-```
-
-### Emergence
+### Class x Season
 
 ```{r emergence stats individual female}
-emergExpF <- filter(emergExp, Sex=="F")
-
 emergExpF$block <- as.factor(emergExpF$block)
 
 m1 <- lmer(Exp_Day ~ Class + (1|Tray_Code)+(1|Site_Code), 
@@ -1301,12 +1310,7 @@ emergePlot
 
 ## Microclimate
 
-Tie in tray-level climate data:
-```{r}
-allClim <- rbind(augClim, octClim)
-allClim$block <- rep(c("summer", "fall"), each=34)
-survClim <- merge(survSumm, allClim, by.x=c("block","Tray_Code"), by.y=c("block","Tray_ID"))
-```
+
 
 ### Survival
 
