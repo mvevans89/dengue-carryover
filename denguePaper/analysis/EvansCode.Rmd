@@ -1099,63 +1099,15 @@ fallSurv <- applyFill(season="fall")
 allSurv <- rbind(summerSurv, fallSurv)
 ```
 
-Calculate sex ratios
-```{r}
-emergSexSeason <- allEmerg %>%
-  group_by(Sex, block) %>%
-  summarise(sum(Num_Emerge))
-
-emergSexClass <- allEmerg %>%
-  group_by(Sex, Class) %>%
-  summarise(sum(Num_Emerge))
-```
-
 ## Class x Block
 
 ### Survival
-
-```{r survival stats females only}
-#model selection
-m1 <- glmer(event ~ Class + (1|Tray_Code)+(1|Site_Code), 
-                   data=allSurv,
-                   family=binomial)
-m2 <- glmer(event ~ block + (1|Tray_Code)+(1|Site_Code), 
-                   data=allSurv,
-                   family=binomial)
-
-m3 <- glmer(event ~ Class * block + (1|Tray_Code)+(1|Site_Code), 
-                   data=allSurv,
-                   family=binomial)
-
-m4 <- glmer(event ~ Class + block + (1|Tray_Code)+(1|Site_Code), 
-                   data=allSurv,
-                   family=binomial)
-
-modelSums <- do.call(rbind, lapply(list(m1,m2,m3, m4), broom::glance)) #m4 is best
-
-AICc(m1,m2,m3, m4) #still m4
-
-
-siteEmerg <- glmer(event ~ Class*block + (1|Tray_Code) + (1|Site_Code), 
-                   data=allSurv,
-                   family=binomial)
-
-summary(siteEmerg)
-tidy(siteEmerg)
-plot(siteEmerg)
-Anova(siteEmerg)
-
-#pairwise
-summary(multcomp::glht(siteEmerg, linfct = multcomp::mcp(block = "Tukey"), test = multcomp::adjusted("holm")))
-
-summary(multcomp::glht(siteEmerg, linfct = multcomp::mcp(Class = "Tukey"), test = multcomp::adjusted("holm")))
-```
 
 ```{r survival stats by tray}
 survTray <- allSurv %>%
   filter(Sex=="F") %>%
   group_by(Tray_Code, Site_Code, Class, block) %>%
-  summarise(survival=mean(event)*100)
+  summarise(survival=mean(event))
 
 m1 <- lmer(survival ~ Class + (1|Tray_Code)+(1|Site_Code), 
                    data=survTray)
@@ -1168,12 +1120,14 @@ m3 <- lmer(survival ~ Class * block + (1|Tray_Code)+(1|Site_Code),
 m4 <- lmer(survival ~ Class + block + (1|Tray_Code)+(1|Site_Code), 
                    data=survTray)
 
-modelSums <- do.call(rbind, lapply(list(m1,m2,m3, m4), broom::glance)) #m3 is best
+modelSums <- do.call(rbind, lapply(list(m1,m2,m3, m4), broom::glance))
+modelSums #m3 is best
 
 AICc(m1,m2,m3, m4) #still m3
 
-siteSurv <- lmer(survival ~ Class * block + (1|Tray_Code)+(1|Site_Code), 
-                   data=survTray)
+siteSurv <- glmer(survival ~ Class * block + (1|Tray_Code)+(1|Site_Code),
+                   data=survTray,
+                 family=gaussian(link="logit"))
 
 summary(siteSurv)
 tidy(siteSurv)
@@ -1181,10 +1135,8 @@ plot(siteSurv)
 car::Anova(siteSurv)
 
 #pairwise
-summary(multcomp::glht(siteSurv, linfct = multcomp::mcp(block = "Tukey"), test = multcomp::adjusted("holm")))
-
-summary(multcomp::glht(siteSurv, linfct = multcomp::mcp(Class = "Tukey"), test = multcomp::adjusted("holm")))
-
+survPair <- pairs(lsmeans::lsmeans(siteSurv, ~Class|block))
+survPair
 ```
 
 Analyzing blocks seperately
@@ -1204,7 +1156,7 @@ Anova(summerSurvMod)
 
 ### Emergence
 
-```{r}
+```{r emergence stats individual female}
 emergExpF <- filter(emergExp, Sex=="F")
 
 emergExpF$block <- as.factor(emergExpF$block)
@@ -1226,30 +1178,63 @@ modelSums <- do.call(rbind, lapply(list(m1,m2,m3, m4), broom::glance)) #m4 is be
 AICc(m1,m2,m3, m4) #still m4
 
 
-mixEmerge <- lmer(Exp_Day ~ Class * block + (1|Tray_Code)+(1|Site_Code), 
-                   data=emergExpF)
+mixEmerge <- glmer((1/Exp_Day) ~ Class * block + (1|Tray_Code)+(1|Site_Code),
+                   data=emergExpF,
+                   family=Gamma(link = "log"))
 summary(mixEmerge)
 tidy(mixEmerge)
 plot(mixEmerge)
 qqnorm(resid(mixEmerge))
-summary(mixEmerge)
 #confint(mixEmerge)
 Anova(mixEmerge)
 
 #pairwise
-summary(multcomp::glht(mixEmerge, linfct = multcomp::mcp(block = "Tukey"), test = adjusted("holm")))
-
-summary(multcomp::glht(mixEmerge, linfct = multcomp::mcp(Class = "Tukey"), test = adjusted("holm")))
-
-emergeGrid <-lsmeans::ref.grid(mixEmerge)
 emergePair <- pairs(lsmeans::lsmeans(mixEmerge, ~Class|block))
-lsmeans::lsmeans(mixEmerge, ~block)
+emergePair
 ```
+
+```{r emergence stats by tray}
+emergTray <- emergExpF %>%
+  group_by(Tray_Code, Site_Code, Class, block) %>%
+  summarise(emergeRate=mean(1/Exp_Day, na.rm=T))
+
+#model selection
+m1 <- lmer(emergeRate ~ Class +(1|Site_Code), 
+                   data=emergTray)
+
+m2 <- lmer(emergeRate ~ block +(1|Site_Code), 
+                   data=emergTray)
+
+m3 <- lmer(emergeRate ~ Class * block +(1|Site_Code), 
+                   data=emergTray)
+
+m4 <- lmer(emergeRate ~ Class + block +(1|Site_Code), 
+                   data=emergTray)
+
+modelSums <- do.call(rbind, lapply(list(m1,m2,m3, m4), broom::glance)) 
+modelSums #m2 is best
+
+AICc(m1,m2,m3, m4) #still m2
+
+mixEmergeTray <- lmer(emergeRate ~ block +(1|Site_Code), 
+                   data=emergTray)
+
+summary(mixEmergeTray)
+tidy(mixEmergeTray)
+plot(mixEmergeTray)
+qqnorm(resid(mixEmergeTray))
+#confint(mixEmerge)
+Anova(mixEmergeTray)
+
+#pairwise
+summary(multcomp::glht(mixEmergeTray, linfct = multcomp::mcp(block = "Tukey"), test = adjusted("holm")))
+```
+
 
 Land use trends were significant in the fall:
 ```{r}
-mixEmergeFall <- lmer(Exp_Day ~ Class + (1|Tray_Code)+(1|Site_Code), 
-                   data=emergExpF[emergExpF$block=="Fall",])
+mixEmergeFall <- lmer(emergeRate ~ Class + (1|Site_Code), 
+                   data=emergTray[emergTray$block=="fall",])
 
 summary(mixEmergeFall)
 tidy(mixEmergeFall)
