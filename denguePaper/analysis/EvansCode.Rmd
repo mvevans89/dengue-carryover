@@ -1039,9 +1039,13 @@ emergAll <- rbind(emergOct, emergAug)
 emergExp <- emergAll[rep(seq.int(1,nrow(emergAll)), emergAll$Num_Emerge),
                       c(11, 2,4,5,6:9)]
 #sum(emergAll$Num_Emerge)==nrow(emergExp) #quick check this worked
-emergExpF <- emergExp %>%
+emergTray <- emergExp %>%
   filter(Sex=="F") %>%
-  mutate(devRate=1/Exp_Day)
+  mutate(devRate=1/Exp_Day) %>%
+  group_by(Tray_Code, Site_Code, Class, block) %>%
+  summarise(devRate=mean(devRate, na.rm=T)) %>%
+  ungroup()
+emergTray$block <- factor(emergTray$block, levels=c("summer", "fall"))
 
 #get survival per tray
 survSumm <- emergExp %>%
@@ -1105,6 +1109,7 @@ survTray <- allSurv %>%
   filter(Sex=="F") %>%
   group_by(Tray_Code, Site_Code, Class, block) %>%
   summarise(survival=mean(event))
+survTray$block <- factor(survTray$block, levels=c("summer", "fall"))
 ```
 
 Tie in tray-level climate data:
@@ -1113,8 +1118,7 @@ allClim <- rbind(augClim, octClim)
 allClim$block <- factor(rep(c("summer", "fall"), each=34), levels=c("summer", "fall"))
 survClim <- merge(survTray, allClim, by.x=c("block","Tray_Code"), by.y=c("block","Tray_ID"))
 
-emergClim <- merge(emergExpF, allClim, by.x=c("block","Tray_Code"), by.y=c("block","Tray_ID"))
-emergClim <- mutate(emergClim, devRate =1/Exp_Day)
+emergClim <- merge(emergTray, allClim, by.x=c("block","Tray_Code"), by.y=c("block","Tray_ID"))
 ```
 
 
@@ -1144,7 +1148,9 @@ modelSums <- do.call(rbind, lapply(list(m1,m2,m3, m4), broom::glance))
 modelSums #m1 is best, but near m3 & m4
 
 AICc(m1,m2,m3, m4) #still m1
+```
 
+```{r}
 SurvModSeason <- glmer(survival ~ block + (1|Site_Code),
                    data=survTray,
                  family=gaussian(link="logit"))
@@ -1163,160 +1169,11 @@ boot::inv.logit(modResults$estimate[1]) #fall
 boot::inv.logit(modResults$estimate[1]+modResults$estimate[2]) #summer
 ```
 
-## Emergence
+### Microclimate
 
-### Class x Season
-
-```{r emergence stats individual female}
-emergExpF$block <- as.factor(emergExpF$block)
-
-m1 <- lmer(Exp_Day ~ Class + (1|Tray_Code)+(1|Site_Code), 
-                   data=emergExpF)
-
-m2 <- lmer(Exp_Day  ~ block + (1|Tray_Code)+(1|Site_Code), 
-                   data=emergExpF)
-
-m3 <- lmer(Exp_Day  ~ Class + block + (1|Tray_Code)+(1|Site_Code), 
-                   data=emergExpF)
-
-m4 <- lmer(Exp_Day ~ Class * block + (1|Tray_Code)+(1|Site_Code), 
-                   data=emergExpF)
-
-modelSums <- do.call(rbind, lapply(list(m1,m2,m3, m4), broom::glance)) #m4 is best
-
-AICc(m1,m2,m3, m4) #still m4
-
-
-mixEmerge <- glmer((1/Exp_Day) ~ Class * block + (1|Tray_Code)+(1|Site_Code),
-                   data=emergExpF,
-                   family=Gamma(link = "log"))
-summary(mixEmerge)
-tidy(mixEmerge)
-plot(mixEmerge)
-qqnorm(resid(mixEmerge))
-#confint(mixEmerge)
-Anova(mixEmerge)
-
-#pairwise
-emergePair <- pairs(lsmeans::lsmeans(mixEmerge, ~Class|block))
-emergePair
-```
-
-```{r emergence stats by tray}
-emergTray <- emergExpF %>%
-  group_by(Tray_Code, Site_Code, Class, block) %>%
-  summarise(emergeRate=mean(1/Exp_Day, na.rm=T))
-
-#model selection
-m1 <- lmer(emergeRate ~ Class +(1|Site_Code), 
-                   data=emergTray)
-
-m2 <- lmer(emergeRate ~ block +(1|Site_Code), 
-                   data=emergTray)
-
-m3 <- lmer(emergeRate ~ Class * block +(1|Site_Code), 
-                   data=emergTray)
-
-m4 <- lmer(emergeRate ~ Class + block +(1|Site_Code), 
-                   data=emergTray)
-
-modelSums <- do.call(rbind, lapply(list(m1,m2,m3, m4), broom::glance)) 
-modelSums #m2 is best
-
-AICc(m1,m2,m3, m4) #still m2
-
-mixEmergeTray <- lmer(emergeRate ~ block +(1|Site_Code), 
-                   data=emergTray)
-
-summary(mixEmergeTray)
-tidy(mixEmergeTray)
-plot(mixEmergeTray)
-qqnorm(resid(mixEmergeTray))
-#confint(mixEmerge)
-Anova(mixEmergeTray)
-
-#pairwise
-summary(multcomp::glht(mixEmergeTray, linfct = multcomp::mcp(block = "Tukey"), test = adjusted("holm")))
-```
-
-
-Land use trends were significant in the fall:
+Model selection
 ```{r}
-mixEmergeFall <- lmer(emergeRate ~ Class + (1|Site_Code), 
-                   data=emergTray[emergTray$block=="fall",])
-
-summary(mixEmergeFall)
-tidy(mixEmergeFall)
-plot(mixEmergeFall)
-qqnorm(resid(mixEmergeFall))
-summary(mixEmergeFall)
-#confint(mixEmergeFall)
-Anova(mixEmergeFall)
-
-summary(multcomp::glht(mixEmergeFall, linfct = multcomp::mcp(Class = "Tukey"), test = adjusted("holm")))
-```
-
-
-### Plots
-
-Adjust factors for plotting:
-```{r}
-levels(emergExpF$block) <- c("Fall", "Summer")
-emergExpF <- mutate(emergExpF, block=forcats::fct_rev(block))
-levels(emergExpF$Class) <- c("Rural", "Suburban", "Urban")
-
-levels(siteSumm$block) <- c("Fall", "Summer")
-siteSumm <- mutate(siteSumm, block=forcats::fct_rev(block))
-levels(siteSumm$Class) <- c("Rural", "Suburban", "Urban")
-```
-
-
-Survival and Emergence Plot
-
-```{r}
-#png(file="figures/forMS/emergSurvPlot.png", width = 4, height=6, units="in", res=500, family="sans")
-
-#Survival plot
-survPlot <- ggplot(data=siteSumm, aes(x=Class, y=(numSurv*2)))+
-  geom_boxplot(aes(fill=Class), color=errorColor, width=0.4)+
-  scale_fill_manual(values=c(colR, colS, colU), labels=c("Rural", "Suburban", "Urban"))+
-  facet_wrap(~block, ncol=2)+
-  ylab("Percent Survival")+
-  theme(legend.position="none")+
-  #theme(axis.title.x = element_blank(), axis.text.x = element_blank())+
-  theme(axis.title = element_text(size=12))
-survPlot
-# dev.off()
-  
-#for presentations
-# pdf(file="figures/forMS/emergPlotPPT.pdf", width = 6, height=4, family="sans")
-#Emergence Plot
-emergePlot <- ggplot(emergExpF, aes(x=Class, y=(1/Exp_Day)))+
-  geom_boxplot(aes(fill=Class, alpha=0.5), width=0.4)+
-  scale_fill_manual(values=c(colR, colS, colU), labels=c("Rural", "Suburban", "Urban"))+
-  facet_wrap(~block, ncol=2)+
-  ylab("Development Rate")+
-  theme(legend.position="none") +
-  #theme(strip.background = element_blank(),
-  #strip.text.x = element_blank()) +
-  xlab("Land Class") +
-  theme(axis.text.x = element_text(size=8)) +
-  theme(axis.title = element_text(size=12), axis.title.y= element_text(size=12))
-
-emergePlot
-# dev.off()
-```
-
-
-## Microclimate
-
-
-
-### Survival
-
-Statistics
-```{r}
-respV <- "percSurv"
+respV <- "survival"
 predVs <- c("Temp_mean","RH_mean", "DTR", "Temp_min", "RH_min", "Temp_max", "RH_max")
 
 myCols <- c(respV, predVs, "block","Class", "Site_Code")
@@ -1326,25 +1183,25 @@ modDF <- na.omit(modDF)
 
 #model selection for initial variable
 
-m1 <- lmer(percSurv~Temp_mean + (1|Site_Code),
+m1 <- lmer(survival~Temp_mean + (1|Site_Code),
            data=modDF)
 
-m2 <- lmer(percSurv~RH_mean + (1|Site_Code),
+m2 <- lmer(survival~RH_mean + (1|Site_Code),
            data=modDF)
 
-m3 <- lmer(percSurv~DTR + (1|Site_Code),
+m3 <- lmer(survival~DTR + (1|Site_Code),
            data=modDF)
 
-m4 <- lmer(percSurv~Temp_min + (1|Site_Code),
+m4 <- lmer(survival~Temp_min + (1|Site_Code),
            data=modDF)
 
-m5 <- lmer(percSurv~RH_min + (1|Site_Code),
+m5 <- lmer(survival~RH_min + (1|Site_Code),
            data=modDF)
 
-m6 <- lmer(percSurv~Temp_max + (1|Site_Code),
+m6 <- lmer(survival~Temp_max + (1|Site_Code),
            data=modDF)
 
-m7 <- lmer(percSurv~RH_max + (1|Site_Code),
+m7 <- lmer(survival~RH_max + (1|Site_Code),
            data=modDF)
 
 modelSums <- do.call(rbind, lapply(list(m1,m2,m3, m4, m5, m6, m7), broom::glance))
@@ -1358,16 +1215,16 @@ covars <- data.frame(cor(survClim[,6:12]))
 rownames(covars[abs(covars$Temp_mean)<0.8,]) #only RH_mean and RH_max
 
 #model selection
-m1 <- lmer(percSurv~Temp_mean + (1|Site_Code),
+m1 <- lmer(survival~Temp_mean + (1|Site_Code),
            data=modDF)
 
-m2 <- lmer(percSurv~Temp_mean + RH_mean + (1|Site_Code),
+m2 <- lmer(survival~Temp_mean + RH_mean + (1|Site_Code),
            data=modDF)
 
-m3 <- lmer(percSurv~Temp_mean * RH_mean + (1|Site_Code),
+m3 <- lmer(survival~Temp_mean * RH_mean + (1|Site_Code),
            data=modDF)
 
-m4 <- lmer(percSurv~RH_mean + (1|Site_Code),
+m4 <- lmer(survival~RH_mean + (1|Site_Code),
            data=modDF)
 
 modelSums <- do.call(rbind, lapply(list(m1,m2, m3, m4), broom::glance)) #1 seems best
@@ -1375,41 +1232,140 @@ modelSums
 
 AICc(m1,m2, m3, m4)
 tidy(m1)
-
-
-survClimModmix <- lmer(percSurv~Temp_mean+(1|Site_Code),
-                    data=survClim)
-
-summary(survClimModmix)
-confint(survClimModmix)
-tidy(survClimModmix)
-
-plot(survClimModmix)
-qqnorm(resid(survClimModmix))
 ```
 
-
-### Development Rate
-
 ```{r}
-allClim$block <- as.factor(allClim$block)
-levels(allClim$block) <- c("Fall", "Summer")
-emergClim <- merge(emergExpF, allClim, by.x=c("block","Tray_Code"), by.y=c("block","Tray_ID"))
-emergClim <- mutate(emergClim, devRate =1/Exp_Day)
+survModClim <- glmer(survival~Temp_mean+(1|Site_Code),
+                    data=survClim,
+                    family=gaussian("logit"))
+
+summary(survModClim)
+modResults <- tidy(survModClim)
+
+plot(survModClim)
+qqnorm(resid(survModClim))
+
+#coefficients
+modResults$estimate[2] #temp coefficient
 ```
 
-Statistics:
+## Emergence
+
+### Class x Season
+Model Selection
+```{r emergence stats by tray}
+#model selection
+m1 <- lmer(devRate ~ Class +(1|Site_Code), 
+                   data=emergTray)
+
+m2 <- lmer(devRate ~ block +(1|Site_Code), 
+                   data=emergTray)
+
+m3 <- lmer(devRate ~ Class * block +(1|Site_Code), 
+                   data=emergTray)
+
+m4 <- lmer(devRate ~ Class + block +(1|Site_Code), 
+                   data=emergTray)
+
+modelSums <- do.call(rbind, lapply(list(m1,m2,m3, m4), broom::glance)) 
+modelSums #m2 is best
+
+AICc(m1,m2,m3, m4) #still m2
+```
+
 ```{r}
-devClimMod <- lmer(devRate~Temp_mean*RH_mean +(1|Site_Code),
+mixEmergeTray <- lmer(devRate ~ block +(1|Site_Code), 
+                   data=emergTray)
+
+summary(mixEmergeTray)
+tidy(mixEmergeTray)
+plot(mixEmergeTray)
+qqnorm(resid(mixEmergeTray))
+#confint(mixEmerge)
+Anova(mixEmergeTray)
+
+#pairwise
+summary(multcomp::glht(mixEmergeTray, linfct = multcomp::mcp(block = "Tukey"), test = adjusted("holm")))
+```
+
+### Microclimate
+
+Model Selection:
+```{r}
+respV <- "devRate"
+predVs <- c("Temp_mean","RH_mean", "DTR", "Temp_min", "RH_min", "Temp_max", "RH_max")
+
+myCols <- c(respV, predVs, "block","Class", "Site_Code")
+modDF <- emergClim %>%
+  dplyr::select(one_of(myCols)) 
+modDF <- na.omit(modDF)
+
+#model selection for initial variable
+
+m1 <- lmer(devRate~Temp_mean + (1|Site_Code),
+           data=modDF)
+
+m2 <- lmer(devRate~RH_mean + (1|Site_Code),
+           data=modDF)
+
+m3 <- lmer(devRate~DTR + (1|Site_Code),
+           data=modDF)
+
+m4 <- lmer(devRate~Temp_min + (1|Site_Code),
+           data=modDF)
+
+m5 <- lmer(devRate~RH_min + (1|Site_Code),
+           data=modDF)
+
+m6 <- lmer(devRate~Temp_max + (1|Site_Code),
+           data=modDF)
+
+m7 <- lmer(devRate~RH_max + (1|Site_Code),
+           data=modDF)
+
+modelSums <- do.call(rbind, lapply(list(m1,m2,m3, m4, m5, m6, m7), broom::glance))
+modelSums #m1 or m4
+
+MuMIn::AICc(m1,m2,m3, m4, m5, m6, m7)
+tidy(m1)
+
+#find covariates that aren't correlated
+covars <- data.frame(cor(modDF[,2:7]))
+rownames(covars[abs(covars$Temp_mean)<0.8,]) #mean RH
+
+#model selection
+m1 <- lmer(devRate~Temp_mean + (1|Site_Code),
+           data=modDF)
+
+m2 <- lmer(devRate~Temp_mean + RH_mean + (1|Site_Code),
+           data=modDF)
+
+m3 <- lmer(devRate~Temp_mean * RH_mean + (1|Site_Code),
+           data=modDF)
+
+m4 <- lmer(devRate~ RH_mean + (1|Site_Code),
+           data=modDF)
+
+modelSums <- do.call(rbind, lapply(list(m1,m2, m3, m4), broom::glance)) #1 seems best
+modelSums
+
+AICc(m1,m2, m3, m4)
+tidy(m1)
+```
+
+```{r}
+devClimMod <- lmer(devRate~Temp_mean +(1|Site_Code),
                     data=emergClim)
 
 plot(devClimMod)
 qqnorm(resid(devClimMod))
 summary(devClimMod)
-coef(devClimMod)
 
-car::Anova(devClimMod)
+modResults <- tidy(devClimMod)
+#coefficients
+modResults$estimate[2] #temp coefficient
 ```
+
 
 #Body Size
 
@@ -1662,12 +1618,22 @@ levels(growthDF2$block) <- c("Summer", "Fall")
 levels(growthDF2$Class) <- c("Rural", "Suburban", "Urban")
 ```
 
+Adjust factor names for plotting:
+```{r}
+levels(emergTray$block) <- c("Summer", "Fall")
+levels(emergTray$Class) <- c("Rural", "Suburban", "Urban")
+
+levels(survTray$block) <- c("Summer", "Fall")
+levels(survTray$Class) <- c("Rural", "Suburban", "Urban")
+```
+
 Three panel survival, emergence and growth rate
+
 
 ```{r three panel surv emerge and growth plot}
 #png(file="figures/forMS/survEmergeGrowth.png", width = 4, height=7, units="in", res=500, family="sans")
 
-survPlot <- ggplot(data=siteSumm, aes(x=Class, y=(numSurv*2)))+
+survPlot <- ggplot(data=survTray, aes(x=Class, y=(survival*100)))+
   geom_boxplot(aes(fill=Class), width=0.4)+
   scale_fill_manual(values=c(colR, colS, colU), labels=c("Rural", "Suburban", "Urban"))+
   facet_wrap(~block, ncol=2)+
@@ -1694,7 +1660,7 @@ survPlot <- ggplot(data=siteSumm, aes(x=Class, y=(numSurv*2)))+
   theme(legend.position="none")
 
 #Emergence Plot
-emergePlot <- ggplot(emergExpF, aes(x=Class, y=(1/Exp_Day)))+
+emergePlot <- ggplot(emergTray, aes(x=Class, y=devRate))+
   geom_boxplot(aes(fill=Class), width=0.4)+
   scale_fill_manual(values=c(colR, colS, colU), labels=c("Rural", "Suburban", "Urban"))+
   facet_wrap(~block, ncol=2)+
