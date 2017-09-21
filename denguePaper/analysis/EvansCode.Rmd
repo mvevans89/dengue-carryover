@@ -1115,7 +1115,7 @@ survTray$block <- factor(survTray$block, levels=c("summer", "fall"))
 Tie in tray-level climate data:
 ```{r}
 allClim <- rbind(augClim, octClim)
-allClim$block <- factor(rep(c("summer", "fall"), each=34), levels=c("summer", "fall"))
+allClim$block <- factor(rep(c("Summer", "Fall"), each=34), levels=c("Summer", "Fall"))
 survClim <- merge(survTray, allClim, by.x=c("block","Tray_Code"), by.y=c("block","Tray_ID"))
 
 emergClim <- merge(emergTray, allClim, by.x=c("block","Tray_Code"), by.y=c("block","Tray_ID"))
@@ -1366,8 +1366,9 @@ modResults <- tidy(devClimMod)
 modResults$estimate[2] #temp coefficient
 ```
 
+# Indirect Effects
 
-#Body Size
+## Uninfected Body Size
 
 Load body size data:
 ```{r load body size data}
@@ -1402,8 +1403,8 @@ getClass <- function(monthDf){
 augWing <- getClass(augWing)
 octWing <- getClass(octWing)
 
-octWing$block <- "fall"
-augWing$block <- "summer"
+octWing$block <- "Fall"
+augWing$block <- "Summer"
 
 augWing$Date <- as.Date(as.character(augWing$Date), format="%m/%d/%Y")
 octWing$Date <- as.Date(as.character(octWing$Date), format="%m/%d/%Y")
@@ -1413,66 +1414,64 @@ augWing$Exp_Day <- as.numeric(augWing$Date-as.Date("2016-08-01", format="%Y-%m-%
 octWing$Exp_Day <- as.numeric(octWing$Date-as.Date("2016-09-26", format="%Y-%m-%d"))
 
 #rename traycode column to match
-colnames(augWing)[1] <- "Tray_ID"
-colnames(octWing)[1] <- "Tray_ID"
+colnames(augWing)[1] <- "Tray_Code"
+colnames(octWing)[1] <- "Tray_Code"
 
 #combine
 fallWing <- octWing %>%
-  dplyr::select(block, class, site, Tray_ID, Exp_Day, mm)
+  dplyr::select(block, class, Site_Code=site, Tray_Code, Exp_Day, mm)
 
 summerWing <- augWing %>%
-  dplyr::select(block, class, site, Tray_ID, Exp_Day, mm)
+  dplyr::select(block, class, Site_Code=site, Tray_Code, Exp_Day, mm)
 
 allWing <- rbind(summerWing, fallWing)
-allWing$block<- as.factor(allWing$block)
+allWing$block<- factor(allWing$block, levels=c("Summer", "Fall"))
 
 #drop outlier in S2 (wing size =1.56 mm)
 allWing <- allWing %>%
   filter(mm>1.6)
 ```
 
-Statistics:
+## Land Class x Season
+
+Model Selection
 ```{r}
-wingMix <- lmer(mm~class*block +(1|site),
+#model selection by AIC and logLik
+m1 <- lmer(mm ~ block + (1|Site_Code),
+                   data=allWing)
+
+m2 <- lmer(mm ~ class + (1|Site_Code),
+                   data=allWing)
+
+m3 <- lmer(mm ~ class + block + (1|Site_Code),
+                   data=allWing)
+
+m4 <- lmer(mm ~ class*block + (1|Site_Code),
+                   data=allWing)
+
+modelSums <- do.call(rbind, lapply(list(m1,m2,m3, m4), broom::glance))
+modelSums #m1 is best
+
+AICc(m1,m2,m3, m4) #still m1
+```
+
+```{r}
+wingMod <- lmer(mm~block +(1|Site_Code),
                 data=allWing)
-summary(wingMix)
-plot(wingMix)
-car::Anova(wingMix, type="2")
-coef(wingMix)
+summary(wingMod)
+plot(wingMod)
+car::Anova(wingMod)
 ```
 
-```{r}
-allWingSumm <- summarySE(allWing, measurevar="mm", groupvars=c("class", "block"))
+## Microclimate
 
-ggplot(data=allWingSumm, aes(x=class, y=mm, group=block))+
-  geom_point(aes(y=mm, shape=factor(block), color=factor(class)), position=position_dodge(width=-0.9), size=5)+
-  scale_color_manual(values=c(colRural, colSuburban, colU))+
-  scale_alpha_discrete(range=c(1,0.3), name="Season", labels=c("Fall", "Summer"), guide=guide_legend(reverse=T))+
-  scale_shape_discrete(name="Season",labels=c("Fall", "Summer"), guide=guide_legend(reverse=T))+
-  geom_errorbar(aes(ymin=mm-ci, ymax=mm+ci), width=0.2, color="gray20", position =position_dodge(-0.9))+
-  ylim(2.2,2.6)+
-  theme_fivethirtyeight() +
-  theme(panel.background = element_rect(fill = "transparent", colour = NA), 
-        plot.background = element_rect(fill = "transparent", colour = NA),
-        legend.key = element_blank())+
-  theme(legend.background = element_rect(fill = "transparent", colour = NA)) +
-    theme(axis.title = element_text(), axis.title.x = element_text()) +
-  ylab("Uninfected Wing Size")+
-  xlab("Land Class") +  
-  #ggtitle("Body Size ") +
-  theme(legend.position="right", legend.direction="vertical")+
-  guides(fill=F, color=F) 
-```
-
-## Climate and Wing Length
-
-Load Data
+Load Data:
 ```{r}
 climate <- read.csv(file='../data/microclimate/clean/2016TrialsAdultCleaned.csv', stringsAsFactors = F)
 
 climate$Day <- as.Date(climate$Day, format="%Y-%m-%d")
-climate$Site_ID <- as.factor(climate$Site_ID)
-climate$Tray_ID <- as.factor(climate$Tray_ID)
+climate$Site_Code <- as.factor(climate$Site_ID)
+climate$Tray_Code <- as.factor(climate$Tray_ID)
 
 getClimate <- function(indMosq, climateDF=climate, season){
   #' This is a function to apply over the rows of the octWing and augWing data frames. Must have climate data loaded
@@ -1484,13 +1483,13 @@ getClimate <- function(indMosq, climateDF=climate, season){
   
   
   #get date range
-  startDate <- ifelse(season=="summer", "2016-08-01", "2016-09-26")
+  startDate <- ifelse(season=="Summer", "2016-08-01", "2016-09-26")
   startDate <- as.Date(startDate, format="%Y-%m-%d")
   endDate <- indMosq$Date
   
   #subset temperature data
   try(climSubset <- climateDF %>%
-    filter(Tray_ID==as.character(indMosq$Tray_ID)) %>%
+    filter(Tray_Code==as.character(indMosq$Tray_Code)) %>%
     filter(Day>startDate & Day<endDate),
     silent=T)
   
@@ -1513,31 +1512,44 @@ getClimate <- function(indMosq, climateDF=climate, season){
 augWing$Temp <- NA
 for(i in 1:nrow(augWing)){
   indMosq <- augWing[i,]
-  augWing$Temp[i] <- getClimate(indMosq, season="summer")
+  augWing$Temp[i] <- getClimate(indMosq, season="Summer")
 }
 
 octWing$Temp <- NA
 for(i in 1:nrow(octWing)){
   indMosq <- octWing[i,]
-  octWing$Temp[i] <- getClimate(indMosq, season="fall")
+  octWing$Temp[i] <- getClimate(indMosq, season="Fall")
 }
 
 #combine
 fallWing <- octWing %>%
-  dplyr::select(block, class, site, Tray_ID, Exp_Day, mm, Temp)
+  dplyr::select(block, class, Site_Code=site, Tray_Code, Exp_Day, mm, Temp)
 
 summerWing <- augWing %>%
-    dplyr::select(block, class, site, Tray_ID, Exp_Day, mm, Temp)
+    dplyr::select(block, class, Site_Code=site, Tray_Code, Exp_Day, mm, Temp)
 
 allWing <- rbind(summerWing, fallWing)
-allWing$block<- as.factor(allWing$block)
+allWing$block<- factor(allWing$block, levels=c("Summer", "Fall"))
 
 #drop outlier in S2 (wing size =1.56 mm)
 allWing <- allWing %>%
   filter(mm>1.6)
 ```
 
+Statistics:
+Model Selection
+```{r}
+wingModTemp <- lmer(mm~Temp+(1|Site_Code),
+                    data=allWing)
+plot(wingModTemp)
+summary(wingModTemp)
+confint(wingModTemp) #no effect of temperature
+qqnorm(resid(devClimMod))
+```
 
+
+
+Plot
 ```{r}
 ggplot(data=allWing, aes(x=Temp, y=mm)) +
   geom_point(aes(col=factor(class), shape=factor(block))) + 
@@ -1550,7 +1562,7 @@ ggplot(data=allWing, aes(x=Temp, y=mm)) +
     theme(axis.title = element_text(), axis.title.x = element_text()) +
   ylab("Uninfected Wing Size")+
   xlab("Mean Temperature (C)") +
-  scale_color_manual(values=c(colRural, "gray40", colU), name="Class", labels=c("Rural", "Suburban", "Urban"))+
+  scale_color_manual(values=c(colR, colS, colU), name="Class", labels=c("Rural", "Suburban", "Urban"))+
   #scale_alpha_discrete(range=c(1,0.3), name="Season", labels=c("Fall", "Summer"), guide=guide_legend(reverse=T))+
   scale_shape_discrete(name="Season",labels=c("Fall", "Summer"), guide=guide_legend(reverse=T)) +
   theme(legend.position="right", legend.direction="vertical")+
@@ -1559,26 +1571,30 @@ ggplot(data=allWing, aes(x=Temp, y=mm)) +
 
 # Growth Rate
 
+Format and merge data
 ```{r}
 #calculate means per Exp_Day and Tray
 growthWing <- allWing %>%
-  dplyr::group_by(block,class,site,Tray_ID, Exp_Day) %>%
+  dplyr::group_by(block,class,Site_Code,Tray_Code, Exp_Day) %>%
   dplyr::summarise(meanWing=mean(mm, na.rm=T)) %>%
   dplyr::ungroup()
 
 growthWing$class <- tolower(growthWing$class)
 
 #merge with emergence data
-growthDF <- merge(allEmerg, growthWing, by.x=c("block", "Class", "Site_Code", "Tray_Code", "Exp_Day"), by.y=c("block", "class", "site", "Tray_ID", "Exp_Day"), all.x=T) 
+allEmerg$class <- allEmerg$Class
+levels(allEmerg$class) <- c("Rural", "Suburban", "Urban")
+levels(allEmerg$block) <- c("Summer", "Fall")
+growthDF <- merge(allEmerg, growthWing, by=c("block", "class", "Site_Code", "Tray_Code", "Exp_Day"), all.x=T) 
 
 trayMeans <- allWing %>%
-  dplyr::group_by(block, Tray_ID) %>%
+  dplyr::group_by(block, Tray_Code) %>%
   dplyr::summarise(meanWing=mean(mm, na.rm=T))
 
 #fill in missing with mean of tray during that block
 for (i in 1:nrow(growthDF)){
   if (is.na(growthDF$meanWing[i])){
-    temp <- trayMeans$meanWing[trayMeans$block==growthDF$block[i] & trayMeans$Tray_ID==growthDF$Tray_Code[i]]
+    temp <- trayMeans$meanWing[trayMeans$block==growthDF$block[i] & trayMeans$Tray_Code==growthDF$Tray_Code[i]]
     if (length(temp)==0) next
     growthDF$meanWing[i] <- temp
   } else next
@@ -1587,17 +1603,16 @@ for (i in 1:nrow(growthDF)){
 #some trays had no mosquitoes emerge that weren't infected, so we take the site level mean for them
 
 siteMeans <- allWing %>%
-  dplyr::group_by(site, block) %>%
+  dplyr::group_by(Site_Code, block) %>%
   dplyr::summarise(meanWing=mean(mm, na.rm=T))
 
 for (i in 1:nrow(growthDF)){
   if (is.na(growthDF$meanWing[i])){
-    temp <- siteMeans$meanWing[siteMeans$block==growthDF$block[i] & siteMeans$site==growthDF$Site_Code[i]]
+    temp <- siteMeans$meanWing[siteMeans$block==growthDF$block[i] & siteMeans$Site_Code==growthDF$Site_Code[i]]
     if (length(temp)==0) next
     growthDF$meanWing[i] <- temp
   } else next
 }
-
 ```
 
 ```{r}
@@ -1606,18 +1621,16 @@ growthDF$AxFwx <- growthDF$Num_Emerge*growthDF$Fwx
 growthDF$xAxFwx <- growthDF$Exp_Day*growthDF$AxFwx
 
 #get sum per day
-
 growthDF2 <- growthDF %>%
-  dplyr::group_by(block, Tray_Code, Class, Site_Code) %>%
+  dplyr::group_by(block, Tray_Code, class, Site_Code) %>%
   dplyr::summarise(xAxFwx = sum(xAxFwx), AxFwx=sum(AxFwx))
 
 growthDF2 <- growthDF2 %>%
-  mutate(r=(log((1/50)*AxFwx))/(14+(xAxFwx/AxFwx)))
-
-levels(growthDF2$block) <- c("Summer", "Fall")
-levels(growthDF2$Class) <- c("Rural", "Suburban", "Urban")
+  mutate(r=(log((1/50)*AxFwx))/(14+(xAxFwx/AxFwx))) %>%
+  ungroup() 
 ```
 
+## Plot
 Adjust factor names for plotting:
 ```{r}
 levels(emergTray$block) <- c("Summer", "Fall")
@@ -1628,8 +1641,6 @@ levels(survTray$Class) <- c("Rural", "Suburban", "Urban")
 ```
 
 Three panel survival, emergence and growth rate
-
-
 ```{r three panel surv emerge and growth plot}
 #png(file="figures/forMS/survEmergeGrowth.png", width = 4, height=7, units="in", res=500, family="sans")
 
@@ -1687,8 +1698,8 @@ emergePlot <- ggplot(emergTray, aes(x=Class, y=devRate))+
         axis.text.x = element_blank(),
         axis.title.y= element_text(size=10))
 
-growthPlot <- ggplot(data=growthDF2, aes(x=Class, y=r))+
-  geom_boxplot(aes(fill=Class), width=0.4)+
+growthPlot <- ggplot(data=growthDF2, aes(x=class, y=r))+
+  geom_boxplot(aes(fill=class), width=0.4)+
   scale_fill_manual(values=c(colR, colS, colU), labels=c("Rural", "Suburban", "Urban"))+
   facet_wrap(~block, ncol=2)+
    theme_fivethirtyeight() +
@@ -1724,25 +1735,52 @@ plot_grid(survPlot, emergePlot, growthPlot,
 ```
 
 
-Statistics:
+## Statistics
+### Season x Land Class
 
-By Block and Site
+Model Selection
 ```{r}
-growthMix <- lmer(r~ block+ (1|Site_Code), data=growthDF2) #lowest AICc
-tidy(growthMix)
-car::Anova(growthMix) #Wald test
-#confint(growthMix) #profiled confidence interval
-drop1(growthMix, test="Chisq") #Likelihood ratio test
+#model selection by AIC and logLik
+m1 <- lmer(r ~ block + (1|Site_Code),
+                   data=growthDF2)
+
+m2 <- lmer(r ~ class + (1|Site_Code),
+                   data=growthDF2)
+
+m3 <- lmer(r ~ block + class + (1|Site_Code),
+                   data=growthDF2)
+
+m4 <- lmer(r ~ block*class + (1|Site_Code),
+                   data=growthDF2)
+
+modelSums <- do.call(rbind, lapply(list(m1,m2,m3, m4), broom::glance))
+modelSums #m1 is best
+
+AICc(m1,m2,m3, m4) #still m1
+```
+
+
+```{r}
+growthModSeason <- lmer(r~ block+ (1|Site_Code), 
+                        data=growthDF2)
+
+summary(growthModSeason)
+plot(growthModSeason)
+
+tidy(growthModSeason)
+car::Anova(growthModSeason) #Wald test
+confint(growthModSeason) #profiled confidence interval
 
 ```
 
-Across Temperature
+### Microclimate
+
 ```{r}
 levels(allClim$block) <- factor(as.character(allClim$block), levels=c("Summer", "Fall"))
 #get temperature data
 growthTemp <- merge(growthDF2, allClim, by.x=c("block","Tray_Code"), by.y=c("block", "Tray_ID"))
 ggplot(data=growthTemp, aes(x=Temp_mean, y=r))+
-  geom_point(aes(color=Class))+
+  geom_point()+
   geom_smooth(method="lm")
 
 growthTempMod <- lm(r~Temp_mean,
