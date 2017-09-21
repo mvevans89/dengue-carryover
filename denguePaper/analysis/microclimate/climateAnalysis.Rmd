@@ -32,8 +32,6 @@ climate$Class <- as.factor(climate$Class)
 
 #drop R3T4 because it has wierd errors
 climate <- filter(climate, Tray_ID!="R3T4")
-
-
 ```
 
 Get mean, min, max
@@ -45,7 +43,6 @@ clim <- climate %>%
   group_by(Class, Day) %>% #get mean values per class
   dplyr::summarise(meanT=mean(meanT), minT=mean(minT), maxT=mean(maxT), meanRH=mean(meanRH), maxRH=mean(maxRH), minRH=mean(minRH)) %>%
   ungroup()
-
 ```
 
 Temperature Plot:
@@ -119,7 +116,7 @@ Temperature:
 
 ```{r}
 ##------------ Mean T
-climModMean <- lmer(meanT~0 + Class*Block+ (1|Day) + (1|Site_ID), data=climTray)
+climModMean <- lmer(meanT~Class*Block+ (1|Day) + (1|Site_ID), data=climTray)
 plot(climModMean)
 summary(climModMean)
 confint(climModMean)
@@ -139,7 +136,7 @@ anova(climModMean, intMod)
 
 ##------------ Min T
 
-climModMin <- lmer(minT~0+Class*Block + (1|Day) + (1|Site_ID), data=climTray)
+climModMin <- lmer(minT~Class*Block + (1|Day) + (1|Site_ID), data=climTray)
 plot(climModMin)
 summary(climModMin)
 confint(climModMin)
@@ -170,7 +167,7 @@ summary(glht(climModMax, linfct = mcp(Class = "Tukey"), test = adjusted("holm"))
 summary(glht(climModMax, linfct = mcp(Block = "Tukey"), test = adjusted("holm")))
 
 ##------------ DTR
-climModDTR <- lmer(DTR~0+Class*Block + (1|Day)+ (1|Site_ID), data=climTray)
+climModDTR <- lmer(DTR~Class*Block + (1|Day)+ (1|Site_ID), data=climTray)
 plot(climModDTR)
 summary(climModDTR)
 confint(climModDTR)
@@ -200,7 +197,7 @@ ggplot(data=climTray, aes(x=Class, y=meanRH)) +
 ggplot(data=climTray, aes(x=meanRH)) +
   geom_histogram()
 
-climModMeanRH <- lmer(meanRH~0 + Block*Class + (1|Day) + (1|Site_ID), data=climTray)
+climModMeanRH <- lmer(meanRH~Block*Class + (1|Day) + (1|Site_ID), data=climTray)
 plot(climModMeanRH)
 summary(climModMeanRH)
 #confint(climModMeanRH)
