@@ -61,7 +61,7 @@ levelplot(athens,
             axis.line=list(col='gray20') 
           ),
           scales=list(draw=FALSE),
-          col.regions=c(alpha("dodgerblue",0.5), alpha("gray40",0.5), alpha("maroon",0.5)),
+          col.regions=c("white", alpha("dodgerblue",0.7), alpha("maroon",0.7)),
           at=c(0,5,40,100)) +           
   layer(sp.polygons(sitesSp, 
                     pch=c(15,16,17)[sitesSp$CLASS], 
@@ -74,7 +74,7 @@ levelplot(athens,
   # layer(sp.polygons(sitesSp, 
   #                   col="black",
   #                   pch=c("R", "S", "U")[sitesSp$CLASS]))+
-  #layer(sp.polygons(acc, lwd=2, col="black"))+
+  layer(sp.polygons(acc, lwd=2, col="black"))+
   layer(SpatialPolygonsRescale(layout.north.arrow(), offset = c(265000, 3749000), scale = 2000)) +
   layer({
     xs <- seq(267000, 269250, by=750)

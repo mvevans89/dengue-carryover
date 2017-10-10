@@ -31,7 +31,6 @@ library(caret)
 library(ggthemes)
 library(survival)
 library(DHARMa) #mixed model residuals
-library(survminer) #extracts survival objects
 library(dplyr)
 library(multcomp)
 
@@ -947,8 +946,7 @@ bodyWingDF <- seasonInf %>%
 bodyWing <- glmer(Body~Wing + (1|site),
                           data=bodyWingDF,
                           family=binomial(link="logit"))
-# bodyWing <- lmer(Wing~Body + (1|site),
-#                           data=bodyWingDF)
+
 tidy(bodyWing)
 summary(bodyWing)
 
@@ -2195,6 +2193,11 @@ VClong <- VCplot %>%
 VCtemp <- lm(value~Temp_mean_mean*COE, data=VClong)
 plot(VCtemp)
 summary(VCtemp)
+
+## Vectorial Capacity (/ carry over) across Temp
+VCtempCOE <- lm(VCforStats~Temp_mean_mean, data=VCplot)
+plot(VCtempCOE)
+summary(VCtempCOE)
 ```
 
 
