@@ -1,0 +1,168 @@
+---
+title: "Larval Survey Preliminary Viz"
+author: "Michelle Evans"
+date: "4/8/2017"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(warning = FALSE)
+library(ggplot2)
+library(dplyr)
+library(lubridate)
+library(ggthemes)
+```
+This data is some exploratory/preliminary visualizations of larval survey data from the 2016 Athens Field Project.
+
+The data included in this are:
+
+- `identifications.csv`: This is the identification of adult mosquitoes that emerged from larvae that was brought back to the lab.
+- `larvalHabitat.csv`: This is the quantitative and qualitative data about the larval habitats.
+
+The datasets are connected by their site, Grid No. and Date.
+
+```{r load cleaned data, eval=T}
+#this was cleaned in the larvalHabitats.Rmd file
+habitats <- read.csv("../data/larvalSurveys/clean/larvalHabitat.csv", stringsAsFactors = F)
+habitats$Date <- as.Date((habitats$Date), format="%m/%d/%y")
+habitats$Positive <- ifelse(habitats$Larvae.Pupae=="None",0,1)
+habitats <- habitats %>%
+  dplyr::mutate(class = case_when(
+    .$Site %in% c("R1", "R2", "R3") ~ "rural",
+    .$Site %in% c("S1", "S2", "S3") ~ "suburban",
+    .$Site %in% c("U1", "U2", "U3") ~ "urban"
+  ))
+ids <- read.csv("../data/larvalSurveys/clean/Identifications.csv", stringsAsFactors = F)
+ids$Date <- as.Date(ids$Date, format="%m/%d/%y")
+```
+
+
+## Overall Larval Habitat Across Land Use
+
+```{r}
+habitats$week <- week(habitats$Date)
+allWeek <- habitats %>%
+  select(Site, class, week) %>%
+  group_by(Site, class, week) %>%
+  summarise(numHab=n())
+allWeek$Site <- as.factor(allWeek$Site)
+allWeek$class <- as.factor(allWeek$class)
+ggplot(data=allWeek, aes(x=week, y=numHab, group=Site, col=class)) +
+  geom_point() +
+  geom_line() +
+  scale_colour_manual(values=c("blue","black","maroon")) +
+  ylab("Total Habitat per 100m radius") +
+  xlab("Week of the Year") +
+  theme_gdocs()
+```
+
+The figure above plots the number of total habitat (both positive and negative for larvae) at each site across the date range of June 20th - October 24th. Suburban sites generally have more habitat, with several peaks in the summer. Rural and urban sites have arguably similar amounts of habitat.
+
+## Positive Larval Habitat Across Land Use
+
+```{r}
+#summarize data by collection week
+positive <- habitats[habitats$Positive==1,]
+positiveWeek <- positive %>%
+  select(Site, class, week) %>%
+  group_by(Site, class, week) %>%
+  summarise(numPos=n())
+positiveWeek$Site <- as.factor(positiveWeek$Site)
+positiveWeek$class <- as.factor(positiveWeek$class)
+ggplot(data=positiveWeek, aes(x=week, y=numPos, group=Site, col=class)) +
+  geom_point() +
+  geom_line() +
+  scale_colour_manual(values=c("blue","black","maroon")) +
+  ylab("Positive Habitat per 100m radius") +
+  xlab("Week of the Year") +
+  theme_gdocs()
+```
+
+The above figure plots the density of positive habitat at each site over the sampling period during which we found positive habitat (June 20th - October 24th 2016). Surburban sites have a clear summer peak, urban sites generally have more positive habitat than rural sites, and there is more variation amongst the suburban and rural sites.
+
+## Positive and Negative Habitat for Each Site
+
+```{r}
+habitats$Positive <- as.factor(habitats$Positive)
+posNegWeek <- habitats %>%
+  select(Site, class, week, Positive) %>%
+  group_by(Site, class, week, Positive) %>%
+  summarise(numHab=n()) 
+  # group_by(Site, class, week) %>%
+  # mutate(TotalHab=sum(numHab))
+ggplot(data=posNegWeek, aes(x=week, y=numHab, fill=Positive)) +
+  # geom_area(position = 'stack') +
+  # geom_line(position='stack') +
+  geom_line(aes(col=Positive)) +
+  theme_gdocs() +
+  xlab("Week of the Year") +
+  ylab("Habitat per 100m") +
+  facet_wrap(~Site)
+```
+
+The figure above compares the number of positive (1) and not positive (0) habitats at each site over time. Both of these variables vary over time with each other, except in the case of S2.
+
+## Habitat Types (both positive and negative)
+
+```{r}
+ggplot(data=habitats, aes(x=week, fill=Type..factor.)) +
+  geom_bar() +
+  facet_wrap(~Site) +
+  theme_gdocs() +
+  xlab("Week of the Year") +
+  ylab("Count of Habitat Types (both positive and negative)")
+```
+
+The majority of habitat is artificial containers, although there are treeholes at some urban and suburban sites, particularly U1 and S2. 
+
+## Habitat Types (positive only)
+
+```{r}
+ggplot(data=positive, aes(x=week, fill=Type..factor.)) +
+  geom_bar(width=1.5) +
+  facet_wrap(~Site) +
+  theme_gdocs() +
+  xlab("Week of the Year") +
+  ylab("Count of Habitat Types (positive only)")
+```
+
+The trends are similar in positive habitat only.
+
+## Species Composition
+
+The following table lists the overall number of habitats found positive for each species:
+
+```{r}
+positiveSpecies <- unique(inner_join(habitats, ids, by=c("Date", "Site", "Grid")))
+positiveSpecies$week <- week(positiveSpecies$Date)
+overallSp <- positiveSpecies %>%
+  group_by(Species) %>%
+  summarise(numHab=n()) %>%
+  filter(Species != "")
+overallSp <- overallSp[order(overallSp$numHab, decreasing=T),]
+print(overallSp)
+```
+
+We can also explore this overtime:
+
+```{r}
+specHab <- positiveSpecies %>%
+  filter(Species != "") %>%
+  select(Site, week, class, Species, Grid)
+specHab <- unique(specHab)
+# specHab <- specHab %>%
+#   group_by(Site, week, class, Species) %>%
+#   summarise(numHab=n())
+ggplot(data=specHab, aes(x=week, fill=Species)) +
+  geom_bar(width=1.5) +
+  facet_wrap(~Site) + 
+  theme_gdocs() +
+  xlab("Week of the Year") +
+  ylab("No. Habitat Positive for Species")
+  
+```
+
+Albopictus is definitely th dominant mosquito, howver in rural areas, there are some Anopheles and Culex species. The highest species richness at one time is n=3, with more eveness at sites R3 and U1. I suspect the wide range of species at site U1 is due to the presence of treeholes throughout the summer as a result of lawn irrigation.
