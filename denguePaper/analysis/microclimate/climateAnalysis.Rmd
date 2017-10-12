@@ -20,7 +20,7 @@ library(multcomp)
 
 #Load Data
 
-This data was cleaned in the RMarkdown file "dengueAnalysis.Rmd"
+This data was cleaned in the RMarkdown file "EvansCode.Rmd"
 
 ```{r}
 climate <- read.csv(file='../../data/microclimate/clean/2016TrialsAdultCleaned.csv', stringsAsFactors = F)
@@ -120,7 +120,6 @@ climModMean <- lmer(meanT~Class*Block + (1|Site_ID/Day), data=climTray)
 plot(climModMean)
 summary(climModMean)
 confint(climModMean)
-AIC(climModMean)
 car::Anova(climModMean)
 
 #pairwise stats
@@ -186,7 +185,7 @@ summary(glht(intMod, linfct = mcp(classxBlock = "Tukey"), test = adjusted("holm"
 
 ```
 
-Urban sites are significantly hotter than rural and suburban sites, where there is no difference. This is exactly what we found last year. Surprisingly, rural sites had the hottest maximum temperature. This may explain some of our differences from 2015.
+Urban sites are significantly hotter than rural and suburban sites, where there is no difference.
 
 Relative Humidity:
 ```{r}
@@ -201,7 +200,6 @@ climModMeanRH <- lmer(meanRH~Class*Block + (1|Site_ID/Day), data=climTray)
 plot(climModMeanRH)
 summary(climModMeanRH)
 #confint(climModMeanRH)
-AIC(climModMeanRH)
 car::Anova(climModMeanRH)
 
 #pairwise stats
