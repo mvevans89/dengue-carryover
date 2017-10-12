@@ -260,7 +260,7 @@ infLong$sampleLab <- paste0(infLong$positives, "(", infLong$samples, ")")
 Plot (summer is alpha=1, fall is alpha=0.3)
 
 ```{r land class x season plot}
-pdf(file="figures/forMS/landclassXseasonInfection.pdf", width = 4, height=7,  family="sans")
+#pdf(file="figures/forMS/landclassXseasonInfection.pdf", width = 4, height=7,  family="sans")
 
 ggplot(data=infLong[order(infLong$block, decreasing=F),], aes(x=class, group=block))+
   geom_bar(stat="identity", aes(y=mean.inf, alpha=block, fill=class, color=factor(class)), position=position_dodge(width=-0.9))+
@@ -292,7 +292,7 @@ ggplot(data=infLong[order(infLong$block, decreasing=F),], aes(x=class, group=blo
         axis.text.y=element_text(size=12),
         axis.text.x=element_text(size=12))
 
-dev.off()
+#dev.off()
 ```
 
 
@@ -303,6 +303,9 @@ Body model selection
 
 ```{r body model comparison}
 #create all the models
+m0 <- glmer(Body~1 + (1|site), 
+                          data=seasons[seasons$DPI=="21",],
+                          family=binomial(link="logit"))
 m1 <- glmer(Body~block + (1|site), 
                           data=seasons[seasons$DPI=="21",],
                           family=binomial(link="logit"))
@@ -316,13 +319,18 @@ m4 <- glmer(Body~class*block + (1|site),
                           data=seasons[seasons$DPI=="21",],
                           family=binomial(link="logit"))
 
-modelSums <- do.call(rbind, lapply(list(m1,m2,m3, m4), broom::glance)) #m3 is best
+modelSums <- do.call(rbind, lapply(list(m0,m1,m2,m3, m4), broom::glance)) #m3 is best
 
-AICc(m1,m2,m3,m4) #still 3
+AICc(m0,m1,m2,m3,m4) #still 3
+Weights(AICc(m0,m1,m2,m3,m4))
 ```
 
 ```{r head model comparison}
 #create all the models
+m0 <- glmer(Head~1 + (1|site), 
+                          data=seasons[seasons$DPI=="21",],
+                          family=binomial(link="logit"))
+  
 m1 <- glmer(Head~block + (1|site), 
                           data=seasons[seasons$DPI=="21",],
                           family=binomial(link="logit"))
@@ -336,15 +344,18 @@ m4 <- glmer(Head~class*block + (1|site),
                           data=seasons[seasons$DPI=="21",],
                           family=binomial(link="logit"))
 
-modelSums <- do.call(rbind, lapply(list(m1,m2,m3, m4), broom::glance)) #model 3 is best
+modelSums <- do.call(rbind, lapply(list(m0,m1,m2,m3, m4), broom::glance)) #model 3 is best
 
-AICc(m1,m2,m3,m4)
+AICc(m0,m1,m2,m3,m4)
 tidy(m3)
 
 ```
 
 ```{r saliva model comparison}
 #create all the models
+m0 <- glmer(Saliva~1 + (1|site), 
+                          data=seasons[seasons$DPI=="21",],
+                          family=binomial(link="logit"))
 m1 <- glmer(Saliva~block + (1|site), 
                           data=seasons[seasons$DPI=="21",],
                           family=binomial(link="logit"))
@@ -361,9 +372,9 @@ m5 <- glmer(Saliva~ 1 + (1|site),
                           data=seasons[seasons$DPI=="21",],
                           family=binomial(link="logit")) #null model
 
-modelSums <- do.call(rbind, lapply(list(m1,m2,m3, m4, m5), broom::glance)) #model 1 is best
+modelSums <- do.call(rbind, lapply(list(m0, m1,m2,m3, m4, m5), broom::glance)) #model 1 is best (basicaly no better than null)
 
-AICc(m1,m2,m3,m4, m5) #model 1
+AICc(m0, m1,m2,m3,m4, m5) #model 1
 tidy(m1)
 ```
 
@@ -1435,6 +1446,8 @@ allWing <- allWing %>%
 Model Selection
 ```{r}
 #model selection by AIC and logLik
+m0 <- lmer(mm~1 + (1|Site_Code),
+           data=allWing)
 m1 <- lmer(mm ~ block + (1|Site_Code),
                    data=allWing)
 
@@ -1447,14 +1460,14 @@ m3 <- lmer(mm ~ class + block + (1|Site_Code),
 m4 <- lmer(mm ~ class*block + (1|Site_Code),
                    data=allWing)
 
-modelSums <- do.call(rbind, lapply(list(m1,m2,m3, m4), broom::glance))
-modelSums #m1 is best
+modelSums <- do.call(rbind, lapply(list(m0,m1,m2,m3, m4), broom::glance))
+modelSums #m0 is best
 
-AICc(m1,m2,m3, m4) #still m1
+AICc(m0, m1,m2,m3, m4) #still m0
 ```
-
+The null model fits best, suggesting there is no effect of season or land class.
 ```{r}
-wingMod <- lmer(mm~block +(1|Site_Code),
+wingMod <- lmer(mm~1 +(1|Site_Code),
                 data=allWing)
 summary(wingMod)
 plot(wingMod)
@@ -1535,14 +1548,13 @@ allWing <- allWing %>%
 ```
 
 Statistics:
-Model Selection
 ```{r}
 wingModTemp <- lmer(mm~Temp+(1|Site_Code),
                     data=allWing)
 plot(wingModTemp)
 summary(wingModTemp)
 confint(wingModTemp) #no effect of temperature
-qqnorm(resid(devClimMod))
+qqnorm(resid(wingModTemp))
 ```
 
 
