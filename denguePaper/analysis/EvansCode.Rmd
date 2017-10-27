@@ -148,7 +148,7 @@ octEmerg$block <- as.factor("fall")
 allEmerg <- rbind(augEmerg, octEmerg)
 ```
 
-Crop and standardize emergence data to be used with infections
+Subset and standardize emergence data to be used with infections (i.e. weight by number of days mosquitoes were in larval environment)
 ```{r standardize and correct for emergence, echo=FALSE}
 #filter out only days when infected mosquitoes were in the trays
 octInf <- octEmerg %>%
@@ -297,7 +297,7 @@ ggplot(data=infLong[order(infLong$block, decreasing=F),], aes(x=class, group=blo
 
 
 
-Statistics on infection by season and land class
+### Statistics on infection by season and land class
 
 Body model selection
 
@@ -465,7 +465,7 @@ meltAll <- full_join(meltMean, meltSE, by=c("class", "block", "type")) %>%
 ```
 
 Plot of infection efficiency
-```{r plot efficiency}
+```{r plot efficiency, eval=F}
 #supplemental plot
 ggplot(data=meltAll[order(meltAll$block, decreasing=F),], aes(x=class, group=block))+
   geom_bar(stat="identity", aes(y=mean, alpha=factor(block), fill=factor(class)), color="gray20", position=position_dodge(width=-0.9))+
@@ -812,7 +812,7 @@ plotSimulatedResiduals(simulationOutput = simulationOutput)
 
 Infection x Temperature Plot
 
-```{r three panel temp x infection plot}
+```{r three panel temp x infection plot, eval=F}
 #pdf(file="figures/forMS/InfxTemp3Panel.pdf", width = 8, height=3, family="sans")
 plotBody <- ggplot(data=seasonInfSite, aes(x=Temp_mean_mean, y=Body_mean))+
   geom_errorbar(aes(ymin=Body_mean-Body_se, ymax=Body_mean+Body_se), color=errorColor, width=0.1) +
@@ -879,7 +879,7 @@ plot_grid(plotBody, plotHead, plotSaliva,
 ```
 
 Infection x Relative Humidity Plot
-```{r}
+```{r, eval=F}
 #png(file="figures/forMS/supplement/InfxRH3Panel.png", width = 8, height=3, units="in", res=500, family="sans")
 plotBody <- ggplot(data=seasonInfSite, aes(x=RH_mean_mean, y=Body_mean))+
   geom_errorbar(aes(ymin=Body_mean-Body_se, ymax=Body_mean+Body_se), color=errorColor, width=0.1) +
@@ -1474,7 +1474,7 @@ modelSums #m0 is best
 
 AICc(m0, m1,m2,m3, m4) #still m0
 ```
-The null model fits best, suggesting there is no effect of season or land class.
+
 ```{r}
 wingMod <- lmer(mm~1 +(1|Site_Code),
                 data=allWing)
@@ -1569,7 +1569,7 @@ qqnorm(resid(wingModTemp))
 
 
 Plot
-```{r}
+```{r, eval=F}
 ggplot(data=allWing, aes(x=Temp, y=mm)) +
   geom_point(aes(col=factor(class), shape=factor(block))) + 
   geom_smooth(method="lm")+
@@ -1660,7 +1660,7 @@ levels(survTray$Class) <- c("Rural", "Suburban", "Urban")
 ```
 
 Three panel survival, emergence and growth rate
-```{r three panel surv emerge and growth plot}
+```{r three panel surv emerge and growth plot, eval=F}
 #png(file="figures/forMS/survEmergeGrowth.png", width = 4, height=7, units="in", res=500, family="sans")
 
 survPlot <- ggplot(data=survTray, aes(x=Class, y=(survival*100)))+
@@ -1956,6 +1956,7 @@ paramAll$EFD2 <- paramAll$fecundity2*paramAll$a
 
 
 Calculate VC from traits (VCnoCOE is w/o carry-over)
+
 ```{r}
 paramAll <- mutate(paramAll, 
                     VC=((a^2)*bc*(exp(-mu/PDR))*EFD*pEA*(MDR^2))/((mu^2)))
@@ -1964,7 +1965,10 @@ paramAll <- mutate(paramAll,
                    VCnoCOE=(((a^2)*bc2*(exp(-mu/PDR))*EFD2*pEA*(MDR^2))/((mu^2))))
 ```
 
+## Plotting
+
 Add Temperature Back in For Comparison Plots
+
 ```{r}
 siteTemps <- select(seasonInfSite, block, site, class, Temp_mean_mean)
 levels(paramAll$Class) <- c("Rural", "Suburban", "Urban")
@@ -1976,7 +1980,7 @@ VCplot$block <- factor(VCplot$block, levels=c("summer", "fall"))
 ```
 
 Comparison Line Plot
-```{r VC over Temp plot}
+```{r VC over Temp plot, eval=F}
 #pdf(file="figures/forMS/VCxTemp.pdf", width = 4, height=4, family="sans")
 
 VCxTempPlot <- ggplot(data=VCplot, aes(x=Temp_mean_mean))+
@@ -2030,7 +2034,7 @@ VCplotsumm$calc <- factor(VCplotsumm$calc, levels=c("VCnoCOE", "VC", "VCdiff"))
 ```
 
 Panel Plots with Bar Graphs
-```{r three panel bar graph of VC}
+```{r three panel bar graph of VC, eval=F}
 
 noCOEplot <- ggplot(data=VCplotsumm[VCplotsumm$labels=="No COEs",], aes(x=factor(Class), group=block)) +
   geom_bar(stat='identity',
@@ -2171,7 +2175,7 @@ diffPlot
 ```
 
 Use cowplot to combine the three bar graphs and VC over temp chart.
-```{r}
+```{r, eval=F}
 #pdf(file="figures/forMS/VCPlot.pdf", width = 10, height=7, family="sans")
 
 ggdraw()+
@@ -2186,8 +2190,8 @@ ggdraw()+
 ```
 
 
+## Statistics
 
-VC Stats:
 ```{r VC stats}
 VCplot$VCforStats <- VCplot$VC+0.000000001
 VCplot$VCforStatsnoCOE <- VCplot$VCnoCOE+0.000000001
@@ -2215,7 +2219,7 @@ VCtemp <- lm(value~Temp_mean_mean*COE, data=VClong)
 plot(VCtemp)
 summary(VCtemp)
 
-## Vectorial Capacity (/ carry over) across Temp
+## Vectorial Capacity (w carry over) across Temp
 VCtempCOE <- lm(VCforStats~Temp_mean_mean, data=VCplot)
 plot(VCtempCOE)
 summary(VCtempCOE)
