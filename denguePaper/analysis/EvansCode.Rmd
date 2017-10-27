@@ -1125,7 +1125,9 @@ survTray <- allSurv %>%
   filter(Sex=="F") %>%
   group_by(Tray_Code, Site_Code, Class, block) %>%
   summarise(survival=mean(event))
-survTray$block <- factor(survTray$block, levels=c("summer", "fall"))
+survTray$block[survTray$block=="summer"] <- "Summer"
+survTray$block[survTray$block=="fall"] <- "Fall"
+survTray$block <- factor(survTray$block, levels=c("Summer", "Fall"))
 ```
 
 Tie in tray-level climate data:
@@ -1194,7 +1196,7 @@ predVs <- c("Temp_mean","RH_mean", "DTR", "Temp_min", "RH_min", "Temp_max", "RH_
 
 myCols <- c(respV, predVs, "block","Class", "Site_Code")
 modDF <- survClim %>%
-  dplyr::select(one_of(myCols)) 
+  dplyr::select(one_of(myCols))
 modDF <- na.omit(modDF)
 
 #model selection for initial variable
@@ -1223,7 +1225,7 @@ m7 <- lmer(survival~RH_max + (1|Site_Code),
 modelSums <- do.call(rbind, lapply(list(m1,m2,m3, m4, m5, m6, m7), broom::glance))
 modelSums #m1 or m4
 
-MuMIn::AICc(m1,m2,m3, m4, m5, m6, m7)
+Weights(AICc(m1,m2,m3, m4, m5, m6, m7))
 tidy(m1)
 
 #find covariates that aren't correlated
@@ -1482,7 +1484,6 @@ wingMod <- lmer(mm~1 +(1|Site_Code),
                 data=allWing)
 summary(wingMod)
 plot(wingMod)
-car::Anova(wingMod)
 ```
 
 ## Microclimate
@@ -1898,7 +1899,7 @@ MDR$Class <- tolower(MDR$Class)
 
 #bc
 bc <- seasonInfSite %>%
-  select(block, Class=class, Site_Code=site, bc=Saliva_mean)
+  dplyr::select(block, Class=class, Site_Code=site, bc=Saliva_mean)
 bc$block <- tolower(bc$block)
 bc$Class <- tolower(bc$Class)
 ```
@@ -1935,7 +1936,7 @@ paramNoCOE$bc2[is.na(paramNoCOE$bc2)] <- 0
 library(dplyr)
 paramRateNoCOE <- paramNoCOE %>%
   group_by(Block, Class, Site_ID, Hour) %>%
-  select(-Temp, -Day, -Tray_ID) %>%
+  dplyr::select(-Temp, -Day, -Tray_ID) %>%
   summarise_all(funs(mean(.,na.rm=T))) %>%
   ungroup() %>%
   group_by(Block, Class, Site_ID) %>%
@@ -1972,7 +1973,7 @@ paramAll <- mutate(paramAll,
 Add Temperature Back in For Comparison Plots
 
 ```{r}
-siteTemps <- select(seasonInfSite, block, site, class, Temp_mean_mean)
+siteTemps <- dplyr::select(seasonInfSite, block, site, class, Temp_mean_mean)
 levels(paramAll$Class) <- c("Rural", "Suburban", "Urban")
 VCplot <- merge(paramAll, siteTemps, by.x=c("block", "Site_Code"), by.y=c("block", "site"))
 VCplot <- VCplot %>%
@@ -2218,12 +2219,12 @@ VClong <- VCplot %>%
   gather(COE, value, VC, VCnoCOE)
 
 VCtemp <- lm(value~Temp_mean_mean*COE, data=VClong)
-plot(VCtemp)
+#plot(VCtemp)
 summary(VCtemp)
 
 ## Vectorial Capacity (w carry over) across Temp
 VCtempCOE <- lm(VCforStats~Temp_mean_mean, data=VCplot)
-plot(VCtempCOE)
+#plot(VCtempCOE)
 summary(VCtempCOE)
 ```
 
