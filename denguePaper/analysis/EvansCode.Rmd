@@ -1,8 +1,10 @@
 ---
 title: "EvansCode"
 author: "Michelle Evans"
-date: ""
-output: html_document
+date: ''
+output:
+  pdf_document: default
+  html_document: default
 ---
 
 #Set-Up
@@ -11,7 +13,7 @@ output: html_document
 
 ```{r knitr setup}
 knitr::opts_chunk$set(echo = T)
-knitr::opts_chunk$set(cache=TRUE)
+knitr::opts_chunk$set(cache=F)
 knitr::opts_chunk$set(message=FALSE)
 knitr::opts_chunk$set(warning=FALSE)
 ```
@@ -420,27 +422,27 @@ Format data for infection efficiency
 bodyEff <- seasons %>%
   filter(DPI==21) %>%
   #drop individual
-  select(-Individual, -site, -Wing, -DPI) %>%
+  dplyr::select(-Individual, -site, -Wing, -DPI, -Head, -Saliva) %>%
   group_by(block, class) %>%
-  summarise_all(funs(bodyMean=mean(.,na.rm=T),bodySE=(sd(., na.rm=T)/sqrt(n()))), Body) %>%
+  summarise(bodyMean=mean(Body,na.rm=T),bodySE=(sd(Body, na.rm=T)/sqrt(n()))) %>%
   ungroup()
 
 headEff <- seasons %>%
   filter(DPI==21) %>%
   filter(Body==1) %>%
   #drop individual
-  select(-Individual, -site, -Wing, -DPI) %>%
+  dplyr::select(-Individual, -site, -Wing, -DPI, -Body, -Saliva) %>%
   group_by(block, class) %>%
-  summarise_all(funs(headMean=mean(.,na.rm=T),headSE=(sd(., na.rm=T)/sqrt(n()))), Head) %>%
+  summarise(headMean=mean(Head,na.rm=T),headSE=(sd(Head, na.rm=T)/sqrt(n()))) %>%
   ungroup()
 
 salEff <-  seasons %>%
   filter(DPI==21) %>%
   filter(Head==1) %>%
   #drop individual
-  select(-Individual, -site, -Wing, -DPI) %>%
+  dplyr::select(-Individual, -site, -Wing, -DPI, -Head, -Body) %>%
   group_by(block, class) %>%
-  summarise_all(funs(salMean=mean(.,na.rm=T),salSE=(sd(., na.rm=T)/sqrt(n()))), Saliva) %>%
+  summarise(salMean=mean(Saliva,na.rm=T),salSE=(sd(Saliva, na.rm=T)/sqrt(n()))) %>%
   ungroup()
 
 #group together
