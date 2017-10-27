@@ -383,6 +383,7 @@ tidy(m1)
 mixModelseasonsBody21 <- lme4::glmer(Body~class + block + (1|site), 
                           data=seasons[seasons$DPI=="21",],
                           family=binomial(link="logit"))
+summary(mixModelseasonsBody21)
 tidy(mixModelseasonsBody21)
 car::Anova(mixModelseasonsBody21) #Wald test
 #confint(mixModelseasonsBody21) #profiled confidence interval
@@ -1053,8 +1054,12 @@ emergTray <- emergExp %>%
   mutate(devRate=1/Exp_Day) %>%
   group_by(Tray_Code, Site_Code, Class, block) %>%
   summarise(devRate=mean(devRate, na.rm=T)) %>%
-  ungroup()
-emergTray$block <- factor(emergTray$block, levels=c("summer", "fall"))
+  ungroup() %>%
+  mutate(block=case_when(
+    block=="summer" ~ "Summer",
+    block=="fall"   ~ "Fall"
+  ))
+emergTray$block <- factor(emergTray$block, levels=c("Summer", "Fall"))
 
 #get survival per tray
 survSumm <- emergExp %>%
@@ -1264,6 +1269,8 @@ modResults$estimate[2] #temp coefficient
 Model Selection
 ```{r emergence stats by tray}
 #model selection
+m0 <- lmer(devRate ~ 1 + (1|Site_Code),
+           data=emergTray)
 m1 <- lmer(devRate ~ Class +(1|Site_Code), 
                    data=emergTray)
 
@@ -1276,10 +1283,10 @@ m3 <- lmer(devRate ~ Class * block +(1|Site_Code),
 m4 <- lmer(devRate ~ Class + block +(1|Site_Code), 
                    data=emergTray)
 
-modelSums <- do.call(rbind, lapply(list(m1,m2,m3, m4), broom::glance)) 
+modelSums <- do.call(rbind, lapply(list(m0, m1,m2,m3, m4), broom::glance)) 
 modelSums #m2 is best
 
-AICc(m1,m2,m3, m4) #still m2
+AICc(m0, m1,m2,m3, m4) #still m2
 ```
 
 ```{r}
@@ -1310,6 +1317,8 @@ modDF <- emergClim %>%
 modDF <- na.omit(modDF)
 
 #model selection for initial variable
+m0 <- lmer(devRate~1 + (1|Site_Code),
+           data=modDF)
 
 m1 <- lmer(devRate~Temp_mean + (1|Site_Code),
            data=modDF)
@@ -1332,10 +1341,10 @@ m6 <- lmer(devRate~Temp_max + (1|Site_Code),
 m7 <- lmer(devRate~RH_max + (1|Site_Code),
            data=modDF)
 
-modelSums <- do.call(rbind, lapply(list(m1,m2,m3, m4, m5, m6, m7), broom::glance))
+modelSums <- do.call(rbind, lapply(list(m0, m1,m2,m3, m4, m5, m6, m7), broom::glance))
 modelSums #m1 or m4
 
-MuMIn::AICc(m1,m2,m3, m4, m5, m6, m7)
+MuMIn::AICc(m0, m1,m2,m3, m4, m5, m6, m7)
 tidy(m1)
 
 #find covariates that aren't correlated
@@ -1864,7 +1873,7 @@ Combine with field measured fecundity, survival, development rate and vector com
 ```{r}
 #EFD: from wing length
 EFD  <- allWing %>%
-  group_by(block, Class=class, Site_Code=site) %>%
+  group_by(block, Class=class, Site_Code) %>%
   dplyr::summarise(wingL=mean(mm, na.rm=T)) %>%
   ungroup() %>%
   mutate(fecundity=-121.240 + (78.02*wingL))
@@ -1879,10 +1888,9 @@ pEA$block <- tolower(pEA$block)
 pEA$Class <- tolower(pEA$Class)
 
 #MDR: emergence rate (day^-1)
-MDR <- emergExpF %>%
+MDR <- emergTray %>%
   group_by(block, Class, Site_Code) %>%
-  dplyr::summarise(emerDay=mean(Exp_Day, na.rm=T)) %>%
-  mutate(MDR=1/emerDay)
+  dplyr::summarise(MDR=mean(devRate, na.rm=T))
 MDR$block <- tolower(MDR$block)
 MDR$Class <- tolower(MDR$Class)
 
@@ -1905,6 +1913,7 @@ Calculate EFD
 ```{r}
 paramRate$EFD <- paramRate$fecundity*paramRate$a
 ```
+
 
 Calcuate VC w/o carry-over effects
 ```{r}
@@ -2007,7 +2016,7 @@ VCplotsumm <- VCplot %>%
   dplyr::select(-Site_Code) %>%
   gather(calc, value, VC, VCnoCOE, VCdiff) %>%
   group_by(block, Class, calc) %>%
-  dplyr::summarise_each(funs(mean=mean(., na.rm=T), se=sd(.)/sqrt(n()))) %>%
+  dplyr::summarise_all(funs(mean=mean(., na.rm=T), se=sd(.)/sqrt(n()))) %>%
   ungroup()
 #add in facet labels
 VCplotsumm$labels <- case_when(
