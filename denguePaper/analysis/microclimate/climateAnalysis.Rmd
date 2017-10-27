@@ -45,6 +45,7 @@ clim <- climate %>%
   ungroup()
 ```
 
+# Plots
 Temperature Plot:
 ```{r}
 #pdf(file="../figures/forMS/temperature.pdf", width = 6, height=4, family="sans")
@@ -185,9 +186,8 @@ summary(glht(intMod, linfct = mcp(classxBlock = "Tukey"), test = adjusted("holm"
 
 ```
 
-Urban sites are significantly hotter than rural and suburban sites, where there is no difference.
 
-Relative Humidity:
+## Relative Humidity:
 ```{r}
 ## ------ mean RH
 ggplot(data=climTray, aes(x=Class, y=meanRH)) +
@@ -237,14 +237,8 @@ summary(glht(climModMinRH, linfct = mcp(Block = "Tukey"), test = adjusted("holm"
 intMod <- lmer(minRH~classxBlock+ (1|Day) + (1|Site_ID), data=climTray)
 summary(glht(intMod, linfct = mcp(classxBlock = "Tukey"), test = adjusted("holm")))
 
-## ------ max RH: can't do becuase of crazy distribution
-# ggplot(data=climTray, aes(x=Class, y=maxRH)) +
-#   geom_boxplot() +
-#   facet_wrap(~Block)
-# ggplot(data=climTray, aes(x=maxRH)) +
-#   geom_histogram() +
-#   facet_wrap(~Block)
-# 
+## ------ max RH
+
 climModMaxRH <- lmer(maxRH~0+Class*Block + (1|Day)+ (1|Site_ID), data=climTray)
 plot(climModMaxRH)
 # summary(climModMaxRH)
@@ -282,23 +276,3 @@ intMod <- lmer(DHR~classxBlock+ (1|Site_ID/Day), data=climTray)
 summary(glht(intMod, linfct = mcp(classxBlock = "Tukey"), test = adjusted("holm")))
 
 ```
-
-## Compare summer and fall
-
-```{r}
-ggplot(data=climTray, aes(x=Block, y=meanT)) +
-  geom_boxplot()
-
-summary(aov(Temp~Block, data=climBlocks))
-```
-
-Summer is definitely hotter than the fall (seems unnecessary to plot but there you go)
-
-```{r}
-ggplot(data=climTray, aes(x=Class, y=DHR)) +
-  geom_boxplot() +
-  facet_wrap(~Block)
-
-summary(aov(Temp~Block, data=climBlocks))
-```
-
