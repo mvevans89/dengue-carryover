@@ -1,5 +1,5 @@
 ---
-title: "EvansCode"
+title: "Code for 'Carry-over effects of larval microclimate on the transmission potential of mosquito-borne pathogens' (Evans et al. 2017)"
 author: "Michelle Evans"
 date: ''
 output:
@@ -7,7 +7,9 @@ output:
   html_document: default
 ---
 
-#Set-Up
+This document contains the code for the analysis in 'Carry-over effects of larval microclimate on the transmission potential of mosquito-borne pathogens' (Evans et al. 2017).
+
+# Set-Up
 
 *NOTE*: Working directory should be set to source file location.
 
@@ -141,7 +143,7 @@ rm(inds)
 ```
 
 Load and format emergence data
-```{r load emergence data,echo=FALSE}
+```{r load emergence data,echo=T}
 augEmerg <- read.csv("../data/emergence/raw/AugustEmergence.csv")
 augEmerg$block <- as.factor("summer")
 octEmerg <- read.csv("../data/emergence/raw/OctoberEmergence.csv")
@@ -151,7 +153,7 @@ allEmerg <- rbind(augEmerg, octEmerg)
 ```
 
 Subset and standardize emergence data to be used with infections (i.e. weight by number of days mosquitoes were in larval environment)
-```{r standardize and correct for emergence, echo=FALSE}
+```{r standardize and correct for emergence}
 #filter out only days when infected mosquitoes were in the trays
 octInf <- octEmerg %>%
   filter(Sex=="F") %>%
@@ -165,7 +167,7 @@ augInf <- augEmerg %>%
            (Site_Code %in% c("S1", "S2", "R2", "R3", "U3") & Day <= 17))
 ```
 
-```{r process october climate, message=F, echo=FALSE}
+```{r process october climate}
 octClim <- climate %>%
   dplyr::select(-Date) %>%
   filter(Day >= as.Date("2016-09-26","%Y-%m-%d")) %>%
@@ -198,7 +200,7 @@ octEnvVar <- test %>%
 rm(test) #clear unused temporary dataframe
 ```
 
-```{r august climate formatting, message=F, echo=FALSE}
+```{r august climate formatting}
 ##repeat above for August
 augClim <- climate %>%
   dplyr::select(-Date) %>%
@@ -230,7 +232,7 @@ rm(test)
 
 ```
 
-```{r, echo=FALSE}
+```{r}
 #merge the summer and fall into one dataframe
 oct$block <- as.factor("fall")
 august$block <- as.factor("summer")
@@ -259,9 +261,9 @@ infLong <- seasonInf %>%
 infLong$sampleLab <- paste0(infLong$positives, "(", infLong$samples, ")")
 ```
 
-Plot (summer is alpha=1, fall is alpha=0.3)
+Figure 4.
 
-```{r land class x season plot}
+```{r land class x season plot, eval=F}
 #pdf(file="figures/forMS/landclassXseasonInfection.pdf", width = 4, height=7,  family="sans")
 
 ggplot(data=infLong[order(infLong$block, decreasing=F),], aes(x=class, group=block))+
@@ -424,7 +426,7 @@ bodyEff <- seasons %>%
   #drop individual
   dplyr::select(-Individual, -site, -Wing, -DPI, -Head, -Saliva) %>%
   group_by(block, class) %>%
-  summarise(bodyMean=mean(Body,na.rm=T),bodySE=(sd(Body, na.rm=T)/sqrt(n()))) %>%
+  summarise(bodyMean=mean(Body,na.rm=T), bodySE=(sd(Body, na.rm=T)/sqrt(n()))) %>%
   ungroup()
 
 headEff <- seasons %>%
@@ -466,7 +468,8 @@ meltAll <- full_join(meltMean, meltSE, by=c("class", "block", "type")) %>%
   select(-variable.x, -variable.y)
 ```
 
-Plot of infection efficiency
+Plot of infection efficiency.
+
 ```{r plot efficiency, eval=F}
 #supplemental plot
 ggplot(data=meltAll[order(meltAll$block, decreasing=F),], aes(x=class, group=block))+
@@ -812,9 +815,7 @@ plotSimulatedResiduals(simulationOutput = simulationOutput)
 
 ```
 
-Infection x Temperature Plot
-
-```{r three panel temp x infection plot, eval=F}
+```{r three panel temp x infection plot, eval=F, include=F}
 #pdf(file="figures/forMS/InfxTemp3Panel.pdf", width = 8, height=3, family="sans")
 plotBody <- ggplot(data=seasonInfSite, aes(x=Temp_mean_mean, y=Body_mean))+
   geom_errorbar(aes(ymin=Body_mean-Body_se, ymax=Body_mean+Body_se), color=errorColor, width=0.1) +
@@ -880,8 +881,8 @@ plot_grid(plotBody, plotHead, plotSaliva,
 #dev.off()
 ```
 
-Infection x Relative Humidity Plot
-```{r, eval=F}
+
+```{r, eval=F, include=F}
 #png(file="figures/forMS/supplement/InfxRH3Panel.png", width = 8, height=3, units="in", res=500, family="sans")
 plotBody <- ggplot(data=seasonInfSite, aes(x=RH_mean_mean, y=Body_mean))+
   geom_errorbar(aes(ymin=Body_mean-Body_se, ymax=Body_mean+Body_se), color=errorColor, width=0.1) +
@@ -970,7 +971,7 @@ Anova(bodyWing)
 drop1(bodyWing, test="Chisq")
 ```
 
-```{r body inf x size plot}
+```{r body inf x size plot, eval=F, include=F}
 ggplot(data=bodyWingDF, aes(x=factor(Body), y=Wing))+
   geom_boxplot() +
   geom_jitter(shape=16, position=position_jitter(0.1), aes(color=factor(class)), alpha=0.5) +
@@ -1569,10 +1570,7 @@ confint(wingModTemp) #no effect of temperature
 qqnorm(resid(wingModTemp))
 ```
 
-
-
-Plot
-```{r, eval=F}
+```{r, eval=F, include=F}
 ggplot(data=allWing, aes(x=Temp, y=mm)) +
   geom_point(aes(col=factor(class), shape=factor(block))) + 
   geom_smooth(method="lm")+
@@ -1593,7 +1591,6 @@ ggplot(data=allWing, aes(x=Temp, y=mm)) +
 
 # Growth Rate
 
-Format and merge data
 ```{r}
 #calculate means per Exp_Day and Tray
 growthWing <- allWing %>%
@@ -1653,7 +1650,7 @@ growthDF2 <- growthDF2 %>%
 ```
 
 ## Plot
-Adjust factor names for plotting:
+
 ```{r}
 levels(emergTray$block) <- c("Summer", "Fall")
 levels(emergTray$Class) <- c("Rural", "Suburban", "Urban")
@@ -1662,7 +1659,8 @@ levels(survTray$block) <- c("Summer", "Fall")
 levels(survTray$Class) <- c("Rural", "Suburban", "Urban")
 ```
 
-Three panel survival, emergence and growth rate
+Figure 3.
+
 ```{r three panel surv emerge and growth plot, eval=F}
 #png(file="figures/forMS/survEmergeGrowth.png", width = 4, height=7, units="in", res=500, family="sans")
 
@@ -1813,7 +1811,6 @@ anova(growthTempMod)
 
 # Vectorial Capacity
 
-Arrange temperature data by hour for rate summation
 ```{r}
 climS <- climate[climate$Day >="2016-08-01" & climate$Day <="2016-09-03",]
 climS$Block <- "summer"
@@ -1968,9 +1965,9 @@ paramAll <- mutate(paramAll,
                    VCnoCOE=(((a^2)*bc2*(exp(-mu/PDR))*EFD2*pEA*(MDR^2))/((mu^2))))
 ```
 
-## Plotting
+## Plot
 
-Add Temperature Back in For Comparison Plots
+Figure 5.
 
 ```{r}
 siteTemps <- dplyr::select(seasonInfSite, block, site, class, Temp_mean_mean)
@@ -1982,8 +1979,7 @@ VCplot <- VCplot %>%
 VCplot$block <- factor(VCplot$block, levels=c("summer", "fall"))
 ```
 
-Comparison Line Plot
-```{r VC over Temp plot, eval=F}
+```{r VC over Temp plot}
 #pdf(file="figures/forMS/VCxTemp.pdf", width = 4, height=4, family="sans")
 
 VCxTempPlot <- ggplot(data=VCplot, aes(x=Temp_mean_mean))+
@@ -2013,7 +2009,6 @@ VCxTempPlot <- ggplot(data=VCplot, aes(x=Temp_mean_mean))+
                       #values=c(WithCOE="#af8dc3", WithoutCOE="#7fbf7b"),
                       values=c(WithCOE="black", WithoutCOE="gray55"),
                       labels=c("With COEs", "Without COEs"))
-VCxTempPlot
 #dev.off()
 ```
 
@@ -2036,8 +2031,8 @@ VCplotsumm$labels <- factor(VCplotsumm$labels, levels=c("No COEs", "With COEs", 
 VCplotsumm$calc <- factor(VCplotsumm$calc, levels=c("VCnoCOE", "VC", "VCdiff"))
 ```
 
-Panel Plots with Bar Graphs
-```{r three panel bar graph of VC, eval=F}
+
+```{r three panel bar graph of VC}
 
 noCOEplot <- ggplot(data=VCplotsumm[VCplotsumm$labels=="No COEs",], aes(x=factor(Class), group=block)) +
   geom_bar(stat='identity',
