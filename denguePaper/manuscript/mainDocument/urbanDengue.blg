@@ -1,0 +1,46 @@
+This is BibTeX, Version 0.99d (TeX Live 2015)
+Capacity: max_strings=35307, hash_size=35307, hash_prime=30011
+The top-level auxiliary file: urbanDengue.aux
+The style file: ecologynoURL.bst
+Database file #1: references.bib
+You've used 72 entries,
+            2774 wiz_defined-function locations,
+            969 strings with 21436 characters,
+and the built_in function-call counts, 52095 in all, are:
+= -- 4061
+> -- 3478
+< -- 24
++ -- 1151
+- -- 1068
+* -- 4189
+:= -- 8330
+add.period$ -- 286
+call.type$ -- 72
+change.case$ -- 644
+chr.to.int$ -- 69
+cite$ -- 72
+duplicate$ -- 3563
+empty$ -- 3041
+format.name$ -- 1302
+if$ -- 9990
+int.to.chr$ -- 4
+int.to.str$ -- 1
+missing$ -- 781
+newline$ -- 437
+num.names$ -- 288
+pop$ -- 1491
+preamble$ -- 1
+purify$ -- 644
+quote$ -- 0
+skip$ -- 887
+stack$ -- 0
+substring$ -- 2428
+swap$ -- 1788
+text.length$ -- 1
+text.prefix$ -- 0
+top$ -- 0
+type$ -- 648
+warning$ -- 0
+while$ -- 344
+width$ -- 0
+write$ -- 1012

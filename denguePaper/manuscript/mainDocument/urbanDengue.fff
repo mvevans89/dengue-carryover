@@ -1,0 +1,42 @@
+\begin{figure}
+\centering\includegraphics[width=0.9\linewidth]{siteMapinset.pdf}
+\caption{Map of study sites in Athens, GA, with inset illustrating location of Athens-Clarke County (black outline) in the state of Georgia. Symbols represent land classes (square: rural, circle:suburban, triangle: urban). Colors represent the amount of impervious surface within the 210m focal area of each pixel, as illustrated on the color bar on the bottom.}
+\label{Fig:siteMap}
+\end{figure}
+\efloatseparator
+ 
+\begin{figure}
+\centering\includegraphics[width=0.9\linewidth]{temperature.pdf}
+\caption{Microclimate differed significantly across both season and land class. Date ranges with green and orange background represent the summer and fall trials, respectively. The solid line represents the mean temperature across trays in each land class. The dotted lines represent the mean minimum and maximum temperatures across trays in each land class.}
+\label{fig:temperature}
+\end{figure}
+\efloatseparator
+ 
+\begin{figure}
+\centering\includegraphics[height=15cm, keepaspectratio]{survEmergeGrowth.pdf}
+\caption{Female larval a) survival rate, b) development rate and c) population growth rate across the summer and fall trials and three land classes.}
+\label{fig:growth}
+\end{figure}
+\efloatseparator
+ 
+\begin{figure}
+\centering\includegraphics[height=15cm, keepaspectratio]{landclassXseasonInfection.pdf}
+\caption{Infection dynamics (infected, disseminated, and infectious mosquitoes) across land class and season. Bars represent mean and standard errors of raw data across sites (n=3 per treatment).}
+\label{Fig:Infxclass}
+\end{figure}
+\efloatseparator
+ 
+\begin{figure}
+\centering\includegraphics[width=0.9\linewidth]{VCPlot.pdf}
+\caption{The calculated vectorial capacity by site across individual mean temperature prior to infection assays (a). The incorporation of carry-over effects reduces the expected vectorial capacity at sites, although the effect is lessened at cooler temperatures. Inset charts on the right indicate calculated vectorial capacity without carry-over effects (b), with carry-over effects (c), and the percent difference due to the incorporation of carry-over effects (d). Error bars represent standard error.
+}
+\label{Fig:VC}
+\end{figure}
+\efloatseparator
+ 
+\begin{figure}
+\centering\includegraphics[width=0.9\linewidth]{relativeHumidity.pdf}
+\caption{Supplementary Figure 1. Relative humidity across both replicates.}
+\end{figure}
+\efloatseparator
+ 

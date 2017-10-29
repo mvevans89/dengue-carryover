@@ -1,0 +1,357 @@
+
+\documentclass[12pt]{article}
+\usepackage[paper=letterpaper, margin=0.8in]{geometry}
+
+%% The graphicx package provides the includegraphics command.
+\usepackage{graphicx}
+%% The amssymb package provides various useful mathematical symbols
+\usepackage{amssymb}
+%% The amsthm package provides extended theorem environments
+%% \usepackage{amsthm}
+%% fix strange gensymb error
+\usepackage{textcomp}
+%% symbols, especially degree
+\usepackage{gensymb} 
+%% scientific units
+\usepackage{siunitx}
+%% line spacing
+\usepackage{setspace}
+\doublespacing
+%% put figures at the end
+\usepackage[nomarkers]{endfloat}
+%% allow hyperlinks
+%\usepackage{hyperref}
+%% color comments
+\usepackage{soul}
+\usepackage{color}
+%% left justification in tables
+\usepackage{array}
+\newcolumntype{P}[1]{>{\raggedright\arraybackslash}p{#1}}
+%%references
+\usepackage[round]{natbib}
+
+
+%% The lineno packages adds line numbers. Start line numbering with
+%% \begin{linenumbers}, end it with \end{linenumbers}. Or switch it on
+%% for the whole article with \linenumbers after \end{frontmatter}.
+\usepackage{lineno}
+
+\begin{document}
+
+{\Large
+\textbf\newline{Carry-over effects of larval microclimate on the transmission potential of mosquito-borne pathogens}}
+\\
+Michelle V. Evans\textsuperscript{1,2,3*},
+Justine C. Shiau\textsuperscript{4},
+Nicole Solano\textsuperscript{1,2},
+Melinda A. Brindley\textsuperscript{4, 5},
+John M. Drake\textsuperscript{1,2},
+Courtney C. Murdock\textsuperscript{1,2,3,4,6, 7}
+\\
+
+\hrulefill
+
+\noindent
+\textbf{1} Odum School of Ecology, University of Georgia, Athens, GA, USA
+\\
+\textbf{2} Center for the Ecology of Infectious Diseases, University of Georgia, Athens, GA, USA
+\\
+\textbf{3} Center for Tropical Emerging Global Diseases, University of Georgia, Athens, GA, USA
+\\
+\textbf{4} Department of Infectious Disease, University of Georgia, Athens, GA, USA
+\\
+\textbf{5} Department of Population Health, University of Georgia, Athens, GA, USA
+\\
+\textbf{6} Center for Vaccines and Immunology, University of Georgia, Athens, GA, USA
+\\
+\textbf{7} River Basin Center, University of Georgia, Athens, GA, USA
+\\
+\smallskip
+
+\noindent
+*Corresponding Author: mvevans@uga.edu
+\bigskip
+
+\hrulefill
+
+\textbf{Abstract} Climate shapes the transmission of mosquito-borne pathogens through impacts on both the vector and the pathogen.  In addition to direct effects of the present environment, indirect carry-over effects from previous life history stages can influence mosquito life history traits relevant to disease transmission. While this has been explored in a laboratory setting, the net effect of temperature-mediated carry-over effects due to relevant environmental variation in the larval stage is ambiguous. Here, we use data collected from a semi-field experiment investigating dengue dynamics in \textit{Aedes alobpictus} across an urban microclimate gradient and season to parameterize a mechanistic dengue transmission model. We reared \textit{Aedes albopictus} in artificial containers across three replicate sites within three different land classes (rural, suburban, urban), characterized by the low, medium, and high proportions of impervious surface, respectively. We recorded survival to adulthood, immature development rate, and body size daily. Emerged females were offered a dengue (serotype 2) infectious bloodmeal, kept at a constant 27 C, and assayed for infection, dissemination, and infectiousness twenty-one days post infection. We found that survival and development rate of mosquitoes differed across season, but not land class, driven by a positive relationship of both traits with temperature. Mosquitoes reared on urban land classes and in the fall were more likely to become infected or have disseminated infections, but did not differ in infectiousness across land class or season. Incorporating carry-over effects of larval environment on measures of vector competence resulted in significantly lower predicted dengue transmission potential across land class and season, however predictions both with and without carry-over effects had a strong positive relationship with larval environmental temperature. Given the significant impact of carry-over effects on predicted transmission potential, we suggest that future mechanistic models of disease transmission include both direct and carry-over effects of environmental temperature.
+
+\hrulefill
+
+\linenumbers
+\doublespacing
+
+%% main text
+\section{Introduction}
+
+%Background on microclimate and mosquito-borne disease, pointing out separation between direct and indirect effect
+
+Climate plays an important role in the transmission of mosquito-borne pathogens, determining the geographic range of disease vectors and shaping transmission dynamics. Mosquitoes are ectotherms, and are therefore sensitive to environmental temperature, which can drive individual-level variation in character traits relevant to life history and mosquito population dynamics such as feeding rates \citep{delatte2009}, fecundity \citep{yang2009}, and survival \citep{alto2001}. Variation in environmental conditions can also influence traits that are relevant for pathogen transmission, such as vector competence and pathogen development within the mosquito \citep{lambrechts2011}. However, in addition to the direct effects of the current environment, mosquito phenotype (including fitness) is shaped indirectly by the environmental conditions experienced in previous life history stages, a phenomenon known as carry-over effects \citep{harrison2011}. Carry-over effects have been documented in a wide-range of species with complex life cycles, such as amphibians \citep{vonesh2005}, migratory birds \citep{norris2006}, and insects \citep{deblock2005a, roux2015a}. Similarly, the mosquito life cycle is characterized by ontogenetic niche shifts, with a larval aquatic stage and an adult terrestrial stage. Based on these studies, we reason that the thermal environment a mosquito experiences during its larval stage is likely to have lasting impacts on its adult traits, and, ultimately, on transmission potential.
+
+% Explore mechanisms whereby carry-over effects could happen
+
+There are several pathways by which carry-over effects from the larval environment might impact key adult traits that are relevant for overall fitness and disease transmission. If the larval environment is of low quality (e.g. resource scarcity, thermal stress, or crowding), individuals may experience developmental constraints that negatively impact adult fitness \citep{inger2010}. For instance, male \textit{Anopheles gambiae} mosquitoes reared at high-densities in the larval stage are less competitive mates than those reared at low-densities \citep{nghabi2005}, and female \textit{An. stephensii} reared on a low-food diet have lower survival and fecundity than those reared on a high food diet \citep{moller-jacobs2014, shapiro2016}. There are numerous studies demonstrating that variation in larval environmental temperature and nutrients significantly impact adult immune function \citep{muturi2012, price2015} and thereby the ability of adult mosquitoes to transmit arboviruses (e.g. vector competence) \citep{grimstad1991, muturi2012a, muturi2011d, alto2013, vantaux2016, buckner2016}. A second mechanism shaping carry-over effects can result from acclimation to a specific larval environment via trait plasticity \citep{monaghan2008}. For example, \textit{Culex} mosquitoes reduce their growth in larval environments with predator cues to avoid size-specific predation \citep{jourdan2016}. This, in turn, decreases adult body size, with ramifications for other adults traits such as fecundity \citep{lounibos2002} and susceptibility to pathogens \citep{paulson1991}.
+
+% Gaps in carry-over research, particularly focused on mosquito-borne disease
+
+Although it is clear that temperatures at early life stages can significantly alter adult mosquito traits important for transmission, the net effect of temperature-mediated carry-over effects on overall transmission potential is ambiguous. Studies focusing solely on vector competence have found both positive \citep{muturi2011c} and negative \citep{muturi2011a} relationships between larval environmental temperature and the proportion of infectious mosquitoes. Additionally, laboratory studies designed to estimate temperature-mediated carry-over effects are typically conducted across a wide range of temperatures (e.g. with differences of 5 to 10 \degree C between treatments) not often experienced by mosquitoes in the wild \citep{cator2013}. While larger treatment differences increase the likelihood of detecting temperature-mediated carry-over effects on adult traits, they do not easily ``scale-up'' to explain transmission across a landscape when incorporated into temperature-dependent models of mosquito-borne disease \citep{pascual2006, mordecai2017, reiner2013}. Furthermore, temperature-dependent models of mosquito-borne disease only incorporate direct effects of temperature, despite evidence that indirect carry-over effects can have large impacts on adult mosquito phenotypes. Thus, the implications of carry-over effects for mechanistic predictions of vector-borne disease remain unexplored.
+
+% Stepping into the niche
+
+In light of the above, we hypothesize that relevant environmental variation during the larval stage will have lasting impacts on adult traits that are relevant for mosquito population dynamics and pathogen transmission. To assess the implications omitting carry-over effects from mechanistic transmission models, we used data collected from a semi-field experiment in a the \textit{Aedes albopictus}-dengue virus (serotype 2, DENV-2) system to parameterize a mechanistic dengue transmission model. We then compared model predictions when carry-over effects were incorporated relative to when they were excluded.
+
+
+\section{Methods}
+\subsection{Semi-Field Experimental Design}
+
+To explore the effects of microclimate variation across an urban landscape, we used an impervious surface map (National Land Cover Database 2011 \citep{xian2011} to select three replicate sites ($30m \times 30m$) each of low (0-5\%), intermediate (6-40\%), and high (41-100\%) impervious surface. Percent impervious surface is an accurate predictor of land surface temperature, particularly for urban landscapes \citep{yuan2007}, and allowed us to ensure our sites exhibited the full range of urban microclimates. To select our sites, we calculated the percent impervious surface of each $30m \times 30m$ pixel using a moving focal window of $210m \times 210m$, as the surrounding impervious surface can affect the microclimate in the pixel of interest. We then classified each pixel based on the mean impervious surface within its focal window, with 0 - 5 \% representing low, 6 - 40 \% representing intermediate, and 41 - 100\% representing high. Because impervious surface is an effective classifier of urban land classes \citep{lu2006}, we identified the sites as rural, suburban, and urban with low, intermediate, and high impervious surface scores, respectively. Final site selection was constrained by access and permissions, however the final distribution of sites was chosen to ensure all sites were at least 2 miles from others of the same land class, and were evenly distributed across the study area (Fig. \ref{Fig:siteMap}). 
+
+\begin{figure}
+\centering\includegraphics[width=0.9\linewidth]{siteMapinset.pdf}
+\caption{Map of study sites in Athens, GA, with inset illustrating location of Athens-Clarke County (black outline) in the state of Georgia. Symbols represent land classes (square: rural, circle:suburban, triangle: urban). Colors represent the amount of impervious surface within the 210m focal area of each pixel, as illustrated on the color bar on the bottom.}
+\label{Fig:siteMap}
+\end{figure}
+
+Within each site, we evenly distributed four plastic trays, each containing 100 first instar \textit{Ae. albopictus} larvae and 1L of leaf infusion. Leaf infusion was prepared one week prior to the experiment as described in \citet{murdock2017}.  Trays were screened with a fine mesh, placed in a wire cage to deter wildlife, and placed in full shade. Cages were covered with a clear plastic vinyl to keep rainwater from entering the trays. We added deionized water to trays after two weeks to prevent trays from drying up and to maintain a total water volume at 1L. We placed data loggers (Monarch Instruments: RFID Temperature Track-It logger) in vegetation next to each tray, approximately 3 feet above the ground, to collect information on the larval microclimate. Data loggers recorded instantaneous temperature and relative humidity at ten minute intervals throughout the study period.
+
+Sites were visited daily from August 1 to September 3, 2016 and September 26 to November 8, 2016 during the summer and fall replicates, respectively, to collect emerging adult mosquitoes until all larvae emerged or died. We quantified the number of male and female mosquitoes emerging by tray per day, mosquito body size, and dengue vector competence (the proportion of mosquitoes that became infectious with dengue after receiving an artificial blood meal containing dengue virus). To estimate the effects of land class, microclimate, and season on mosquito population dynamics and transmission potential (defined as vectorial capacity), we then integrated these data into models of mosquito population dynamics and vectorial capacity. 
+
+\subsection{Dengue virus \textit{in vitro} culturing and mosquito infections}
+DENV-2 stock was obtained from the World Reference Center for Emerging Viruses and Arboviruses at the University of Texas Medical Branch (PRS 225 488, originally isolated from human serum in Thailand in 1974 \citep{vazeille-falcoz1999}). We propagated virus by inoculating Vero (African green monkey kidney epithelial) cells with a low MOI infection. Virus-containing supernatant was harvested when the cells exhibited more than 80\% cytopathic effect. Supernatant was cleared of cell debris by centrifugation (1000xg, 1 min), aliquoted into cryo-vials, and stored at -80 \degree C. We quantified viral titers of virus stock using TCID-50 assays, calculated by the Spearman-Karber method \citep{shao2016}. When mixed 1:1 with the red blood cell mixture, the final concentration of virus in the blood meal was 3.540 x $10^6$ $TCID_{50}$/mL.
+
+Adult mosquitoes were aspirated and aggregated from each tray by day of emergence and site and stored in reach-in incubators at $27 \degree C \pm 0.5 \degree C$, $80\% \pm 5\%$ relative humidity, and a 12 h: 12 h light: dark cycle. To ensure infected mosquitoes were of a similar age, mosquitoes were pooled into cohorts of 4-6 days old in the summer and 4-9 days old in the fall (due to slower and more asynchronous emergence rates), allowed to mate, and were fed \textit{ad libitum} with a 10\% sucrose solution. The 10\% sucrose solution was removed 48 hours prior to the infection and replaced with deionized water, which was then removed 12-14 hours before infection to encourage higher feed rates. Infectious blood meals were administered to mosquitoes through a water-jacketed membrane feeder and consisted of of 47\% human red blood cells washed in DMEM (vol/vol), 1\% sucrose(weight/vol), 20\% FBS (vol/vol), 5 mM ATP, and 33\% DMEM medium combined with 1 mL of virus stock \citep{shan2016}. Blood-fed mosquitoes were then maintained as described above for the duration of the experiment.
+
+For a mosquito to become infectious, arboviruses must pass through multiple tissues (i.e. midgut and salivary glands) in the mosquito vector that impose significant barriers to infection \citep{cheng2016}. Therefore, we assessed mosquitoes for infection, dissemination, and infectiousness through salivation assays and dissections \citep{hurlbut1966,anderson2010} 21 days post infection. Mosquitoes were cold anesthetized and immobilized by removing their legs and wings. Wings were mounted on a glass slide to measure wing length via a dissecting scope and micrometer. The proboscis of each female was then inserted into a sterile pipette tip and allowed to salivate into 10-20 \si{\micro\liter} of FBS with 3mM ATP and red food coloring on a plate kept at 27 \degree C for 15 minutes, after which the salivation media was expelled into 500 \si{\micro\liter} of DMEM and stored at -80 \degree C. After salivation, we removed the head of each individual and stored the body and head separately at -80 \degree C. 
+
+To determine variation in the proportion of mosquitoes that become infected (bodies positive for virus), disseminated (heads positive for virus), and infectious (saliva positive for virus), we used cytopathic effect (CPE) assays to test for the presence of virus in each collected tissue \citep{balaya1969}. Individual bodies and heads were homogenized in 500 \si{\micro\liter} of DMEM and centrifuged at 2,500 rcf for 5 minutes. 200 \si{\micro\liter} of homogenate was added to Vero cells in a solution of DMEM (1\% pen-strep, 5\% FBS by volume) in a 24-well plate and kept at 37 \degree C and 5 \% ${CO_2}$. Salivation media was thawed, and plated on Vero cells as above. After 5 days, Vero cells were assessed for presence of DENV-2 via CPE assays. Samples were identified as positive for virus if CPE was present in the well.
+
+\subsection{Mosquito body size and intrinsic growth rates (r')}
+
+We calculated the per capita population growth rate (Equation \ref{eq:1}) per tray following \citet{livdahl1984}:
+
+\begin{equation} \label{eq:1}
+r' = \frac{ln(\frac{1}{N_0}\sum_{x}^{ }{A_x}f(\bar{w_x}))}{D+\frac{\sum_{x}^{ }xA_xf(\bar{w_x})}{\sum_{x}^{ }A_xf(\bar{w_x})}}
+\end{equation}
+
+Where $N_0$ is the initial number of female mosquitoes (assumed to be 50\% of the larvae, n=50), $A_x$ is the number of mosquitoes emerging on day $x$, $D$ is the time to reproduction following emergence (assumed to be 14 days \citep{livdahl1991}), and $f(\bar{w_x})$ is fecundity as a function of mean wing size on day $x$ ($w_x$; Equation \ref{eq:2}). This relationship is assumed to be linear and calculated via \citet{lounibos2002}:
+
+\begin{equation} \label{eq:2}
+f(\bar{w_x}) = -121.240 + (78.02 \times \bar{w_x})
+\end{equation}
+
+\subsection{Estimating vectorial capacity}
+We calculated the vectorial capacity ($VC$; Equation \ref{eq:3}) for each site and season following \citet{mordecai2017}:
+
+\begin{equation} \label{eq:3}
+VC(T) =\frac{a(T)^2b(T)c(T)e^{-\mu (T)/EIR(T)} EFD(T) p_{EA}(T) MDR(T)} {\mu(T)^2}
+\end{equation}
+
+Here, mosquito traits are a function of temperature, $T$, as described in Table \ref{table:traits}.
+
+\begin{table}[h]
+\centering
+\begin{tabular}{P{0.15\linewidth}P{0.3\linewidth}P{0.25\linewidth}P{0.25\linewidth}}
+\hline
+\textbf{Parameter} & \textbf{Definition} & \textbf{Without carry-over effects} & \textbf{With carry-over effects}\\
+\hline
+$a(T)$ & Per-mosquito bite rate & Mordecai et al. 2017 & Mordecai et al. 2017 \\
+$b(T)c(T)$* & Vector competence & Mordecai et al. 2017 & Current Study \\
+$\mu(T)$ & Adult mosquito mortality rate & Mordecai et al. 2017 & Mordecai et al. 2017 \\
+$EIR(T)$ & Extrinsic incubation rate (i.e. inverse of extrinsic incubation period) & Mordecai et al. 2017 & Mordecai et al. 2017 \\
+$EFD(T)$* & Number of eggs produced per female mosquito per day & Mordecai et al. 2017 & Current Study \\
+$p_{EA}(T)$ & Egg-to-adult survival probability & Current Study & Current Study \\
+$MDR(T)$ & Mosquito immature development rate & Current Study & Current Study \\
+\hline
+\end{tabular}
+\caption{Sources of parameters used in the $VC$ equation. Parameters sourced from \citet{mordecai2017} were mathematically estimated at a constant temperature of 27 \degree C. Parameters that included carry-over effects are starred.}
+\label{table:traits}
+\end{table}
+
+Site-level $VC$ was calculated using a combination of traits empirically measured in this study and traits estimated from thermal response models as described in \citet{mordecai2017}. The bite rate ($a(T)$), adult mosquito mortality rate ($\mu(T)$), and extrinsic incubation rate ($EIR(T)$), were calculated for mosquitoes at a constant 27 \degree C using temperature dependent functions from \citet{mordecai2017}. Vector competence ($b(T)c(T)$) was calculated as the proportion of infectious mosquitoes per site as found by our dengue infection assays. The number of eggs produced per female per day ($EFD(T)$) was calculated by estimating fecundity from average female wing length following Eq. \ref{eq:2}, and then dividing this by the expected lifespan of mosquitoes ($1/\mu$). The egg-to-adult survival probability ($p_{EA}(T)$) was defined as the average proportion of adults emerging at a site. The mosquito immature development rate ($MDR(T)$) was calculated as the inverse of the mean time to emergence for female mosquitoes per site, resulting in a daily rate of development. In order to distinguish between vectorial capacity with and without carry-over effects, we constructed two models. The model without carry-over effects used mathematically estimated values for $b(T)c(T)$ and $F=EFD(T)$ based on thermal response models calculated at the adult environmental temperature (27 \degree C) following \citet{mordecai2017}, while the model incorporating carry-over effects used the empirically estimated values from our study for $b(T)c(T)$ and $EFD(T)$. All other parameters were the same across the two models.
+
+\subsection{Statistical Analysis}
+
+All analyses were conducted with respect to the female subset of the population, as they are the subpopulation responsible for disease transmission. In the case of data logger failure, imputed means from the site were used to replace microclimate data. Given the low intra-site variation in temperature, this assumption allowed us to include mosquito data for those trays without biasing our microclimate data. In the case of trays failing due to wildlife emptying them (two urban and one suburban in the fall replicate on experimental days 20, 22, and 20, respectively), collected mosquitoes were used for infection assays, but were excluded from survival and emergence analyses. Unless otherwise stated, all models included the interaction between predictor variables in the initial fit, which were dropped based on significance ($\alpha=0.05$). For all mixed-models, significance was assessed through Wald Chi-square tests ($\alpha=0.05$) and examination of 95\% confidence intervals. Pearson residuals and Q-Q plots were visually inspected for normality. When applicable, pair-wise comparisons within each factor were conducted using Tukey multiple comparisons of means, adjusting for significance with the Holm-Bonferroni method. All mixed models were fit using the \texttt{lme4}\citep{lmePackage} package in $R$\citep{Rstats2017}.
+
+\subsubsection{Assessing effects of land class and season on mosquito population dynamics and transmission potential}
+
+We used generalized linear mixed models to explore if microclimate (i.e. mean, minimum, maximum, and daily ranges of temperature and relative humidity), the mean proportion of adult females emerging per tray, time to female emergence, female body size, the mean mosquito per capita growth rate, and metrics of vector competence differed across land class and season. Fixed effects in all initial models included land class, season, and the interaction, before undergoing model selection based $AICc$. Site was included as a random effect in all models to control for any variation inherent to the site. The effect of body size on infection dynamics was also explored at the level of the individual mosquito, fitting a binomial generalized linear mixed effects model including wing size as a fixed effect and site as a random effect.  Finally, because mosquitoes were pooled across trays within a site to estimate metrics of vector competence ($bc$), the $VC$ calculation was done at the site level.  Thus, our analysis of land class and season on  $VC$ did not require a random effect, and was tested using a two-way ANOVA.
+
+\subsubsection{Assessing effects of microclimate on mosquito population dynamics and transmission potential}
+
+To explore whether the effects of land class and season were due to variation in microclimate, we ran additional statistical analyses exploring the effects of different microclimate variables on each response variable. In total, we measured seven microclimate variables (mean, minimum, and maximum temperature; mean, minimum, and maximum relative humidity, and daily temperature range (DTR)). However, they were all extremely correlated ($\rho>0.9$) leading us to exclude variables from our models to reduce bias due to collinearity \citep{graham2003}. To identify the microclimate variable that best explained variation in each of the above response variables, we performed model selection among seven models that included each microclimate predictor as an individual covariate, and chose the best performing model based on $AICc$. Thus, we analyzed the effect of the chosen microclimate variable on the mean proportion of adult females emerging per tray, time to female emergence, and female body size by fitting linear mixed effects models to each response variable with site included as a random factor. We were unable to quantify the effect of larval microclimate on metrics of vector competence at the tray level because mosquitoes were pooled by site to ensure enough adults were available for infection assays. Instead, we fit linear regressions to each response variable using the estimated mean daily temperature and relative humidity per site as predictor variables. 
+
+\section{Results}
+
+Of the 3,600 first-instar larvae placed in each season, a total of 2595 and 1128 mosquitoes emerged in the summer and fall, respectively. A total of 319 female mosquitoes were assessed for infection status, twenty per site in the summer, and varying numbers per site in the fall due to lower emergence rates (sample sizes reported in Supp. Table 1). Of this number, a total of 291 wings were mounted and measured (28 wings were damaged). Of the uninfected mosquitoes, 135 and 162 female wing lengths were measured in the summer and fall replicates, respectively.
+
+
+\subsection{Effects of land class and season on microclimate}
+
+We found that microclimate profiles differed significantly across both season and land class (results of significance tests reported in Supp. Table 2). Across all sites, the mean temperature was 7.73 $\pm$ 0.35 \degree C higher in the summer than the fall. Urban sites were significantly hotter than both suburban and rural sites (1.26 $\pm$ 0.41 \degree C and 1.68 $\pm$ 0.41 \degree C warmer, respectively), however there was no evidence for a difference between rural and suburban land classes (0.422 $\pm$ 0.4 \degree C difference between land classes), a trend that persisted across seasons. The difference in minimum temperatures was similar to that found for mean temperatures, with minimum temperatures 10.62 $\pm$ 0.69 \degree C higher in the summer than the fall. Again, urban sites had a significantly higher minimum temperature than rural sites (2.36 $\pm$ 0.55 \degree C warmer). The maximum temperature did not change significantly with land class (Supp. Table 2), but was significantly different across season, with summer maximum temperatures 3.87 $\pm$ 0.64 \degree C higher than fall maximum temperatures. This in turn translated into more variable temperatures in the fall than the summer, with fall mosquitoes experiencing a mean DTR that was 6.65 $\pm$ 0.68 \degree C higher than summer mosquitoes. DTR also differed across land class, with rural sites having the largest DTR (16.50 $\pm$ 0.708 \degree C) compared to suburban and urban ranges, which were not significantly different from each other.
+
+
+\begin{figure}
+\centering\includegraphics[width=0.9\linewidth]{temperature.pdf}
+\caption{Microclimate differed significantly across both season and land class. Date ranges with green and orange background represent the summer and fall trials, respectively. The solid line represents the mean temperature across trays in each land class. The dotted lines represent the mean minimum and maximum temperatures across trays in each land class.}
+\label{fig:temperature}
+\end{figure}
+
+Relative humidity also differed across season and land class (Supp. Fig. 1, Supp. Table 2). Mean relative humidity was 12.86 $\pm$ 0.94 \% higher in summer than fall, and was lower at urban land sites compared to rural and suburban sites within a season (urban: 78.266 $\pm$ 1.79 \%, rural: 86.36 $\pm$ 1.79, suburban: 86.51 $\pm$ 1.79). Similarly, the minimum relative humidity was 25.78 $\pm$ 2.50 \% higher in the summer than the fall. This resulted in a larger daily relative humidity range (DHR) in the fall compared to the summer (summer:26.85 $\pm$ 1.94 \% DHR, fall: 49.89 $\pm$ 1.74\% DHR), and no difference across land class.
+
+\subsection{Direct effects of land class, season, and microclimate on population growth}
+
+The total proportion of adult females emerging per tray was significantly higher in summer than fall ($\chi^2=71.54.32$, $p<0.001$), but did not differ across land class (Fig. \ref{fig:growth}A). There was a strong positive relationship between mean daily temperature and larval survival to emergence by tray (Table \ref{table:modelResults}, $t=8.09$, $p<0.001$), a possible explanation for the difference in larval survival between the summer and fall replicates. The mean rate of larval development per tray (defined as the inverse of the time to emergence) was significantly different between summer and fall (Fig. \ref{fig:growth}B, $\chi^2=588.04$, $p<0.001$), with daily development rates of 0.074 $\pm$ 0.002 $day^{-1}$ and 0.0387 $\pm$ 0.002 $day^{-1}$, respectively. Similarly, there was a significant positive relationship between temperature and larval development rate (Table \ref{table:modelResults}, $t=6.89$, $p<0.001$). 
+
+\begin{figure}
+\centering\includegraphics[height=15cm, keepaspectratio]{survEmergeGrowth.pdf}
+\caption{Female larval a) survival rate, b) development rate and c) population growth rate across the summer and fall trials and three land classes.}
+\label{fig:growth}
+\end{figure}
+
+\subsection{Carry-over effects of land class, season, and microclimate on population growth}
+
+We did not observe a significant effect of land class or season on mosquito wing size, with the null model receiving the lowest $AICc$. After incorporating the number of adult females emerging per day, the date of emergence, and their body size into the per capita growth rate equation (Equation \ref{eq:1}), we found that the estimated per capita growth rate was higher in the summer season than the fall season ($\chi^2=217.58$, $p<0.001$)(Fig. \ref{fig:growth}C). There was no evidence for a difference in population growth across land class or temperature.
+
+\subsection{Carry-over effects of land class, season, and microclimate on vector competence}
+
+We found that both land class and season did significantly impact the probability of a mosquito becoming infected and disseminating dengue infection (Fig. \ref{Fig:Infxclass}, Supp. Table 1). In general, mosquitoes in the fall had a higher probability of infection and dissemination  than those in the summer, and urban mosquitoes had a lower probability of infection than suburban and rural mosquitoes (Supp. Table 1). The probability of becoming infectious did not differ across land class, nor season, despite the higher probability of mosquito infection and dissemination in the fall and on suburban and rural sites. This suggests that the ability of virus to penetrate the salivary glands differs in adults reared in the summer vs. the fall and across land class, with a higher proportion of dengue infected mosquitoes becoming infectious in the summer and on urban sites (Supp. Table 1, $\chi^2=13.65$, $p<0.001$). Finally, we also found the probability of infection to decline with increasing body size ($z=-2.18$, $p=0.0289$), although there was no evidence for a relationship between body size and the probability of dissemination or infectiousness. 
+
+Differences in metrics of vector competence across land class and season were driven by a strong relationship with microclimate. Across the range of temperatures in our study, we found that infection and dissemination rates decreased with increasing mean daily temperatures, while there was no relationship between infectiousness and mean daily temperature (Table \ref{table:modelResults}).
+
+\begin{figure}
+\centering\includegraphics[height=15cm, keepaspectratio]{landclassXseasonInfection.pdf}
+\caption{Infection dynamics (infected, disseminated, and infectious mosquitoes) across land class and season. Bars represent mean and standard errors of raw data across sites (n=3 per treatment).}
+\label{Fig:Infxclass}
+\end{figure}
+
+% \begin{figure}
+% \centering\includegraphics[width=0.9\linewidth]{InfxTemp3Panel.pdf}
+% \caption{Effect of temperature on a) infection, b) dissemination, and c) infectiousness. Each point represents the mean of a site, with error bars representing standard errors.}
+% \label{Fig:tempxInf}
+% \end{figure}
+
+\begin{table}
+\centering
+\begin{tabular}{P{0.3\linewidth}P{0.15\linewidth}P{0.15\linewidth}P{0.15\linewidth}P{0.1\linewidth}}
+\hline
+\textbf{Response Variable} & \textbf{$\beta_{Temp}$}  & \textbf{$\beta_{RH}$} & \textbf{$\beta_{Temp x RH}$} & \textbf{$R^2$}\\
+\hline
+\hline
+Survival & 2.716*** & \textit{-} & \textit{-} & 0.601 \\
+Development Rate ($day^{-1}$) & 0.016*** & 0.00382*** & -0.00014*** & 0.743 \\
+Per Capita Growth Rate (r')  & 0.0127*** & \textit{-} & \textit{-} & 0.787 \\
+\hline
+Infection (Body) & -0.129*** & 0.0376* & \textit{-} & 0.586\\
+Dissemination (Head) & -0.0667*** & 0.0160* & \textit{-} & 0.591 \\
+Infectiousness (Saliva) & \textit{-} & 0.0459 & \textit{-} & 0.155\\
+Vectorial Capacity ($VC$) & 0.779*** & \textit{-} & \textit{-} & 0.548\\
+\hline
+\end{tabular}
+\caption{Relationship between microclimate variables and population and infection dynamics of mosquitoes. Linear mixed effect models were used to determine the effect of temperature on survival, development, population growth rate, and vectorial capacity, with site as a random effect, while generalized linear models with logit-link functions were used in the calculation of virus dynamics. Conditional $R^2$ values for linear mixed models were calculated via \citet{nakagawa2013}. Superscripts represent significance as calculated by Wald Chi-square tests with Holm-Bonferroni corrections (*$p<0.5$, **$p<0.01$,***$p<0.001$).}
+\label{table:modelResults}
+\end{table}
+
+\subsection{Integrating direct and carry-over effects into estimates of transmission potential}
+
+When calculating $VC$ without the inclusion of carry-over effects, $VC$ was  higher in the summer than the fall ($\chi^2=35.84$, $p<0.001$), however this trend disappeared when carry-over effects were included. In the summer season, there was a trend for $VC$ to increase with increasing urbanization; that is, urban sites had higher predicted vectorial capacity than suburban, which had a higher value than rural. This trend was not significant, however, given the small sample size (n=9) and the disproportional impact of having no infectious mosquitoes at one site, resulting in a value of $VC=0$ for one sample. Further, we found that calculated vectorial capacity increased with temperature for both models, although the increase was more pronounced when not accounting for carry-over effects (Fig. \ref{Fig:VC}, $\beta=0.77$ and $\beta=3.80$ for models with and without carry-over effects, respectively). When comparing $VC$ calculations with and without carry-over effects, we found that including carry-over effects decreased the expected vectorial capacity overall by an average of 84.89 $\pm$ 2.86 \%. 
+
+\begin{figure}
+\centering\includegraphics[width=0.9\linewidth]{VCPlot.pdf}
+\caption{The calculated vectorial capacity by site across individual mean temperature prior to infection assays (a). The incorporation of carry-over effects reduces the expected vectorial capacity at sites, although the effect is lessened at cooler temperatures. Inset charts on the right indicate calculated vectorial capacity without carry-over effects (b), with carry-over effects (c), and the percent difference due to the incorporation of carry-over effects (d). Error bars represent standard error.
+}
+\label{Fig:VC}
+\end{figure}
+
+\section{Discussion}
+
+%Opening paragraph: We found that vectorial capacity (i.e. disease dynamics) differed across the microclimate of an urban landscape, and that this relationship was further mediated by the inclusion of carry-over effects. 
+
+Mathematical models of mosquito-borne disease rarely include the larval stage of the life cycle \citep{reiner2013}, and of those that do, few include the influence of carry-over effects on important mosquito life-history traits (but see \citealt{roux2015a}). This is likely due, in part, to the lack of empirical studies parameterizing the carry-over effects of the larval environment in mosquito-pathogen systems \citep{parham2015}, most of which are laboratory studies conducted across a wider range of temperatures than that seen in the field. Here, we demonstrate that fine-scale differences in larval microclimate generate carry-over effects on adult vector competence and fecundity, resulting in variation in mosquito population dynamics and transmission potential across an urban landscape and across season, driven by differences in microclimate.
+
+%Microclimate paragraph: evidence of urban heat island? Seasonal differences? RH + temp, mediated by rainfall makes this different, could speak to droughts and lack of study of that.
+
+We found evidence of an urban heat island effect across the landscape of Athens, GA, with temperatures in urban sites warmer relative to rural and suburban sites, between which there were no differences. This finding validates our original classification of land classes based on impervious surface, although it suggests that it is only at intermediate to high levels of impervious surface ($> \%40$) that the urban heat island effect manifests. When comparing relative humidity across land class within a season, warmer urban sites had lower relative humidity than rural and suburban sites. This is not surprising, as temperature and relative humidity are negatively correlated, given that warmer air has a lower capacity to hold water. However, we did find relative humidity to be higher in the summer than the fall. We believe this was caused by a drought during the fall replicate, during which our study site received no rainfall as compared to 47.50 mm of rainfall during the summer replicate (Georgia Automated Environmental Monitoring Network, http://www.georgiaweather.net/), resulting in lower atmospheric moisture during the fall replicate. 
+
+%Given microclimate results, do our results match what others have found? Yes, regarding development rate and survival, but not for the body size. Why might this be? Extreme minimum temperatures of our experiment, role of RH (i.e. no rainfall in fall replicate)
+
+The subtle heterogeneity in microclimate we observed resulted in significantly different predicted population growth rates through its effects on larval survival, development rates, and female body size. We found adult female emergence to be higher in the summer than the fall due to a strong positive relationship with daily mean temperature. Daily mean temperatures (25.43 \degree C) across all sites in the summer were closer to the predicted thermal optimum of \textit{Ae. albopictus} for the probability of egg to adult survival ($p_{EA}$; 24-25 \degree C) \citep{mordecai2017} than in the fall (17.69 \degree C). While this result contrasts with patterns observed in a previous study on these field sites that found lower adult emergence in the summer relative to the fall \citep{murdock2017}, it is likely due to seasonal differences in microclimate and timing of when these two studies were conducted (summer and fall replicates in June-July and September-October in 2015 versus August-September and September-November in 2016). We also observed more rapid larval development rates ($MDR$) in the summer relative to the fall, and on warmer urban sites in the fall only. Again, this is likely due to the strong positive relationship observed between $MDR$ and  mean larval temperature, as the metabolic rate of mosquitoes and this trait have been shown to increase with warming temperatures \citep{delatte2009,mordecai2017}. Surprisingly, we found no effect of land class or season on female mosquito body size, in spite of the difference in temperatures across season. Following allometric temperature-size relationships of ectotherms, warmer larval temperatures lead to smaller bodied mosquitoes \citep{angilleta2004,kingsolver2008}. Our results are contrary to many laboratory studies that have found cold rearing temperatures result in large bodied mosquitoes (\textit{Ae. albopictus} \citep{reiskind2012a}, \textit{Culex tarsalis} \citep{dodson2012}, \textit{Anopheles gambiea} \citep{koella1996}).
+
+There could be several explanations for why we did not observe an effect of larval environmental temperature on adult body size. Nutrient availability and quality has been shown to mediate the relationship between temperature and body size \citep{farjana2011}. The majority of the above laboratory studies rear larvae on high quality food sources, such as fish food or liver powder. The leaf infusion used in our experiment relied on yeast and naturally colonizing microorganisms such as bacteria, both of which grow more slowly at low temperatures \citep{ratkowsky1982}, likely constraining growth of larvae. For example, \citet{lounibos2002} provided leaf litter as a nutrient source, and found a positive relationship between temperature and male \textit{Ae. albopictus} body size. However, a study in this system in 2015 found a negative relationship between larval temperature and adult \textit{Ae. albopictus} body size \citep{murdock2017} when reared on a similar leaf infusion as used in this experiment. There were, however, several key differences between the 2015 study and our study. First, the 2015 study was conducted in July and September rather than August and October, which resulted in cooler temperature profiles for the 2016 study relative to the 2015 study. As with many other mosquito life history traits \citep{mordecai2017, mordecai2013}, \textit{Ae. albopictus} body mass has a non-linear relationship with temperature across the range of 20 - 30 \degree C \citep{muturi2011c}. Assuming body size scales similarly, the 2016 study would fall nearer the lower extreme of the thermal function resulting in smaller bodied mosquitoes at colder temperatures. Second, while we initially provided larvae similar amounts of food as the 2015 study, our larvae were reared in trays instead of bell jars, which had higher surface to volume ratio and experienced more evaporation overall. Thus, increased evaporation on warmer sites and during the summer could concentrate the amount of food provided per larvae over time resulting in larger bodied mosquitoes with increasing larval temperatures.
+
+When larval survival, mosquito development rates, and body size at emergence were combined into a mosquito population dynamic model, we found significant influences of land class, season, and microclimate on the per capita growth rate of mosquito populations. Overall, mosquito per capita growth rates were higher in the summer relative to the fall due to higher adult daily emergence and more rapid mosquito development rates. Unlike the summer, where land class did not significantly affect mosquito population growth rates, urban sites were predicted to have higher population growth rates than suburban and rural sites in the fall due to higher larval survival and development rates. Other studies have found mosquito population growth rates to vary with increasing urbanization \citep{li2014}, deforestation \citep{afrane2007}, and with season \citep{murdock2017}. Our study, however, suggests the effects of microclimate variation with land class on mosquito population dynamics can be dependent on coarser climactic patterns such as seasonality.
+
+% Infection results. Matches body size (i.e. larger mosquitoes are less infected). 
+
+Our results agree with laboratory studies in other arboviral systems (chikungunya \citep{westbrook2010, adelman2013}, yellow fever \citep{adelman2013}, and Rift Valley fever \citep{turell1993}) that found cool larval environmental temperatures to enhance arbovirus infection relative to warmer larval environments. Studies on the \textit{Ae. albopictus}-dengue virus system have also found that low larval temperatures enhance mosquito susceptibility to virus infection, although this was dependent on larval nutrition \citep{buckner2016} and the stage of the infection (i.e. mid-gut vs. dissemination vs. saliva) \citep{alto2013}. While we found infection and dissemination to decrease with increasing temperatures, there was no effect of temperature on viral presence in the saliva. Our findings suggest that carry over effects due to microclimate variation across land class and season affects the overall efficiency of dengue infections. Thus, even though a smaller proportion of mosquitoes reared on urban sites and in the summer became infected and disseminated infection, these mosquitoes were more likely to become infectious. This, in turn, resulted in no net difference in the proportion of mosquitoes that ultimately become infectious across land class and season and suggests that later stages of viral infection (i.e. salivary gland penetration) may be differentially impacted by larval environmental temperature than earlier stages (i.e. midgut escape).
+
+Current statistical and mechanistic models of vector-borne disease prediction focus primarily on the direct effects of environmental variables on mosquito densities and disease transmission and rarely include the effects of the larval stage (\citealt{mordecai2017}, see \citealt{reiner2015} for a review of models in the \textit{P. falciparum} system). Even fewer consider the lasting impact of this stage on adult traits relevant for fitness and disease transmission \citep{ezeakacha2015}. We find that when carry over effects are not incorporated, mechanistic models overestimate the effects of key environmental drivers (e.g. temperature) on vector-borne disease transmission. The relatively small differences in temperature across our study site (less than 1.5 \degree C) resulted in a two-fold difference in predicted vectorial capacity when omitting carry-over effects. While overall transmission potential still exhibited a positive relationship with increasing temperature, the inclusion of carry-over effects dampened this effect.
+
+Past studies of carry-over effects have been primarily lab based, allowing for detailed study of the mechanisms of how carry-over effects impact mosquito life history traits \citep{alto2008, alto2005}, but limiting extrapolation to real world conditions. However, many of these studies are conducted across wide environmental gradients at constant temperatures that are not characteristic of field conditions. Like these laboratory studies, we found carry-over effects to be pervasive, with important implications for mosquito population dynamics and potential disease transmission, despite the subtle differences in microclimate observed across land class and season. Thus, we would expect these phenomena to have an even larger impact in more urbanized areas, particularly megacities, with larger seasonal and spatial microclimate ranges \citep{peng2012}. 
+
+%Other things to consider with carry over effects - temperature does not explain everything, likely interactions occurring with other abiotic and biotic factors and issues of scale.
+
+Additionally, carry-over effects are not simply limited to microclimate, and have been observed as a result of variation in larval nutrition \citep{moller-jacobs2014}, intra- and inter-specific densities \citep{reiskind2009a, alto2005, alto2008}, and predation \citep{roux2015a} in mosquito systems. Abiotic and biotic factors will likely interact to influence carry over effects \citep{buckner2016, muturi2011d, muturi2012a, muturi2011b, muturi2010}, and how abiotic and biotic factors shape carry-over effects could be scale-dependent. For example, biotic processes are thought to be more important at local geographic scales, while abiotic processes tend to dominate at regional geographic scales in predictive models of species distributions \citep{cohen2016}. There is also evidence to suggest that the magnitude of the interaction between abiotic and biotic processes on carry over effects is scale-dependent \citep{leisnham2014}. Future exploration of the scale-dependent contribution of different environmental factors, their interactions, to carry-over effects is needed to improve models of mosquito distributions, population dynamics, and disease transmission.
+
+%Final paragraph: Declaration of main finding, statement of new question, identification of concrete application
+
+In conclusion, we found fine-scale variation in microclimate to shape mosquito population dynamics and the transmission potential of mosquito-borne diseases both through direct impacts on larval survival and development rates, and indirectly through carry-over effects on vector competence and fecundity. Our study suggests that more empirical work in the lab and field is needed to better characterize carry over effects associated with relevant environmental drivers. The interaction between the larval and adult environments, mediated by carry-over effects, could have complex consequences for adult phenotypes and fitness for mosquitoes as well as other organisms. Given the devastating impact of disease in other species with complex life histories (e.g. chytridiomycosis in amphibians), the role of carry-over effects in disease transmission may be an important, though understudied, mechanism that must be better understood to control disease spread. Thus, incorporating relationships between carry-over effects and organismal life-history traits into statistical and mechanistic models will lead to more accurate predictions on the distributions of species, population dynamics, and the transmission of pathogens and parasites. 
+
+\section{Acknowledgements}
+We thank members of the Murdock and Brindley labs for discussion and technical support conducting viral assays. We thank Diana Diaz, Abigail Lecroy, and Marco Notarangelo for assistance in the field and lab. This work was supported by the University of Georgia (Presidential Fellowship, College of Veterinary Medicine, Department of Infectious Diseases) the National Science Foundation Graduate Research Fellowship, and the National Science Foundation Research Experiences for Undergraduates (Grant No. 1156707). 
+
+\section{Contributions}
+M.V.E, J.M.D, and C.C.M designed the study; M.V.E, J.C.S. and N.S. collected the data; M.V.E. and M.A.B. cultured virus and conducted CPE assays; M.V.E, J.M.D, and C.C.M analyzed the data; M.V.E., J.M.D, and C.C.M prepared the tables and figures; M.V.E., J.C.S., N.S., M.A.B., J.M.D, and C.C.M drafted the manuscript. All authors gave final approval for publication.
+
+\section{Data accessibility}
+All data and code used in analyses are available on figshare (DOI).
+
+\newpage
+\begin{figure}
+\centering\includegraphics[width=0.9\linewidth]{relativeHumidity.pdf}
+\caption{Supplementary Figure 1. Relative humidity across both replicates.}
+\end{figure}
+
+\begin{table}
+\centering
+\begin{tabular}{P{0.12\linewidth}P{0.12\linewidth}P{0.12\linewidth}P{0.12\linewidth}P{0.15\linewidth}P{0.15\linewidth}}
+\hline
+\textbf{Season} & \textbf{Land Class} & \textbf{No. tested} & \textbf{No. infected (\%)}  & \textbf{No. disseminated (\%)} & \textbf{No. infectious (\%)} \\
+\hline
+\hline
+\textit{Summer} &   &   &   &   \\
+  		& Rural & 56 & 22 (39) & 19 (48) & 6 (15) \\
+		& Suburban & 57 & 32 (56) & 26 (81) & 10 (31) \\
+		& Urban & 51 & 10 (20) & 10 (100) & 7 (70) \\
+
+\textit{Fall} &   &   &   &   \\
+  		& Rural & 50 & 32 (64) & 30 (94) & 3 (9) \\
+		& Suburban & 43 & 28 (65) & 25 (89) & 3 (11) \\
+		& Urban & 51 & 10 (20) & 10 (100) & 7 (70) \\
+\hline
+\end{tabular}
+\caption{Supplemental Table 1. The efficiency rates of infection (mosquitoes with dengue positive bodies), dissemination (infected mosquitoes with dengue positive heads) and infectiousness (infected mosquitoes with dengue positive saliva) across season and land class. Raw numbers of positive samples are shown with percentages in parentheses.}
+\end{table}
+
+\begin{table}
+\centering
+\begin{tabular}{P{0.10\linewidth}P{0.10\linewidth}P{0.10\linewidth}P{0.10\linewidth}P{0.10\linewidth}P{0.10\linewidth}P{0.10\linewidth}P{0.10\linewidth}}
+\hline
+\textbf{ } & \textbf{Min. Temp.} & \textbf{Mean Temp.} & \textbf{Max. Temp.}  & \textbf{DTR} & \textbf{Min. RH} & \textbf{Mean RH} & \textbf{DHR} \\
+\hline
+
+Land Class ($\chi^2_2$) 		& $12.40$**  		& $16.16$***  	& $3.71$		& $8.23$*		& $9.93$**		& $22.91$***	& $0.85$\\
+Season 	($\chi^2_1$)			& $1809.77.77$*** 	& $1320.55$*** 	& $362.39$*** 	& $549.30$*** 	& $838.43.93$***& $745.35$***	& $755.49$***\\
+Land Class x Season ($\chi^2_2$)& $6.6$* 			& $3.21$  		& $1.13$		& $11.79$**		& $3.77$		& $11.12$**		& $28.57$***\\
+\hline
+\end{tabular}
+\caption{Supplemental Table 2. Chi-square values (subscripts represent degrees of freedom) resulting from linear mixed models analyzing effect of land class and season on microclimate variables. Superscripts represent significance as calculated by Wald Chi-square tests with Holm-Bonferroni corrections (*$p<0.5$, **$p<0.01$,***$p<0.001$).}
+\end{table}
+
+
+\newpage
+
+\bibliographystyle{ecologynoURL}
+\bibliography{references}
+
+\end{document}

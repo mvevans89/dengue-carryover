@@ -1,0 +1,587 @@
+\begin{thebibliography}{72}
+\expandafter\ifx\csname natexlab\endcsname\relax\def\natexlab#1{#1}\fi
+\expandafter\ifx\csname url\endcsname\relax
+  \def\url#1{{\tt #1}}\fi
+\expandafter\ifx\csname urlprefix\endcsname\relax\def\urlprefix{URL }\fi
+
+\bibitem[{Adelman et~al.(2013)Adelman, Anderson, Wiley, Murreddu, Samuel,
+  Morazzani, and Myles}]{adelman2013}
+Adelman, Z.~N., M.~A.~E. Anderson, M.~R. Wiley, M.~G. Murreddu, G.~H. Samuel,
+  E.~M. Morazzani, and K.~M. Myles.
+\newblock 2013.
+\newblock Cooler {{Temperatures Destabilize RNA Interference}} and {{Increase
+  Susceptibility}} of {{Disease Vector Mosquitoes}} to {{Viral Infection}}.
+\newblock PLOS Neglected Tropical Diseases {\bf 7}:e2239.
+
+\bibitem[{Afrane et~al.(2007)Afrane, Zhou, Lawson, Githeko, and
+  Yan}]{afrane2007}
+Afrane, Y.~A., G.~Zhou, B.~W. Lawson, A.~K. Githeko, and G.~Yan.
+\newblock 2007.
+\newblock Life-table analysis of {Anopheles} arabiensis in western {Kenya}
+  highlands: effects of land covers on larval and adult survivorship.
+\newblock The American Journal of Tropical Medicine and Hygiene {\bf
+  77}:660--666.
+
+\bibitem[{Alto and Bettinardi(2013)}]{alto2013}
+Alto, B.~W., and D.~Bettinardi.
+\newblock 2013.
+\newblock Temperature and Dengue Virus Infection in Mosquitoes: Independent
+  Effects on the Immature and Adult Stages.
+\newblock The American Journal Of Tropical Medicine And Hygiene {\bf
+  88}:497--505.
+
+\bibitem[{Alto and Juliano(2001)}]{alto2001}
+Alto, B.~W., and S.~A. Juliano.
+\newblock 2001.
+\newblock Temperature {{Effects}} on the {{Dynamics}} of {{Aedes}}
+  Albopictus({{Diptera}}: {{Culicidae}}) {{Populations}} in the {{Laboratory}}.
+\newblock J Med Entomol {\bf 38}:548--556.
+
+\bibitem[{Alto et~al.(2005)Alto, Lounibos, Higgs, and Juliano}]{alto2005}
+Alto, B.~W., L.~P. Lounibos, S.~Higgs, and S.~A. Juliano.
+\newblock 2005.
+\newblock Larval {{Competition Differentially Affects Arbovirus Infection}} in
+  {{Aedes Mosquitoes}}.
+\newblock Ecology {\bf 86}:3279--3288.
+
+\bibitem[{Alto et~al.(2008)Alto, Reiskind, and Lounibos}]{alto2008}
+Alto, B.~W., M.~H. Reiskind, and L.~P. Lounibos.
+\newblock 2008.
+\newblock Size Alters Susceptibility of Vectors to Dengue Virus Infection and
+  Dissemination.
+\newblock Am. J. Trop. Med. Hyg. {\bf 79}:688--695.
+
+\bibitem[{Anderson et~al.(2010)Anderson, Richards, and Smartt}]{anderson2010}
+Anderson, S.~L., S.~L. Richards, and C.~T. Smartt.
+\newblock 2010.
+\newblock A {Simple} {Method} for {Determining} {Arbovirus} {Transmission} in
+  {Mosquitoes}.
+\newblock Journal of the American Mosquito Control Association {\bf
+  26}:108--111.
+
+\bibitem[{Angilleta et~al.(2004)Angilleta, Steury, and Sears}]{angilleta2004}
+Angilleta, M.~J., T.~D. Steury, and M.~W. Sears.
+\newblock 2004.
+\newblock Temperature, Growth Rate, and Body Size in Ectotherms: Fitting Peice
+  of a Life-History Puzzle.
+\newblock Integrative and Comparative Biology {\bf 44}:498--509.
+
+\bibitem[{Balaya et~al.(1969)Balaya, Paul, D'Lima, and Pavri}]{balaya1969}
+Balaya, S., S.~Paul, L.~D'Lima, and K.~Pavri.
+\newblock 1969.
+\newblock Investigations on an Outbreak of Dengue in {{Delhi}} in 1967.
+\newblock Indian J. Med. Res. {\bf 57}:767--774.
+
+\bibitem[{Bates et~al.(2015)Bates, M{\"a}chler, Bolker, and
+  Walker}]{lmePackage}
+Bates, D., M.~M{\"a}chler, B.~Bolker, and S.~Walker.
+\newblock 2015.
+\newblock Fitting Linear Mixed-Effects Models Using {lme4}.
+\newblock Journal of Statistical Software {\bf 67}:1--48.
+
+\bibitem[{Buckner et~al.(2016)Buckner, Alto, and Lounibos}]{buckner2016}
+Buckner, E.~A., B.~W. Alto, and L.~P. Lounibos.
+\newblock 2016.
+\newblock Larval {{Temperature}}\textendash{}{{Food Effects}} on {{Adult
+  Mosquito Infection}} and {{Vertical Transmission}} of {{Dengue}}-1 {{Virus}}.
+\newblock J Med Entomol {\bf 53}:91--98.
+
+\bibitem[{Cator et~al.(2013)Cator, Thomas, Paaijmans, Ravishankaran, Justin,
+  Mathai, Read, Thomas, and Eapen}]{cator2013}
+Cator, L.~J., S.~Thomas, K.~P. Paaijmans, S.~Ravishankaran, J.~A. Justin, M.~T.
+  Mathai, A.~F. Read, M.~B. Thomas, and A.~Eapen.
+\newblock 2013.
+\newblock Characterizing Microclimate in Urban Malaria Transmission Settings: A
+  Case Study from {{Chennai}}, {{India}}.
+\newblock Malaria Journal {\bf 12}:1--1.
+
+\bibitem[{Cheng et~al.(2016)Cheng, Liu, Wang, and Xiao}]{cheng2016}
+Cheng, G., Y.~Liu, P.~Wang, and X.~Xiao.
+\newblock 2016.
+\newblock Mosquito defense strategies against viral infection.
+\newblock Trends in parasitology {\bf 32}:177--186.
+
+\bibitem[{Cohen et~al.(2016)Cohen, Civitello, Brace, Feichtinger, Ortega,
+  Richardson, Sauer, Liu, and Rohr}]{cohen2016}
+Cohen, J.~M., D.~J. Civitello, A.~J. Brace, E.~M. Feichtinger, C.~N. Ortega,
+  J.~C. Richardson, E.~L. Sauer, X.~Liu, and J.~R. Rohr.
+\newblock 2016.
+\newblock Spatial Scale Modulates the Strength of Ecological Processes Driving
+  Disease Distributions.
+\newblock PNAS {\bf 113}:E3359--E3364.
+
+\bibitem[{De~Block and Stoks(2005)}]{deblock2005a}
+De~Block, M., and R.~Stoks.
+\newblock 2005.
+\newblock Fitness {{Effects}} from {{Egg}} to {{Reproduction}}: {{Bridging}}
+  the {{Life History Transition}}.
+\newblock Ecology {\bf 86}:185--197.
+
+\bibitem[{Delatte et~al.(2009)Delatte, Gimonneau, Triboire, and
+  Fontenille}]{delatte2009}
+Delatte, H., G.~Gimonneau, A.~Triboire, and D.~Fontenille.
+\newblock 2009.
+\newblock Influence of {{Temperature}} on {{Immature Development}},
+  {{Survival}}, {{Longevity}}, {{Fecundity}}, and {{Gonotrophic Cycles}} of
+  {{Aedes}} Albopictus, {{Vector}} of {{Chikungunya}} and {{Dengue}} in the
+  {{Indian Ocean}}.
+\newblock J Med Entomol {\bf 46}:33--41.
+
+\bibitem[{Dodson et~al.(2012)Dodson, Kramer, and Rasgon}]{dodson2012}
+Dodson, B.~L., L.~D. Kramer, and J.~L. Rasgon.
+\newblock 2012.
+\newblock Effects of Larval Rearing Temperature on Immature Development and
+  {{West Nile}} Virus Vector Competence of {{Culex}} Tarsalis.
+\newblock Parasites \& Vectors {\bf 5}:199.
+
+\bibitem[{Ezeakacha(2015)}]{ezeakacha2015}
+Ezeakacha, N.~F., 2015.
+\newblock Environmental impacts and carry-over effects in complex life cycles:
+  the role of different life history stages.
+\newblock Ph.D. thesis, University of Southern Mississippi.
+
+\bibitem[{Farjana et~al.(2011)Farjana, Tuno, and Higa}]{farjana2011}
+Farjana, T., N.~Tuno, and Y.~Higa.
+\newblock 2011.
+\newblock Effects of Temperature and Diet on Development and Interspecies
+  Competition in {{Aedes}} Aegypti and {{Aedes}} Albopictus.
+\newblock Medical and Veterinary Entomology {\bf 26}:210--217.
+
+\bibitem[{Graham(2003)}]{graham2003}
+Graham, M.~H.
+\newblock 2003.
+\newblock Confronting {Multicollinearity} in {Ecological} {Multiple}
+  {Regression}.
+\newblock Ecology {\bf 84}:2809--2815.
+
+\bibitem[{Grimstad and Walker(1991)}]{grimstad1991}
+Grimstad, P.~R., and E.~D. Walker.
+\newblock 1991.
+\newblock Aedes Triseriatus ({{Diptera}}: {{Culicidae}}) and {{La Crosse}}
+  Virus. {{IV}}. {{Nutritional}} Deprivation of Larvae Affects the Adult
+  Barriers to Infection and Transmission.
+\newblock J. Med. Entomol. {\bf 28}:378--386.
+
+\bibitem[{Harrison et~al.(2011)Harrison, Blount, Inger, Norris, and
+  Bearhop}]{harrison2011}
+Harrison, X.~A., J.~D. Blount, R.~Inger, D.~R. Norris, and S.~Bearhop.
+\newblock 2011.
+\newblock Carry-over Effects as Drivers of Fitness Differences in Animals.
+\newblock J. Anim. Ecol. {\bf 80}:4--18.
+
+\bibitem[{Hurlbut(1966)}]{hurlbut1966}
+Hurlbut, H.~S.
+\newblock 1966.
+\newblock Mosquito salivation and virus transmission.
+\newblock The American Journal of Tropical Medicine and Hygiene {\bf
+  15}:989--993.
+
+\bibitem[{Inger et~al.(2010)Inger, Harrison, Ruxton, Newton, Colhoun,
+  Gudmundsson, McElwaine, Pickford, Hodgson, and Bearhop}]{inger2010}
+Inger, R., X.~A. Harrison, G.~D. Ruxton, J.~Newton, K.~Colhoun, G.~A.
+  Gudmundsson, G.~McElwaine, M.~Pickford, D.~Hodgson, and S.~Bearhop.
+\newblock 2010.
+\newblock Carry-over Effects Reveal Reproductive Costs in a Longdistance
+  Migrant.
+\newblock J. Anim. Ecol. {\bf 79}:974--982.
+
+\bibitem[{Jourdan et~al.(2016)Jourdan, Baier, Riesch, Klimpel, Streit, Müller,
+  and Plath}]{jourdan2016}
+Jourdan, J., J.~Baier, R.~Riesch, S.~Klimpel, B.~Streit, R.~Müller, and
+  M.~Plath.
+\newblock 2016.
+\newblock Adaptive growth reduction in response to fish kairomones allows
+  mosquito larvae ( {Culex} pipiens) to reduce predation risk.
+\newblock Aquatic Sciences {\bf 78}:303--314.
+
+\bibitem[{Kingsolver and Huey(2008)}]{kingsolver2008}
+Kingsolver, J.~G., and R.~B. Huey.
+\newblock 2008.
+\newblock Size, Temperature, and Fitness: Three Rules.
+\newblock Evol Ecol Res {\bf 10}:251--268.
+
+\bibitem[{Koella and Lyimo(1996)}]{koella1996}
+Koella, J.~C., and E.~O. Lyimo.
+\newblock 1996.
+\newblock Variability in the Relationship between Weight and Wing Length of
+  {{Anopheles}} Gambiae ({{Diptera}}: {{Culicidae}}).
+\newblock Journal of Medical Entomology {\bf 33}:261--264.
+
+\bibitem[{Lambrechts et~al.(2011)Lambrechts, Paaijmans, Fansiri, Carrington,
+  Kramer, Thomas, and Scott}]{lambrechts2011}
+Lambrechts, L., K.~P. Paaijmans, T.~Fansiri, L.~B. Carrington, L.~D. Kramer,
+  M.~B. Thomas, and T.~W. Scott.
+\newblock 2011.
+\newblock Impact of Daily Temperature Fluctuations on Dengue Virus Transmission
+  by {{Aedes}} Aegypti.
+\newblock PNAS {\bf 108}:7460--7465.
+
+\bibitem[{Leisnham et~al.(2014)Leisnham, LaDeau, and Juliano}]{leisnham2014}
+Leisnham, P.~T., S.~L. LaDeau, and S.~A. Juliano.
+\newblock 2014.
+\newblock Spatial and {{Temporal Habitat Segregation}} of {{Mosquitoes}} in
+  {{Urban Florida}}.
+\newblock PLoS ONE {\bf 9}.
+
+\bibitem[{Li et~al.(2014)Li, Kamara, Zhou, Puthiyakunnon, Li, Liu, Zhou, Yao,
+  Yan, and Chen}]{li2014}
+Li, Y., F.~Kamara, G.~Zhou, S.~Puthiyakunnon, C.~Li, Y.~Liu, Y.~Zhou, L.~Yao,
+  G.~Yan, and X.-G. Chen.
+\newblock 2014.
+\newblock Urbanization {Increases} {Aedes} albopictus {Larval} {Habitats} and
+  {Accelerates} {Mosquito} {Development} and {Survivorship}.
+\newblock PLoS Neglected Tropical Diseases {\bf 8}:e3301--12.
+
+\bibitem[{Livdahl and Sugihara(1984)}]{livdahl1984}
+Livdahl, T.~P., and G.~Sugihara.
+\newblock 1984.
+\newblock Non-{{Linear Interactions}} of {{Populations}} and the {{Importance}}
+  of {{Estimating Per Capita Rates}} of {{Change}}.
+\newblock The Journal of Animal Ecology {\bf 53}:573--580.
+
+\bibitem[{Livdahl and Willey(1991)}]{livdahl1991}
+Livdahl, T.~P., and M.~S. Willey.
+\newblock 1991.
+\newblock Prospects for an {{Invasion}}: {{Competition}} between {{Aedes}}
+  Albopictus and {{Native Aedes}} Triseriatus.
+\newblock Science {\bf 253}:189--191.
+
+\bibitem[{Lounibos et~al.(2002)Lounibos, Suarez, Menendez, Nishimura, Escher,
+  O'Connell, and Rey}]{lounibos2002}
+Lounibos, L.~P., S.~Suarez, Z.~Menendez, N.~Nishimura, R.~L. Escher, S.~M.
+  O'Connell, and J.~R. Rey.
+\newblock 2002.
+\newblock Does Temperature Affect the Outcome of Larval Competition between
+  {{Aedes}} Aegypti and {{Aedes}} Albopictus?
+\newblock J. of Vec. Eco. {\bf 27}:86--95.
+
+\bibitem[{Lu and Weng(2006)}]{lu2006}
+Lu, D., and Q.~Weng.
+\newblock 2006.
+\newblock Use of Impervious Surface in Urban Land-Use Classification.
+\newblock Remote Sensing of Environment {\bf 102}:146--160.
+
+\bibitem[{Moller-Jacobs et~al.(2014)Moller-Jacobs, Murdock, and
+  Thomas}]{moller-jacobs2014}
+Moller-Jacobs, L.~L., C.~C. Murdock, and M.~B. Thomas.
+\newblock 2014.
+\newblock Capacity of Mosquitoes to Transmit Malaria Depends on Larval
+  Environment.
+\newblock Parasites \& Vectors {\bf 7}:593.
+
+\bibitem[{Monaghan(2008)}]{monaghan2008}
+Monaghan, P.
+\newblock 2008.
+\newblock Early Growth Conditions, Phenotypic Development and Environmental
+  Change.
+\newblock Philos. Trans. R. Soc. Lond. B Biol. Sci. {\bf 363}:1635--1645.
+
+\bibitem[{Mordecai et~al.(2017)Mordecai, Cohen, Evans, Gudapati, Johnson,
+  Lippi, Miazgowicz, Murdock, Rohr, Ryan, Savage, Shocket, Ibarra, Thomas, and
+  Weikel}]{mordecai2017}
+Mordecai, E.~A., J.~M. Cohen, M.~V. Evans, P.~Gudapati, L.~R. Johnson, C.~A.
+  Lippi, K.~Miazgowicz, C.~C. Murdock, J.~R. Rohr, S.~J. Ryan, V.~Savage, M.~S.
+  Shocket, A.~S. Ibarra, M.~B. Thomas, and D.~P. Weikel.
+\newblock 2017.
+\newblock Detecting the Impact of Temperature on Transmission of {{Zika}},
+  Dengue, and Chikungunya Using Mechanistic Models.
+\newblock PLOS Neglected Tropical Diseases {\bf 11}:e0005568.
+
+\bibitem[{Mordecai et~al.(2013)Mordecai, Paaijmans, Johnson, Balzer, Ben-Horin,
+  {de Moor}, McNally, Pawar, Ryan, Smith, and Lafferty}]{mordecai2013}
+Mordecai, E.~A., K.~P. Paaijmans, L.~R. Johnson, C.~Balzer, T.~Ben-Horin,
+  E.~{de Moor}, A.~McNally, S.~Pawar, S.~J. Ryan, T.~C. Smith, and K.~D.
+  Lafferty.
+\newblock 2013.
+\newblock Optimal Temperature for Malaria Transmission Is Dramatically Lower
+  than Previously Predicted.
+\newblock Ecol. Lett. {\bf 16}:22--30.
+
+\bibitem[{Murdock et~al.(2017)Murdock, Evans, McClanahan, Miazgowicz, and
+  Tesla}]{murdock2017}
+Murdock, C.~C., M.~V. Evans, T.~D. McClanahan, K.~L. Miazgowicz, and B.~Tesla.
+\newblock 2017.
+\newblock Fine-Scale Variation in Microclimate across an Urban Landscape Shapes
+  Variation in Mosquito Population Dynamics and the Potential of {{Aedes}}
+  Albopictus to Transmit Arboviral Disease.
+\newblock PLOS Neglected Tropical Diseases {\bf 11}:e0005640.
+
+\bibitem[{Muturi and Alto(2011)}]{muturi2011b}
+Muturi, E.~J., and B.~W. Alto.
+\newblock 2011.
+\newblock Larval {{Environmental Temperature}} and {{Insecticide Exposure Alter
+  Aedes aegypti Competence}} for {{Arboviruses}}.
+\newblock Vector-Borne and Zoonotic Diseases {\bf 11}:1157--1163.
+
+\bibitem[{Muturi et~al.(2012{\natexlab{{\em a\/}}})Muturi, Blackshear, and
+  Montgomery}]{muturi2012a}
+Muturi, E.~J., M.~Blackshear, and A.~Montgomery.
+\newblock 2012{\natexlab{{\em a\/}}}.
+\newblock Temperature and Density-Dependent Effects of Larval Environment on
+  {{Aedes}} Aegypti Competence for an Alphavirus.
+\newblock J. Vector Ecol. {\bf 37}:154--161.
+
+\bibitem[{Muturi et~al.(2011{\natexlab{{\em a\/}}})Muturi, Costanzo,
+  Kesavaraju, and Alto}]{muturi2011d}
+Muturi, E.~J., K.~Costanzo, B.~Kesavaraju, and B.~W. Alto.
+\newblock 2011{\natexlab{{\em a\/}}}.
+\newblock Can {{Pesticides}} and {{Larval Competition Alter Susceptibility}} of
+  {{Aedes Mosquitoes}} ({{Diptera}}: {{Culicidae}}) to {{Arbovirus Infection}}?
+\newblock Journal of Medical Entomology {\bf 48}:429--436.
+
+\bibitem[{Muturi et~al.(2010)Muturi, Costanzo, Kesavaraju, Lampman, and
+  Alto}]{muturi2010}
+Muturi, E.~J., K.~Costanzo, B.~Kesavaraju, R.~Lampman, and B.~W. Alto.
+\newblock 2010.
+\newblock Interaction of a pesticide and larval competition on life history
+  traits of {Culex} pipiens.
+\newblock Acta Tropica {\bf 116}:141--146.
+
+\bibitem[{Muturi et~al.(2011{\natexlab{{\em b\/}}})Muturi, Kim, Alto,
+  Berenbaum, and Schuler}]{muturi2011a}
+Muturi, E.~J., C.-H. Kim, B.~W. Alto, M.~R. Berenbaum, and M.~A. Schuler.
+\newblock 2011{\natexlab{{\em b\/}}}.
+\newblock Larval Environmental Stress Alters {{Aedes}} Aegypti Competence for
+  {{Sindbis}} Virus.
+\newblock Trop Med Int Health {\bf 16}:955--964.
+
+\bibitem[{Muturi et~al.(2011{\natexlab{{\em c\/}}})Muturi, Lampman, Costanzo,
+  and Alto}]{muturi2011c}
+Muturi, E.~J., R.~Lampman, K.~Costanzo, and B.~W. Alto.
+\newblock 2011{\natexlab{{\em c\/}}}.
+\newblock Effect of Temperature and Insecticide Stress on Life-History Traits
+  of {{Culex}} Restuans and {{Aedes}} Albopictus ({{Diptera}}: {{Culicidae}}).
+\newblock J. Med. Entomol. {\bf 48}:243--250.
+
+\bibitem[{Muturi et~al.(2012{\natexlab{{\em b\/}}})Muturi, Nyakeriga, and
+  Blackshear}]{muturi2012}
+Muturi, E.~J., A.~Nyakeriga, and M.~Blackshear.
+\newblock 2012{\natexlab{{\em b\/}}}.
+\newblock Temperature-Mediated Differential Expression of Immune and
+  Stress-Related Genes in {{Aedes}} Aegypti Larvae.
+\newblock Journal of the American Mosquito Control Association {\bf 28}:79--83.
+
+\bibitem[{Nakagawa and Schielzeth(2013)}]{nakagawa2013}
+Nakagawa, S., and H.~Schielzeth.
+\newblock 2013.
+\newblock A general and simple method for obtaining R2 from generalized linear
+  mixed-effects models.
+\newblock Methods in Ecology and Evolution {\bf 4}:133--142.
+
+\bibitem[{Ng'habi et~al.(2005)Ng'habi, John, Nkwengulila, Knols, Killeen, and
+  Ferguson}]{nghabi2005}
+Ng'habi, K.~R., B.~John, G.~Nkwengulila, B.~G. Knols, G.~F. Killeen, and H.~M.
+  Ferguson.
+\newblock 2005.
+\newblock Effect of Larval Crowding on Mating Competitiveness of {{Anopheles}}
+  Gambiae Mosquitoes.
+\newblock Malaria Journal {\bf 4}:49.
+
+\bibitem[{Norris and Taylor(2006)}]{norris2006}
+Norris, D.~R., and C.~M. Taylor.
+\newblock 2006.
+\newblock Predicting the Consequences of Carry-over Effects for Migratory
+  Populations.
+\newblock Biology Letters {\bf 2}:148--151.
+
+\bibitem[{Parham et~al.(2015)Parham, Waldock, Christophides, Hemming, Agusto,
+  Evans, Fefferman, Gaff, Gumel, LaDeau, Lenhart, Mickens, Naumova, Ostfeld,
+  Ready, Thomas, Velasco-Hernandez, and Michael}]{parham2015}
+Parham, P.~E., J.~Waldock, G.~K. Christophides, D.~Hemming, F.~Agusto, K.~J.
+  Evans, N.~Fefferman, H.~Gaff, A.~Gumel, S.~LaDeau, S.~Lenhart, R.~E. Mickens,
+  E.~N. Naumova, R.~S. Ostfeld, P.~D. Ready, M.~B. Thomas,
+  J.~Velasco-Hernandez, and E.~Michael.
+\newblock 2015.
+\newblock Climate, Environmental and Socio-Economic Change: Weighing up the
+  Balance in Vector-Borne Disease Transmission.
+\newblock Philosophical Transactions of the Royal Society B: Biological
+  Sciences {\bf 370}:20130551--20130551.
+
+\bibitem[{Pascual et~al.(2006)Pascual, Ahumada, Chaves, Rodó, and
+  Bouma}]{pascual2006}
+Pascual, M., J.~A. Ahumada, L.~F. Chaves, X.~Rodó, and M.~Bouma.
+\newblock 2006.
+\newblock Malaria resurgence in the {East} {African} highlands: {Temperature}
+  trends revisited.
+\newblock Proceedings of the National Academy of Sciences of the United States
+  of America {\bf 103}:5829--5834.
+
+\bibitem[{Paulson and Hawley(1991)}]{paulson1991}
+Paulson, S.~L., and W.~A. Hawley.
+\newblock 1991.
+\newblock Effect of body size on the vector competence of field and laboratory
+  populations of {Aedes} triseriatus for {La} {Crosse} virus.
+\newblock Journal of the American Mosquito Control Association {\bf
+  7}:170--175.
+
+\bibitem[{Peng et~al.(2012)Peng, Piao, Ciais, Friedlingstein, Ottle, Br{\'e}on,
+  Nan, Zhou, and Myneni}]{peng2012}
+Peng, S., S.~Piao, P.~Ciais, P.~Friedlingstein, C.~Ottle, F.-M. Br{\'e}on,
+  H.~Nan, L.~Zhou, and R.~B. Myneni.
+\newblock 2012.
+\newblock Surface {{Urban Heat Island Across}} 419 {{Global Big Cities}}.
+\newblock Environ. Sci. Technol. {\bf 46}:696--703.
+
+\bibitem[{Price et~al.(2015)Price, Schilkey, Ulanov, and Hansen}]{price2015}
+Price, D.~P., F.~D. Schilkey, A.~Ulanov, and I.~A. Hansen.
+\newblock 2015.
+\newblock Small Mosquitoes, Large Implications: Crowding and Starvation Affects
+  Gene Expression and Nutrient Accumulation in {{Aedes}} Aegypti.
+\newblock Parasites \& Vectors {\bf 8}:252.
+
+\bibitem[{{R Core Team}(2017)}]{Rstats2017}
+{R Core Team}, 2017.
+\newblock R: A Language and Environment for Statistical Computing.
+\newblock R Foundation for Statistical Computing, Vienna, Austria.
+
+\bibitem[{Ratkowsky et~al.(1982)Ratkowsky, Olley, McMeekin, and
+  Ball}]{ratkowsky1982}
+Ratkowsky, D.~A., J.~Olley, T.~A. McMeekin, and A.~Ball.
+\newblock 1982.
+\newblock Relationship between Temperature and Growth Rate of Bacterial
+  Cultures.
+\newblock J. Bacteriol. {\bf 149}:1--5.
+
+\bibitem[{Reiner et~al.(2015)Reiner, Geary, Atkinson, Smith, and
+  Gething}]{reiner2015}
+Reiner, R.~C., M.~Geary, P.~M. Atkinson, D.~L. Smith, and P.~W. Gething.
+\newblock 2015.
+\newblock Seasonality of {{Plasmodium}} Falciparum Transmission: A Systematic
+  Review.
+\newblock Malar. J. {\bf 14}.
+
+\bibitem[{Reiner et~al.(2013)Reiner, Perkins, Barker, Niu, Chaves, Ellis,
+  George, Menach, Pulliam, Bisanzio, Buckee, Chiyaka, Cummings, Garcia, Gatton,
+  Gething, Hartley, Johnston, Klein, Michael, Lindsay, Lloyd, Pigott, Reisen,
+  Ruktanonchai, Singh, Tatem, Kitron, Hay, Scott, and Smith}]{reiner2013}
+Reiner, R.~C., T.~A. Perkins, C.~M. Barker, T.~Niu, L.~F. Chaves, A.~M. Ellis,
+  D.~B. George, A.~L. Menach, J.~R.~C. Pulliam, D.~Bisanzio, C.~Buckee,
+  C.~Chiyaka, D.~A.~T. Cummings, A.~J. Garcia, M.~L. Gatton, P.~W. Gething,
+  D.~M. Hartley, G.~Johnston, E.~Y. Klein, E.~Michael, S.~W. Lindsay, A.~L.
+  Lloyd, D.~M. Pigott, W.~K. Reisen, N.~Ruktanonchai, B.~K. Singh, A.~J. Tatem,
+  U.~Kitron, S.~I. Hay, T.~W. Scott, and D.~L. Smith.
+\newblock 2013.
+\newblock A Systematic Review of Mathematical Models of Mosquito-Borne Pathogen
+  Transmission: 1970\textendash{}2010.
+\newblock J. R. Soc. Interface {\bf 10}:20120921.
+
+\bibitem[{Reiskind and Lounibos(2009)}]{reiskind2009a}
+Reiskind, M.~H., and L.~P. Lounibos.
+\newblock 2009.
+\newblock Effects of Intraspecific Larval Competition on Adult Longevity in the
+  Mosquitoes {{Aedes}} Aegypti and {{Aedes}} Albopictus.
+\newblock Med. Vet. Entomol. {\bf 23}:62--68.
+
+\bibitem[{Reiskind and Zarrabi(2012)}]{reiskind2012a}
+Reiskind, M.~H., and A.~A. Zarrabi.
+\newblock 2012.
+\newblock Is Bigger Really Bigger? {{Differential}} Responses to Temperature in
+  Measures of Body Size of the Mosquito, {{Aedes}} Albopictus.
+\newblock Journal of Insect Physiology {\bf 58}:911--917.
+
+\bibitem[{Roux et~al.(2015)Roux, Vantaux, Roche, Yameogo, Dabir{\'e},
+  Diabat{\'e}, Simard, and Lef{\`e}vre}]{roux2015a}
+Roux, O., A.~Vantaux, B.~Roche, K.~B. Yameogo, K.~R. Dabir{\'e},
+  A.~Diabat{\'e}, F.~Simard, and T.~Lef{\`e}vre.
+\newblock 2015.
+\newblock Evidence for Carry-over Effects of Predator Exposure on Pathogen
+  Transmission Potential.
+\newblock Proc. R. Soc. B {\bf 282}:20152430.
+
+\bibitem[{Shan et~al.(2016)Shan, Xie, Muruato, Rossi, Roundy, Azar, Yang, Tesh,
+  Bourne, Barrett, Vasilakis, Weaver, and Shi}]{shan2016}
+Shan, C., X.~Xie, A.~E. Muruato, S.~L. Rossi, C.~M. Roundy, S.~R. Azar,
+  Y.~Yang, R.~B. Tesh, N.~Bourne, A.~D. Barrett, N.~Vasilakis, S.~C. Weaver,
+  and P.-Y. Shi.
+\newblock 2016.
+\newblock An {{Infectious cDNA Clone}} of {{Zika Virus}} to {{Study Viral
+  Virulence}}, {{Mosquito Transmission}}, and {{Antiviral Inhibitors}}.
+\newblock Cell Host and Microbe pages 1--23.
+
+\bibitem[{Shao et~al.(2016)Shao, Herrlinger, Yang, Lai, Moore, Brindley, and
+  Chen}]{shao2016}
+Shao, Q., S.~Herrlinger, S.-L. Yang, F.~Lai, J.~M. Moore, M.~A. Brindley, and
+  J.-F. Chen.
+\newblock 2016.
+\newblock Zika Virus Infection Disrupts Neurovascular Development and Results
+  in Postnatal Microcephaly with Brain Damage.
+\newblock Development {\bf 143}:4127--4136.
+
+\bibitem[{Shapiro et~al.(2016)Shapiro, Murdock, Jacobs, Thomas, and
+  Thomas}]{shapiro2016}
+Shapiro, L. L.~M., C.~C. Murdock, G.~R. Jacobs, R.~J. Thomas, and M.~B. Thomas.
+\newblock 2016.
+\newblock Larval Food Quantity Affects the Capacity of Adult Mosquitoes to
+  Transmit Human Malaria.
+\newblock Proc. B {\bf 283}:20160298--8.
+
+\bibitem[{Turell(1993)}]{turell1993}
+Turell, M.
+\newblock 1993.
+\newblock Effect of Environmental Temperature on the Vector Competence of
+  {{Aedes}} Taeniorhynchus for {{Rift Valley}} Fever and {{Venezuelan}} Equine
+  Encephalitis Viruses.
+\newblock Am. J. Trop. Med. Hyg. {\bf 49}:672--676.
+
+\bibitem[{Vantaux et~al.(2016)Vantaux, Lef{\`e}vre, Cohuet, Dabir{\'e}, Roche,
+  and Roux}]{vantaux2016}
+Vantaux, A., T.~Lef{\`e}vre, A.~Cohuet, K.~R. Dabir{\'e}, B.~Roche, and
+  O.~Roux.
+\newblock 2016.
+\newblock Larval Nutritional Stress Affects Vector Life History Traits and
+  Human Malaria Transmission.
+\newblock Sci. Rep. {\bf 6}:1--10.
+
+\bibitem[{Vazeille-Falcoz et~al.(1999)Vazeille-Falcoz, Mousson, Rodhain,
+  Chungue, and Failloux}]{vazeille-falcoz1999}
+Vazeille-Falcoz, M., L.~Mousson, F.~Rodhain, E.~Chungue, and A.~B. Failloux.
+\newblock 1999.
+\newblock Variation in oral susceptibility to dengue type 2 virus of
+  populations of {Aedes} aegypti from the islands of {Tahiti} and {Moorea},
+  {French} {Polynesia}.
+\newblock The American Journal of Tropical Medicine and Hygiene {\bf
+  60}:292--299.
+
+\bibitem[{Vonesh(2005)}]{vonesh2005}
+Vonesh, J.~R.
+\newblock 2005.
+\newblock Sequential Predator Effects across Three Life Stages of the
+  {{African}} Tree Frog, {{Hyperolius}} Spinigularis.
+\newblock Oecologia {\bf 143}:280--290.
+
+\bibitem[{Westbrook et~al.(2010)Westbrook, Reiskind, Pesko, Greene, and
+  Lounibos}]{westbrook2010}
+Westbrook, C.~J., M.~H. Reiskind, K.~N. Pesko, K.~E. Greene, and L.~P.
+  Lounibos.
+\newblock 2010.
+\newblock Larval {{Environmental Temperature}} and the {{Susceptibility}} of
+  {{Aedes}} Albopictus {{Skuse}} ({{Diptera}}: {{Culicidae}}) to {{Chikungunya
+  Virus}}.
+\newblock Vector-Borne and Zoonotic Diseases {\bf 10}:241--247.
+
+\bibitem[{Xian et~al.(2011)Xian, Homer, Dewitz, Fry, Hossain, and
+  Wickham}]{xian2011}
+Xian, G., C.~Homer, J.~Dewitz, J.~Fry, N.~Hossain, and J.~Wickham.
+\newblock 2011.
+\newblock Change of impervious surface area between 2001 and 2006 in the
+  conterminous United States.
+\newblock Photogrammetric Engineering and Remote Sensing {\bf 77}:758--762.
+
+\bibitem[{Yang et~al.(2009)Yang, Macoris, Galvani, Andrighetti, and
+  Wanderley}]{yang2009}
+Yang, H.~M., M.~L.~G. Macoris, K.~C. Galvani, M.~T.~M. Andrighetti, and
+  D.~M.~V. Wanderley.
+\newblock 2009.
+\newblock Assessing the Effects of Temperature on the Population of {{Aedes}}
+  Aegypti, the Vector of Dengue.
+\newblock Epidemiol. Infect. {\bf 137}:1188--1202.
+
+\bibitem[{Yuan and Bauer(2007)}]{yuan2007}
+Yuan, F., and M.~E. Bauer.
+\newblock 2007.
+\newblock Comparison of Impervious Surface Area and Normalized Difference
+  Vegetation Index as Indicators of Surface Urban Heat Island Effects in
+  {{Landsat}} Imagery.
+\newblock Remote Sens. Environ. {\bf 106}:375--386.
+
+\end{thebibliography}
