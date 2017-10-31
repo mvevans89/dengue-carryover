@@ -5,6 +5,12 @@ date: ""
 output: pdf_document
 ---
 
+This document contains the code for the analysis of microclimate data in 'Carry-over effects of larval microclimate on the transmission potential of a mosquito-borne pathogen' (Evans et al. 2017).
+
+Paper Citation:
+
+Evans MV, Shiau JC, Solano N, Brindley MA, Drake JM, Murdock, CC. 2017. Carry-over effects of larval microclimate on the transmission potential of a mosquito-borne pathogen.  
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = T)
 knitr::opts_chunk$set(cache=TRUE)
@@ -47,7 +53,7 @@ clim <- climate %>%
 
 # Plots
 Temperature Plot:
-```{r}
+```{r, eval = F}
 #pdf(file="../figures/forMS/temperature.pdf", width = 6, height=4, family="sans")
 
 ggplot(data=clim, aes(x=Day, group=Class))+
@@ -70,7 +76,7 @@ ggplot(data=clim, aes(x=Day, group=Class))+
 ```
 
 Relative Humidity
-```{r}
+```{r, eval=F}
 #pdf(file="../figures/forMS/supplement/relativeHumidity.pdf", width = 6, height=4, family="sans")
 
 ggplot(data=clim, aes(x=Day, group=Class))+

@@ -1,5 +1,5 @@
 ---
-title: "Code for 'Carry-over effects of larval microclimate on the transmission potential of mosquito-borne pathogens' (Evans et al. 2017)"
+title: "Code for 'Carry-over effects of larval microclimate on the transmission potential of a mosquito-borne pathogen' (Evans et al. 2017)"
 author: "Michelle Evans"
 date: ''
 output:
@@ -7,17 +7,22 @@ output:
   html_document: default
 ---
 
-This document contains the code for the analysis in 'Carry-over effects of larval microclimate on the transmission potential of mosquito-borne pathogens' (Evans et al. 2017).
+This document contains the code for the analysis of mosquito population and infection data in 'Carry-over effects of larval microclimate on the transmission potential of a mosquito-borne pathogen' (Evans et al. 2017).
+
+Paper Citation:
+
+Evans MV, Shiau JC, Solano N, Brindley MA, Drake JM, Murdock, CC. 2017. Carry-over effects of larval microclimate on the transmission potential of a mosquito-borne pathogen.  
 
 # Set-Up
 
 *NOTE*: Working directory should be set to source file location.
 
-```{r knitr setup}
+```{r knitr setup, echo=F}
 knitr::opts_chunk$set(echo = T)
 knitr::opts_chunk$set(cache=F)
 knitr::opts_chunk$set(message=FALSE)
 knitr::opts_chunk$set(warning=FALSE)
+knitr::opts_chunk$set(eval=T)
 ```
 
 ```{r package and color setup}
@@ -33,8 +38,6 @@ library(gridExtra) #for facet grids later
 library(cowplot)
 library(caret)
 library(ggthemes)
-library(survival)
-library(DHARMa) #mixed model residuals
 library(dplyr)
 library(multcomp)
 
@@ -451,7 +454,6 @@ salEff <-  seasons %>%
 allEff <- full_join(bodyEff, headEff, by=c("block", "class"))
 allEff <- full_join(allEff, salEff, by=c("block", "class"))
 
-library(tidyr)
 meltMean <- allEff %>%
   select(block, class, contains("Mean")) %>%
   gather(key=variable, value=mean, -block, -class) 
@@ -655,13 +657,8 @@ car::Anova(finalBody)
 tidy(finalBody)
 drop1(finalBody, test="F")
 
-outlierTest(finalBody)
 vif(finalBody)
 sqrt(vif(finalBody))>2
-
-#glm residuals
-simulationOutput <- simulateResiduals(fittedModel = finalBody, n=999)
-plotSimulatedResiduals(simulationOutput = simulationOutput)
 
 ```
 
@@ -731,13 +728,6 @@ car::Anova(finalHead)
 #confint(finalHead)
 drop1(finalHead, test="F")
 tidy(finalHead)
-
-
-outlierTest(finalHead)
-
-#glm residuals
-simulationOutput <- simulateResiduals(fittedModel = finalHead, n=999)
-plotSimulatedResiduals(simulationOutput = simulationOutput)
 ```
 
 ```{r saliva x climate stats}
@@ -797,7 +787,7 @@ AICc(m1,m2, m3, m4)
 tidy(m2)
 
 finalSal <- glm(Saliva_mean ~ RH_mean_mean, 
-                data=modDF, #drop outlier
+                data=modDF,
                 family=gaussian)
 
 plot(cooks.distance(finalSal))
@@ -806,12 +796,6 @@ car::Anova(finalSal)
 #confint(finalSal)
 drop1(finalSal, test="F")
 tidy(finalSal)
-
-outlierTest(finalSal)
-
-#glm residuals
-simulationOutput <- simulateResiduals(fittedModel = finalHead, n=999)
-plotSimulatedResiduals(simulationOutput = simulationOutput)
 
 ```
 
@@ -965,8 +949,6 @@ bodyWing <- glmer(Body~Wing + (1|site),
 tidy(bodyWing)
 summary(bodyWing)
 
-simulationOutput <- simulateResiduals(fittedModel = bodyWing, n=999)
-plotSimulatedResiduals(simulationOutput = simulationOutput)
 Anova(bodyWing)
 drop1(bodyWing, test="Chisq")
 ```
@@ -1004,8 +986,6 @@ headWing <- glmer(Head~Wing + (1|site),
 # headWing <- lmer(Wing~Head + (1|site),
 #                           data=headWingDF) #this tests if the wing length is significantly different across infection classes
 tidy(headWing)
-simulationOutput <- simulateResiduals(fittedModel = headWing, n=99)
-plotSimulatedResiduals(simulationOutput = simulationOutput)
 
 Anova(headWing)
 drop1(headWing, test="Chisq")
@@ -1025,8 +1005,6 @@ salWing <- glmer(Saliva~Wing + (1|site),
                           family=binomial(link="logit"))
 summary(salWing)
 tidy(salWing)
-simulationOutput <- simulateResiduals(fittedModel = salWing, n=99)
-plotSimulatedResiduals(simulationOutput = simulationOutput)
 
 Anova(salWing)
 drop1(salWing, test="Chisq")
@@ -2079,7 +2057,6 @@ noCOEplot <- ggplot(data=VCplotsumm[VCplotsumm$labels=="No COEs",], aes(x=factor
         axis.line=element_line(color=axisColor)) +
  theme(strip.text.x = element_text()) #this has to be seperate for some reason?
 
-noCOEplot
 
 withCOEplot <- ggplot(data=VCplotsumm[VCplotsumm$labels=="With COEs",], aes(x=factor(Class), group=block)) +
   geom_bar(stat='identity',
@@ -2125,8 +2102,6 @@ withCOEplot <- ggplot(data=VCplotsumm[VCplotsumm$labels=="With COEs",], aes(x=fa
         axis.ticks=element_blank()) +
  theme(strip.text.x = element_text()) #this has to be seperate for some reason?
 
-withCOEplot
-
 diffPlot <- ggplot(data=VCplotsumm[VCplotsumm$labels=="Difference due to COEs",], aes(x=factor(Class), group=block)) +
   geom_bar(stat='identity',
            aes(y=value_mean, fill=Class, alpha=block, color=Class), 
@@ -2168,7 +2143,6 @@ diffPlot <- ggplot(data=VCplotsumm[VCplotsumm$labels=="Difference due to COEs",]
         axis.ticks=element_blank(),
         axis.line = element_line(color=axisColor)) +
  theme(strip.text.x = element_text()) #this has to be seperate for some reason?
-diffPlot
 
 ```
 

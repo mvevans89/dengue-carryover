@@ -1,12 +1,13 @@
 # Fdb version 3
-["bibtex urbanDengue"] 1509197412 "urbanDengue.aux" "urbanDengue.bbl" "urbanDengue" 1509197414
+["bibtex urbanDengue"] 1509412912 "urbanDengue.aux" "urbanDengue.bbl" "urbanDengue" 1509416862
   "./ecologynoURL.bst" 1509210740 29458 7eda03d772b1d4c443f25365b0d041ff ""
   "references.bib" 1509210496 83477 92f74f1b6ba4903397a0cdb9f5f0371d ""
-  "urbanDengue.aux" 1509197414 15303 4021905da25fddc48de5680d8aacf7e9 ""
+  "urbanDengue.aux" 1509416861 15302 4d55a2a3d32dd9ca72584d6ed62abd86 ""
   "urbanDengue.bcf" 0 -1 0 ""
   (generated)
+  "urbanDengue.blg"
   "urbanDengue.bbl"
-["pdflatex"] 1509197412 "urbanDengue.tex" "urbanDengue.pdf" "urbanDengue" 1509197414
+["pdflatex"] 1509416860 "urbanDengue.tex" "urbanDengue.pdf" "urbanDengue" 1509416862
   "/usr/local/texlive/2015/texmf-dist/fonts/map/fontname/texfonts.map" 1272929888 3287 e6b82fe08f5336d4d5ebc73fb1152e87 ""
   "/usr/local/texlive/2015/texmf-dist/fonts/tfm/jknappen/ec/ectt1000.tfm" 1136768653 1536 06717a2b50de47d4087ac0e6cd759455 ""
   "/usr/local/texlive/2015/texmf-dist/fonts/tfm/jknappen/ec/tcrm0600.tfm" 1136768653 1536 12e8c510d3e158fdd0e9a42e75118bd9 ""
@@ -86,16 +87,16 @@
   "siteMapinset.pdf" 1509210498 363493 bf8a0a74f9061a652d0c794d95398569 ""
   "survEmergeGrowth.pdf" 1509210498 6330 088706bbf4d92ff542ae8899a3e64a52 ""
   "temperature.pdf" 1509210642 9241 a611643e01ebdaa715a41526c67fa572 ""
-  "urbanDengue.aux" 1509197414 15303 4021905da25fddc48de5680d8aacf7e9 ""
-  "urbanDengue.bbl" 1509197412 25387 112f26bb947de80de616b88064598182 "bibtex urbanDengue"
-  "urbanDengue.lof" 1509197414 1947 7f27587396fda0dc55ae02c0a28c6d25 ""
-  "urbanDengue.lot" 1509197414 1743 c7a1d774d98f78ba8a48f481e22ebba7 ""
-  "urbanDengue.tex" 1509211178 53919 f8e5a45170546b9bbf9eb744c444a608 ""
+  "urbanDengue.aux" 1509416861 15302 4d55a2a3d32dd9ca72584d6ed62abd86 ""
+  "urbanDengue.bbl" 1509412912 25387 112f26bb947de80de616b88064598182 "bibtex urbanDengue"
+  "urbanDengue.lof" 1509416861 1947 7f27587396fda0dc55ae02c0a28c6d25 ""
+  "urbanDengue.lot" 1509416861 1743 c7a1d774d98f78ba8a48f481e22ebba7 ""
+  "urbanDengue.tex" 1509415615 53772 1d1bf89f7744f8e0f6efc0cdf0d61c42 ""
   (generated)
+  "urbanDengue.pdf"
+  "urbanDengue.fff"
+  "urbanDengue.aux"
   "urbanDengue.lot"
   "urbanDengue.log"
-  "urbanDengue.lof"
   "urbanDengue.ttt"
-  "urbanDengue.aux"
-  "urbanDengue.fff"
-  "urbanDengue.pdf"
+  "urbanDengue.lof"
