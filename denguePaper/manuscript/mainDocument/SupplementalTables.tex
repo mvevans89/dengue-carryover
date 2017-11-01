@@ -1,0 +1,89 @@
+\documentclass[12pt]{article}
+\usepackage[paper=letterpaper, margin=0.8in]{geometry}
+
+%% The graphicx package provides the includegraphics command.
+\usepackage{graphicx}
+%% The amssymb package provides various useful mathematical symbols
+\usepackage{amssymb}
+%% The amsthm package provides extended theorem environments
+%% \usepackage{amsthm}
+%% fix strange gensymb error
+\usepackage{textcomp}
+%% symbols, especially degree
+\usepackage{gensymb}
+%% scientific units
+\usepackage{siunitx}
+%% line spacing
+\usepackage{setspace}
+\doublespacing
+%% put figures at the end
+\usepackage[nomarkers]{endfloat}
+%% allow hyperlinks
+%\usepackage{hyperref}
+%% color comments
+\usepackage{soul}
+\usepackage{color}
+%% left justification in tables
+\usepackage{array}
+\newcolumntype{P}[1]{>{\raggedright\arraybackslash}p{#1}}
+%%references
+\usepackage[round]{natbib}
+
+
+%% The lineno packages adds line numbers. Start line numbering with
+%% \begin{linenumbers}, end it with \end{linenumbers}. Or switch it on
+%% for the whole article with \linenumbers after \end{frontmatter}.
+\usepackage{lineno}
+
+\begin{document}
+
+{\Large
+\textbf\newline{Carry-over effects of larval microclimate on the transmission potential of a mosquito-borne pathogen}}
+\\
+Michelle V. Evans\textsuperscript{1,2,3*},
+Justine C. Shiau\textsuperscript{4},
+Nicole Solano\textsuperscript{1,2},
+Melinda A. Brindley\textsuperscript{4,5},
+John M. Drake\textsuperscript{1,2},
+Courtney C. Murdock\textsuperscript{1,2,3,4,6,7}
+
+\hrulefill
+\Large{Supplemental Tables}
+
+\begin{table}
+\centering
+\begin{tabular}{P{0.12\linewidth}P{0.12\linewidth}P{0.12\linewidth}P{0.12\linewidth}P{0.15\linewidth}P{0.15\linewidth}}
+\hline
+\textbf{Season} & \textbf{Land Class} & \textbf{No. tested} & \textbf{No. infected (\%)}  & \textbf{No. disseminated (\%)} & \textbf{No. infectious (\%)} \\
+\hline
+\hline
+\textit{Summer} &   &   &   &   \\
+     & Rural & 56 & 22 (39) & 19 (48) & 6 (15) \\
+   & Suburban & 57 & 32 (56) & 26 (81) & 10 (31) \\
+   & Urban & 51 & 10 (20) & 10 (100) & 7 (70) \\
+
+\textit{Fall} &   &   &   &   \\
+     & Rural & 50 & 32 (64) & 30 (94) & 3 (9) \\
+   & Suburban & 43 & 28 (65) & 25 (89) & 3 (11) \\
+   & Urban & 51 & 10 (20) & 10 (100) & 7 (70) \\
+\hline
+\end{tabular}
+\caption{Supplemental Table 1. The efficiency rates of infection (mosquitoes with dengue positive bodies), dissemination (infected mosquitoes with dengue positive heads) and infectiousness (infected mosquitoes with dengue positive saliva) across season and land class. Raw numbers of positive samples are shown with percentages in parentheses.}
+\end{table}
+
+\begin{table}
+\centering
+\begin{tabular}{P{0.10\linewidth}P{0.10\linewidth}P{0.10\linewidth}P{0.10\linewidth}P{0.10\linewidth}P{0.10\linewidth}P{0.10\linewidth}P{0.10\linewidth}}
+\hline
+\textbf{ } & \textbf{Min. Temp.} & \textbf{Mean Temp.} & \textbf{Max. Temp.}  & \textbf{DTR} & \textbf{Min. RH} & \textbf{Mean RH} & \textbf{DHR} \\
+\hline
+
+Land Class ($\chi^2_2$) 		& $12.40$**  		& $16.16$***  	& $3.71$		& $8.23$*		& $9.93$**		& $22.91$***	& $0.85$\\
+Season 	($\chi^2_1$)			& $1809.77.77$*** 	& $1320.55$*** 	& $362.39$*** 	& $549.30$*** 	& $838.43.93$***& $745.35$***	& $755.49$***\\
+Land Class x Season ($\chi^2_2$)& $6.6$* 			& $3.21$  		& $1.13$		& $11.79$**		& $3.77$		& $11.12$**		& $28.57$***\\
+\hline
+\end{tabular}
+\caption{Supplemental Table 2. Chi-square values (subscripts represent degrees of freedom) resulting from linear mixed models analyzing effect of land class and season on microclimate variables. Superscripts represent significance as calculated by Wald Chi-square tests with Holm-Bonferroni corrections (*$p<0.5$, **$p<0.01$,***$p<0.001$).}
+\end{table}
+
+\end{document}
