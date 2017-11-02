@@ -17,7 +17,7 @@
 \usepackage{setspace}
 \doublespacing
 %% put figures at the end
-\usepackage[nomarkers]{endfloat}
+%\usepackage[nomarkers]{endfloat}
 %% allow hyperlinks
 %\usepackage{hyperref}
 %% color comments
@@ -28,6 +28,8 @@
 \newcolumntype{P}[1]{>{\raggedright\arraybackslash}p{#1}}
 %%references
 \usepackage[round]{natbib}
+%%landscape orientation
+\usepackage{pdflscape}
 
 
 %% The lineno packages adds line numbers. Start line numbering with
@@ -37,20 +39,29 @@
 
 \begin{document}
 
-{\Large
-\textbf\newline{Carry-over effects of larval microclimate on the transmission potential of a mosquito-borne pathogen}}
-\\
-Michelle V. Evans\textsuperscript{1,2,3*},
-Justine C. Shiau\textsuperscript{4},
-Nicole Solano\textsuperscript{1,2},
-Melinda A. Brindley\textsuperscript{4,5},
-John M. Drake\textsuperscript{1,2},
-Courtney C. Murdock\textsuperscript{1,2,3,4,6,7}
+\title{Carry-over effects of larval microclimate on the transmission potential of a mosquito-borne pathogen\\
+\large Supplemental Tables}
+\author{
+		Michelle V. Evans\\
+		\and
+		Justine C. Shaiu\\
+		\and
+		Nicole Solano\\
+		\and
+		Melinda A. Brindley\\
+		\and
+		John M. Drake\\
+    \and
+    Courtney C. Murdock
+		}
+\date{}
+\maketitle
 
-\hrulefill
-\Large{Supplemental Tables}
+\newpage
 
-\begin{table}
+\begin{landscape}
+
+\begin{table}[h]
 \centering
 \begin{tabular}{P{0.12\linewidth}P{0.12\linewidth}P{0.12\linewidth}P{0.12\linewidth}P{0.15\linewidth}P{0.15\linewidth}}
 \hline
@@ -85,5 +96,6 @@ Land Class x Season ($\chi^2_2$)& $6.6$* 			& $3.21$  		& $1.13$		& $11.79$**		&
 \end{tabular}
 \caption{Supplemental Table 2. Chi-square values (subscripts represent degrees of freedom) resulting from linear mixed models analyzing effect of land class and season on microclimate variables. Superscripts represent significance as calculated by Wald Chi-square tests with Holm-Bonferroni corrections (*$p<0.5$, **$p<0.01$,***$p<0.001$).}
 \end{table}
+\end{landscape}
 
 \end{document}
