@@ -54,7 +54,7 @@ clim <- climate %>%
 # Plots
 Temperature Plot:
 ```{r, eval = F}
-#pdf(file="../figures/forMS/temperatureFig2.pdf", width = 6, height=4, family="sans")
+png(file="../figures/forMS/Figure2.png", width = 6, height=4, units = "in", res=400, family="sans")
 
 ggplot(data=clim, aes(x=Day, group=Class))+
   geom_line(aes(y=meanT, col=Class)) + 
@@ -74,7 +74,7 @@ ggplot(data=clim, aes(x=Day, group=Class))+
         axis.line=element_line(color=ggthemes_data$fivethirtyeight["dkgray"], size=0.5),
         panel.grid = element_blank())+
   theme(legend.background = element_rect(fill = "transparent", colour = NA))
-#dev.off()
+dev.off()
 ```
 
 Relative Humidity
