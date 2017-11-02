@@ -268,6 +268,7 @@ Figure 4.
 
 ```{r land class x season plot, eval=F}
 #pdf(file="figures/forMS/landclassXseasonInfection.pdf", width = 4, height=7,  family="sans")
+png(file="figures/forMS/Figure4.png", width = 4, height=7, units="in", res=500, family="sans")
 
 ggplot(data=infLong[order(infLong$block, decreasing=F),], aes(x=class, group=block))+
   geom_bar(stat="identity", aes(y=mean.inf, alpha=block, fill=class, color=factor(class)), position=position_dodge(width=-0.9))+
@@ -302,92 +303,10 @@ ggplot(data=infLong[order(infLong$block, decreasing=F),], aes(x=class, group=blo
 #dev.off()
 ```
 
-
-
 ### Statistics on infection by season and land class
 
-Body model selection
-
-```{r body model comparison}
-#create all the models
-m0 <- glmer(Body~1 + (1|site), 
-                          data=seasons[seasons$DPI=="21",],
-                          family=binomial(link="logit"))
-m1 <- glmer(Body~block + (1|site), 
-                          data=seasons[seasons$DPI=="21",],
-                          family=binomial(link="logit"))
-m2 <- glmer(Body~class +  (1|site), 
-                          data=seasons[seasons$DPI=="21",],
-                          family=binomial(link="logit"))
-m3 <- glmer(Body~class + block + (1|site), 
-                          data=seasons[seasons$DPI=="21",],
-                          family=binomial(link="logit"))
-m4 <- glmer(Body~class*block + (1|site), 
-                          data=seasons[seasons$DPI=="21",],
-                          family=binomial(link="logit"))
-
-modelSums <- do.call(rbind, lapply(list(m0,m1,m2,m3, m4), broom::glance)) #m3 is best
-
-AICc(m0,m1,m2,m3,m4) #still 3
-Weights(AICc(m0,m1,m2,m3,m4))
-```
-
-```{r head model comparison}
-#create all the models
-m0 <- glmer(Head~1 + (1|site), 
-                          data=seasons[seasons$DPI=="21",],
-                          family=binomial(link="logit"))
-  
-m1 <- glmer(Head~block + (1|site), 
-                          data=seasons[seasons$DPI=="21",],
-                          family=binomial(link="logit"))
-m2 <- glmer(Head~class +  (1|site), 
-                          data=seasons[seasons$DPI=="21",],
-                          family=binomial(link="logit"))
-m3 <- glmer(Head~class + block + (1|site), 
-                          data=seasons[seasons$DPI=="21",],
-                          family=binomial(link="logit"))
-m4 <- glmer(Head~class*block + (1|site), 
-                          data=seasons[seasons$DPI=="21",],
-                          family=binomial(link="logit"))
-
-modelSums <- do.call(rbind, lapply(list(m0,m1,m2,m3, m4), broom::glance)) #model 3 is best
-
-AICc(m0,m1,m2,m3,m4)
-tidy(m3)
-
-```
-
-```{r saliva model comparison}
-#create all the models
-m0 <- glmer(Saliva~1 + (1|site), 
-                          data=seasons[seasons$DPI=="21",],
-                          family=binomial(link="logit"))
-m1 <- glmer(Saliva~block + (1|site), 
-                          data=seasons[seasons$DPI=="21",],
-                          family=binomial(link="logit"))
-m2 <- glmer(Saliva~class +  (1|site), 
-                          data=seasons[seasons$DPI=="21",],
-                          family=binomial(link="logit"))
-m3 <- glmer(Saliva~class + block + (1|site), 
-                          data=seasons[seasons$DPI=="21",],
-                          family=binomial(link="logit"))
-m4 <- glmer(Saliva~class*block + (1|site), 
-                          data=seasons[seasons$DPI=="21",],
-                          family=binomial(link="logit"))
-m5 <- glmer(Saliva~ 1 + (1|site), 
-                          data=seasons[seasons$DPI=="21",],
-                          family=binomial(link="logit")) #null model
-
-modelSums <- do.call(rbind, lapply(list(m0, m1,m2,m3, m4, m5), broom::glance)) #model 1 is best (basicaly no better than null)
-
-AICc(m0, m1,m2,m3,m4, m5) #model 1
-tidy(m1)
-```
-
-
 ```{r final seasonal infection stats}
-mixModelseasonsBody21 <- lme4::glmer(Body~class + block + (1|site), 
+mixModelseasonsBody21 <- lme4::glmer(Body~class*block + (1|site), 
                           data=seasons[seasons$DPI=="21",],
                           family=binomial(link="logit"))
 summary(mixModelseasonsBody21)
@@ -397,8 +316,9 @@ car::Anova(mixModelseasonsBody21) #Wald test
 drop1(mixModelseasonsBody21, test="Chisq") #Likelihood ratio test
 summary(multcomp::glht(mixModelseasonsBody21, linfct = multcomp::mcp(class = "Tukey"), test = multcomp::adjusted("holm")))
 summary(multcomp::glht(mixModelseasonsBody21, linfct = multcomp::mcp(block = "Tukey"), test = multcomp::adjusted("holm")))
+confint(mixModelseasonsBody21)
 
-mixModelseasonsHead21 <- lme4::glmer(Head~class + block  + (1|site), 
+mixModelseasonsHead21 <- lme4::glmer(Head~class*block  + (1|site), 
                           data=seasons[seasons$DPI=="21",],
                           family=binomial(link="logit"))
 tidy(mixModelseasonsHead21)
@@ -408,7 +328,7 @@ drop1(mixModelseasonsHead21, test="Chisq")
 summary(multcomp::glht(mixModelseasonsHead21, linfct = multcomp::mcp(class = "Tukey"), test = multcomp::adjusted("holm")))
 summary(multcomp::glht(mixModelseasonsHead21, linfct = multcomp::mcp(block = "Tukey"), test = multcomp::adjusted("holm")))
 
-mixModelseasonsSaliva21 <- lme4::glmer(Saliva~block  + (1|site), 
+mixModelseasonsSaliva21 <- lme4::glmer(Saliva~class*block  + (1|site), 
                           data=seasons[seasons$DPI=="21",],
                           family=binomial(link="logit"))
 tidy(mixModelseasonsSaliva21) #z-test
@@ -592,62 +512,24 @@ modDF <- seasonInfSite %>%
   dplyr::select(one_of(myCols)) 
 modDF <- na.omit(modDF)
 
-#model selection for initial variable (bc of high correlation)
+#model selection
+m0 <- glm(Body_mean ~ 1,
+          data = modDF,
+         family = gaussian(link="log"))
 m1 <- glm(Body_mean ~ Temp_mean_mean, 
           data=modDF, 
           family=gaussian(link="log"))
-m2 <- glm(Body_mean ~ RH_mean_mean, 
-          data=modDF, 
-          family=gaussian(link="log"))
-m3 <- glm(Body_mean ~ DTR_mean, 
-          data=modDF, 
-          family=gaussian(link="log"))
-m4 <- glm(Body_mean ~ Temp_min_mean, 
-          data=modDF, 
-          family=gaussian(link="log"))
-m5 <- glm(Body_mean ~ Temp_max_mean, 
-          data=modDF, 
-          family=gaussian(link="log"))
-m6 <- glm(Body_mean ~ RH_min_mean, 
-          data=modDF, 
-          family=gaussian(link="log"))
-m7 <- glm(Body_mean ~ RH_max_mean, 
-          data=modDF, 
-          family=gaussian(link="log"))
 
-modelSums <- do.call(rbind, lapply(list(m1,m2,m3, m4, m5, m6, m7), broom::glance)) #1 seems best
 
-AICc(m1,m2,m3, m4, m5, m6, m7)
+
+modelSums <- do.call(rbind, lapply(list(m0, m1), broom::glance))
+modelSums
+
+Weights(AICc(m0, m1))
 tidy(m1)
 
-#find covariates that aren't correlated
-covars <- data.frame(cor(seasonInfSite[,10:18]))
-rownames(covars[abs(covars$Temp_mean_mean)<0.8,]) #only RH_mean and RH_max
 
-#model selection
-m1 <- glm(Body_mean ~ Temp_mean_mean, 
-          data=modDF, 
-          family=gaussian(link="log"))
-m2 <- glm(Body_mean ~ RH_mean_mean, 
-          data=modDF, 
-          family=gaussian(link="log"))
-
-m3 <- glm(Body_mean ~ Temp_mean_mean+RH_mean_mean, 
-          data=modDF, 
-          family=gaussian(link="log"))
-m4 <- glm(Body_mean ~ Temp_mean_mean*RH_mean_mean, 
-          data=modDF, 
-          family=gaussian(link="log"))
-
-
-
-modelSums <- do.call(rbind, lapply(list(m1,m2, m3, m4), broom::glance)) #3 seems best
-
-AICc(m1,m2, m3, m4)
-tidy(m3)
-
-
-finalBody <- glm(Body_mean ~ Temp_mean_mean+RH_mean_mean, 
+finalBody <- glm(Body_mean ~ Temp_mean_mean, 
           data=modDF, 
           family=gaussian(link="log"))
 plot(cooks.distance(finalBody))
@@ -671,56 +553,25 @@ modDF <- seasonInfSite %>%
   dplyr::select(one_of(myCols)) 
 modDF <- na.omit(modDF)
 
-#model selection for initial variable (bc of high correlation)
-m1 <- glm(Head_mean ~ Temp_mean_mean, 
-          data=modDF, 
-          family=gaussian(link="log"))
-m2 <- glm(Head_mean ~ RH_mean_mean, 
-          data=modDF, 
-          family=gaussian(link="log"))
-m3 <- glm(Head_mean ~ DTR_mean, 
-          data=modDF, 
-          family=gaussian(link="log"))
-m4 <- glm(Head_mean ~ Temp_min_mean, 
-          data=modDF, 
-          family=gaussian(link="log"))
-m5 <- glm(Head_mean ~ Temp_max_mean, 
-          data=modDF, 
-          family=gaussian(link="log"))
-m6 <- glm(Head_mean ~ RH_min_mean, 
-          data=modDF, 
-          family=gaussian(link="log"))
-m7 <- glm(Head_mean ~ RH_max_mean, 
-          data=modDF, 
-          family=gaussian(link="log"))
 
-modelSums <- do.call(rbind, lapply(list(m1,m2,m3, m4, m5, m6, m7), broom::glance)) #1 seems best
-tidy(m1)
 
 #model selection
+m0 <- glm(Head_mean ~ 1, 
+          data=modDF, 
+          family=gaussian(link="log"))
 m1 <- glm(Head_mean ~ Temp_mean_mean, 
           data=modDF, 
           family=gaussian(link="log"))
-m2 <- glm(Head_mean ~ RH_mean_mean, 
+
+modelSums <- do.call(rbind, lapply(list(m0, m1), broom::glance)) 
+
+Weights(AICc(m0, m1))
+tidy(m1)
+
+
+finalHead <- glm(Head_mean ~ Temp_mean_mean, 
           data=modDF, 
           family=gaussian(link="log"))
-
-m3 <- glm(Head_mean ~ Temp_mean_mean+RH_mean_mean, 
-          data=modDF, 
-          family=gaussian(link="log"))
-m4 <- glm(Head_mean ~ Temp_mean_mean*RH_mean_mean, 
-          data=modDF, 
-          family=gaussian(link="log"))
-
-modelSums <- do.call(rbind, lapply(list(m1,m2, m3, m4), broom::glance)) #3 seems best
-
-AICc(m1,m2, m3, m4)
-tidy(m3)
-
-
-finalHead <- glm(Head_mean ~ Temp_mean_mean+RH_mean_mean, 
-          data=modDF, 
-          family=gaussian)
 
 plot(cooks.distance(finalHead))
 abline(h=4/length(modDF), lty=2)
@@ -739,54 +590,20 @@ modDF <- seasonInfSite %>%
   dplyr::select(one_of(myCols)) 
 modDF <- na.omit(modDF)
 
-#model selection for initial variable (bc of high correlation)
-m1 <- glm(Saliva_mean ~ Temp_mean_mean, 
-          data=modDF, 
-          family=gaussian)
-m2 <- glm(Saliva_mean ~ RH_mean_mean, 
-          data=modDF, 
-          family=gaussian)
-m3 <- glm(Saliva_mean ~ DTR_mean, 
-          data=modDF, 
-          family=gaussian)
-m4 <- glm(Saliva_mean ~ Temp_min_mean, 
-          data=modDF, 
-          family=gaussian)
-m5 <- glm(Saliva_mean ~ Temp_max_mean, 
-          data=modDF, 
-          family=gaussian)
-m6 <- glm(Saliva_mean ~ RH_min_mean, 
-          data=modDF, 
-          family=gaussian)
-m7 <- glm(Saliva_mean ~ RH_max_mean, 
-          data=modDF, 
-          family=gaussian)
-
-modelSums <- do.call(rbind, lapply(list(m1,m2,m3, m4, m5, m6, m7), broom::glance)) #2 seems best, but they are all basically the same (dAIC<1)
-tidy(m2)
-
-
 #model selection
+m0 <- glm(Saliva_mean ~ 1, 
+          data=modDF,
+          family=gaussian)
 m1 <- glm(Saliva_mean ~ Temp_mean_mean, 
           data=modDF,
           family=gaussian)
-m2 <- glm(Saliva_mean ~ RH_mean_mean, 
-          data=modDF,
-          family=gaussian)
 
-m3 <- glm(Saliva_mean ~ Temp_mean_mean+RH_mean_mean, 
-          data=modDF, 
-          family=gaussian)
-m4 <- glm(Saliva_mean ~ Temp_mean_mean*RH_mean_mean, 
-          data=modDF,
-          family=gaussian)
+modelSums <- do.call(rbind, lapply(list(m0, m1), broom::glance)) 
 
-modelSums <- do.call(rbind, lapply(list(m1,m2, m3, m4), broom::glance)) #2 seems best
-
-AICc(m1,m2, m3, m4)
+Weights(AICc(m0,m1))
 tidy(m2)
 
-finalSal <- glm(Saliva_mean ~ RH_mean_mean, 
+finalSal <- glm(Saliva_mean ~ Temp_mean_mean, 
                 data=modDF,
                 family=gaussian)
 
@@ -1123,32 +940,8 @@ emergClim <- merge(emergTray, allClim, by.x=c("block","Tray_Code"), by.y=c("bloc
 
 ### Class x Season
 
-```{r survival stats by tray in proportions}
-#model selection by AIC and logLik
-m1 <- glmer(survival ~ block + (1|Site_Code),
-                   data=survTray,
-                 family=gaussian(link="logit"))
-
-m2 <- glmer(survival ~ Class + (1|Site_Code),
-                   data=survTray,
-                 family=gaussian(link="logit"))
-
-m3 <- glmer(survival ~ Class + block + (1|Site_Code),
-                   data=survTray,
-                 family=gaussian(link="logit"))
-
-m4 <- glmer(survival ~ Class * block + (1|Site_Code),
-                   data=survTray,
-                 family=gaussian(link="logit"))
-
-modelSums <- do.call(rbind, lapply(list(m1,m2,m3, m4), broom::glance))
-modelSums #m1 is best, but near m3 & m4
-
-AICc(m1,m2,m3, m4) #still m1
-```
-
 ```{r}
-SurvModSeason <- glmer(survival ~ block + (1|Site_Code),
+SurvModSeason <- glmer(survival ~ Class *block + (1|Site_Code),
                    data=survTray,
                  family=gaussian(link="logit"))
 
@@ -1168,69 +961,6 @@ boot::inv.logit(modResults$estimate[1]+modResults$estimate[2]) #summer
 
 ### Microclimate
 
-Model selection
-```{r}
-respV <- "survival"
-predVs <- c("Temp_mean","RH_mean", "DTR", "Temp_min", "RH_min", "Temp_max", "RH_max")
-
-myCols <- c(respV, predVs, "block","Class", "Site_Code")
-modDF <- survClim %>%
-  dplyr::select(one_of(myCols))
-modDF <- na.omit(modDF)
-
-#model selection for initial variable
-
-m1 <- lmer(survival~Temp_mean + (1|Site_Code),
-           data=modDF)
-
-m2 <- lmer(survival~RH_mean + (1|Site_Code),
-           data=modDF)
-
-m3 <- lmer(survival~DTR + (1|Site_Code),
-           data=modDF)
-
-m4 <- lmer(survival~Temp_min + (1|Site_Code),
-           data=modDF)
-
-m5 <- lmer(survival~RH_min + (1|Site_Code),
-           data=modDF)
-
-m6 <- lmer(survival~Temp_max + (1|Site_Code),
-           data=modDF)
-
-m7 <- lmer(survival~RH_max + (1|Site_Code),
-           data=modDF)
-
-modelSums <- do.call(rbind, lapply(list(m1,m2,m3, m4, m5, m6, m7), broom::glance))
-modelSums #m1 or m4
-
-Weights(AICc(m1,m2,m3, m4, m5, m6, m7))
-tidy(m1)
-
-#find covariates that aren't correlated
-covars <- data.frame(cor(survClim[,6:12]))
-rownames(covars[abs(covars$Temp_mean)<0.8,]) #only RH_mean and RH_max
-
-#model selection
-m1 <- lmer(survival~Temp_mean + (1|Site_Code),
-           data=modDF)
-
-m2 <- lmer(survival~Temp_mean + RH_mean + (1|Site_Code),
-           data=modDF)
-
-m3 <- lmer(survival~Temp_mean * RH_mean + (1|Site_Code),
-           data=modDF)
-
-m4 <- lmer(survival~RH_mean + (1|Site_Code),
-           data=modDF)
-
-modelSums <- do.call(rbind, lapply(list(m1,m2, m3, m4), broom::glance)) #1 seems best
-modelSums
-
-AICc(m1,m2, m3, m4)
-tidy(m1)
-```
-
 ```{r}
 survModClim <- glmer(survival~Temp_mean+(1|Site_Code),
                     data=survClim,
@@ -1249,31 +979,9 @@ modResults$estimate[2] #temp coefficient
 ## Emergence
 
 ### Class x Season
-Model Selection
-```{r emergence stats by tray}
-#model selection
-m0 <- lmer(devRate ~ 1 + (1|Site_Code),
-           data=emergTray)
-m1 <- lmer(devRate ~ Class +(1|Site_Code), 
-                   data=emergTray)
-
-m2 <- lmer(devRate ~ block +(1|Site_Code), 
-                   data=emergTray)
-
-m3 <- lmer(devRate ~ Class * block +(1|Site_Code), 
-                   data=emergTray)
-
-m4 <- lmer(devRate ~ Class + block +(1|Site_Code), 
-                   data=emergTray)
-
-modelSums <- do.call(rbind, lapply(list(m0, m1,m2,m3, m4), broom::glance)) 
-modelSums #m2 is best
-
-AICc(m0, m1,m2,m3, m4) #still m2
-```
 
 ```{r}
-mixEmergeTray <- lmer(devRate ~ block +(1|Site_Code), 
+mixEmergeTray <- lmer(devRate ~ Class*block +(1|Site_Code), 
                    data=emergTray)
 
 summary(mixEmergeTray)
@@ -1289,78 +997,14 @@ summary(multcomp::glht(mixEmergeTray, linfct = multcomp::mcp(block = "Tukey"), t
 
 ### Microclimate
 
-Model Selection:
 ```{r}
-respV <- "devRate"
-predVs <- c("Temp_mean","RH_mean", "DTR", "Temp_min", "RH_min", "Temp_max", "RH_max")
-
-myCols <- c(respV, predVs, "block","Class", "Site_Code")
-modDF <- emergClim %>%
-  dplyr::select(one_of(myCols)) 
-modDF <- na.omit(modDF)
-
-#model selection for initial variable
-m0 <- lmer(devRate~1 + (1|Site_Code),
-           data=modDF)
-
-m1 <- lmer(devRate~Temp_mean + (1|Site_Code),
-           data=modDF)
-
-m2 <- lmer(devRate~RH_mean + (1|Site_Code),
-           data=modDF)
-
-m3 <- lmer(devRate~DTR + (1|Site_Code),
-           data=modDF)
-
-m4 <- lmer(devRate~Temp_min + (1|Site_Code),
-           data=modDF)
-
-m5 <- lmer(devRate~RH_min + (1|Site_Code),
-           data=modDF)
-
-m6 <- lmer(devRate~Temp_max + (1|Site_Code),
-           data=modDF)
-
-m7 <- lmer(devRate~RH_max + (1|Site_Code),
-           data=modDF)
-
-modelSums <- do.call(rbind, lapply(list(m0, m1,m2,m3, m4, m5, m6, m7), broom::glance))
-modelSums #m1 or m4
-
-MuMIn::AICc(m0, m1,m2,m3, m4, m5, m6, m7)
-tidy(m1)
-
-#find covariates that aren't correlated
-covars <- data.frame(cor(modDF[,2:7]))
-rownames(covars[abs(covars$Temp_mean)<0.8,]) #mean RH
-
-#model selection
-m1 <- lmer(devRate~Temp_mean + (1|Site_Code),
-           data=modDF)
-
-m2 <- lmer(devRate~Temp_mean + RH_mean + (1|Site_Code),
-           data=modDF)
-
-m3 <- lmer(devRate~Temp_mean * RH_mean + (1|Site_Code),
-           data=modDF)
-
-m4 <- lmer(devRate~ RH_mean + (1|Site_Code),
-           data=modDF)
-
-modelSums <- do.call(rbind, lapply(list(m1,m2, m3, m4), broom::glance)) #1 seems best
-modelSums
-
-AICc(m1,m2, m3, m4)
-tidy(m1)
-```
-
-```{r}
-devClimMod <- lmer(devRate~Temp_mean +(1|Site_Code),
+devClimMod <- lmerTest::lmer(devRate~Temp_mean +(1|Site_Code),
                     data=emergClim)
 
 plot(devClimMod)
 qqnorm(resid(devClimMod))
 summary(devClimMod)
+
 
 modResults <- tidy(devClimMod)
 #coefficients
@@ -1435,34 +1079,13 @@ allWing <- allWing %>%
 
 ## Land Class x Season
 
-Model Selection
 ```{r}
-#model selection by AIC and logLik
-m0 <- lmer(mm~1 + (1|Site_Code),
-           data=allWing)
-m1 <- lmer(mm ~ block + (1|Site_Code),
-                   data=allWing)
-
-m2 <- lmer(mm ~ class + (1|Site_Code),
-                   data=allWing)
-
-m3 <- lmer(mm ~ class + block + (1|Site_Code),
-                   data=allWing)
-
-m4 <- lmer(mm ~ class*block + (1|Site_Code),
-                   data=allWing)
-
-modelSums <- do.call(rbind, lapply(list(m0,m1,m2,m3, m4), broom::glance))
-modelSums #m0 is best
-
-AICc(m0, m1,m2,m3, m4) #still m0
-```
-
-```{r}
-wingMod <- lmer(mm~1 +(1|Site_Code),
+wingMod <- lmerTest::lmer(mm~class*block +(1|Site_Code),
                 data=allWing)
 summary(wingMod)
 plot(wingMod)
+car::Anova(wingMod)
+
 ```
 
 ## Microclimate
@@ -1540,12 +1163,13 @@ allWing <- allWing %>%
 
 Statistics:
 ```{r}
-wingModTemp <- lmer(mm~Temp+(1|Site_Code),
+wingModTemp <- lmerTest::lmer(mm~Temp+(1|Site_Code),
                     data=allWing)
 plot(wingModTemp)
 summary(wingModTemp)
 confint(wingModTemp) #no effect of temperature
 qqnorm(resid(wingModTemp))
+car::Anova(wingModTemp)
 ```
 
 ```{r, eval=F, include=F}
@@ -1736,30 +1360,8 @@ plot_grid(survPlot, emergePlot, growthPlot,
 ## Statistics
 ### Season x Land Class
 
-Model Selection
 ```{r}
-#model selection by AIC and logLik
-m1 <- lmer(r ~ block + (1|Site_Code),
-                   data=growthDF2)
-
-m2 <- lmer(r ~ class + (1|Site_Code),
-                   data=growthDF2)
-
-m3 <- lmer(r ~ block + class + (1|Site_Code),
-                   data=growthDF2)
-
-m4 <- lmer(r ~ block*class + (1|Site_Code),
-                   data=growthDF2)
-
-modelSums <- do.call(rbind, lapply(list(m1,m2,m3, m4), broom::glance))
-modelSums #m1 is best
-
-AICc(m1,m2,m3, m4) #still m1
-```
-
-
-```{r}
-growthModSeason <- lmer(r~ block+ (1|Site_Code), 
+growthModSeason <- lmer(r~ class*block+ (1|Site_Code), 
                         data=growthDF2)
 
 summary(growthModSeason)
@@ -1774,17 +1376,17 @@ confint(growthModSeason) #profiled confidence interval
 ### Microclimate
 
 ```{r}
-levels(allClim$block) <- factor(as.character(allClim$block), levels=c("Summer", "Fall"))
 #get temperature data
 growthTemp <- merge(growthDF2, allClim, by.x=c("block","Tray_Code"), by.y=c("block", "Tray_ID"))
 ggplot(data=growthTemp, aes(x=Temp_mean, y=r))+
   geom_point()+
   geom_smooth(method="lm")
 
-growthTempMod <- lm(r~Temp_mean,
+growthTempMod <- lmerTest::lmer(r~Temp_mean + (1|Site_Code),
                       data=growthTemp)
 summary(growthTempMod)
 anova(growthTempMod)
+plot(growthTempMod)
 ```
 
 # Vectorial Capacity
@@ -1958,7 +1560,6 @@ VCplot$block <- factor(VCplot$block, levels=c("summer", "fall"))
 ```
 
 ```{r VC over Temp plot}
-#pdf(file="figures/forMS/VCxTemp.pdf", width = 4, height=4, family="sans")
 
 VCxTempPlot <- ggplot(data=VCplot, aes(x=Temp_mean_mean))+
   geom_smooth(aes(y=VC, color="WithCOE"), method="lm", show.legend=F)+
@@ -1987,7 +1588,6 @@ VCxTempPlot <- ggplot(data=VCplot, aes(x=Temp_mean_mean))+
                       #values=c(WithCOE="#af8dc3", WithoutCOE="#7fbf7b"),
                       values=c(WithCOE="black", WithoutCOE="gray55"),
                       labels=c("With COEs", "Without COEs"))
-#dev.off()
 ```
 
 ```{r}
@@ -2148,7 +1748,7 @@ diffPlot <- ggplot(data=VCplotsumm[VCplotsumm$labels=="Difference due to COEs",]
 
 Use cowplot to combine the three bar graphs and VC over temp chart.
 ```{r, eval=F}
-#pdf(file="figures/forMS/VCPlot.pdf", width = 10, height=7, family="sans")
+#png(file="figures/forMS/Figure5.png", width = 10, height=7, units="in", res=500, family="sans")
 
 ggdraw()+
   draw_plot(VCxTempPlot, x=0, y=0, width=0.7, height=1)+
@@ -2187,14 +1787,18 @@ car::Anova(VCclassnoCOE)
 VClong <- VCplot %>%
   gather(COE, value, VC, VCnoCOE)
 
-VCtemp <- lm(value~Temp_mean_mean*COE, data=VClong)
-#plot(VCtemp)
+VCtemp <- lmer(value~Temp_mean_mean*COE + (1|Site_ID), data=VClong)
+
 summary(VCtemp)
 
 ## Vectorial Capacity (w carry over) across Temp
-VCtempCOE <- lm(VCforStats~Temp_mean_mean, data=VCplot)
-#plot(VCtempCOE)
+VCtempCOE <- lmerTest::lmer(VCforStats~Temp_mean_mean + (1|Site_Code), data=VCplot)
+
 summary(VCtempCOE)
+
+## Vectorial Capacity (w/o carry over) across Temp
+VCtempNoCOE <- lmerTest::lmer(VCforStatsnoCOE ~ Temp_mean_mean + (1|Site_Code), data=VCplot)
+summary(VCtempNoCOE)
 ```
 
 
