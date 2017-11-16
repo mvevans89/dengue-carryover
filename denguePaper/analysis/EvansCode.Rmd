@@ -7,11 +7,11 @@ output:
   html_document: default
 ---
 
-This document contains the code for the analysis of mosquito population and infection data in 'Carry-over effects of larval microclimate on the transmission potential of a mosquito-borne pathogen' (Evans et al. 2017).
+This document contains the code for the analysis of mosquito population and infection data in 'Carry-over effects of larval microclimate on the transmission potential of a mosquito-borne pathogen' (Evans et al.).
 
 Paper Citation:
 
-Evans MV, Shiau JC, Solano N, Brindley MA, Drake JM, Murdock, CC. 2017. Carry-over effects of larval microclimate on the transmission potential of a mosquito-borne pathogen.  
+Evans MV, Shiau JC, Solano N, Brindley MA, Drake JM, Murdock, CC. Carry-over effects of larval microclimate on the transmission potential of a mosquito-borne pathogen.  
 
 # Set-Up
 
@@ -267,10 +267,9 @@ infLong$sampleLab <- paste0(infLong$positives, "(", infLong$samples, ")")
 Figure 4.
 
 ```{r land class x season plot, eval=F}
-#pdf(file="figures/forMS/landclassXseasonInfection.pdf", width = 4, height=7,  family="sans")
-png(file="figures/forMS/Figure4.png", width = 4, height=7, units="in", res=500, family="sans")
+#png(file="figures/forMS/infection.png", width = 3, height=6, units="in", res=500, family="sans")
 
-ggplot(data=infLong[order(infLong$block, decreasing=F),], aes(x=class, group=block))+
+infPlot <- ggplot(data=infLong[order(infLong$block, decreasing=F),], aes(x=class, group=block))+
   geom_bar(stat="identity", aes(y=mean.inf, alpha=block, fill=class, color=factor(class)), position=position_dodge(width=-0.9))+
   #geom_text(aes(label=sampleLab, y=mean.inf), vjust=-2, color="black", position=position_dodge(width=-0.9), size=2.5)+
   facet_wrap(~factor(stripLabel, levels=c("Infected", "Disseminated", "Infectious")), nrow=3, dir="v", scales='free') +
@@ -299,10 +298,12 @@ ggplot(data=infLong[order(infLong$block, decreasing=F),], aes(x=class, group=blo
         panel.grid = element_blank(),
         axis.text.y=element_text(size=12),
         axis.text.x=element_text(size=12))
-
+infPlot
 #dev.off()
 ```
 
+
+Infection Plot to Combine with demographic metrics
 ### Statistics on infection by season and land class
 
 ```{r final seasonal infection stats}
@@ -504,20 +505,13 @@ seasonInfSite <- merge(seasonSite, rbind(augEnvVar,octEnvVar), by.x=c("block", "
 ```
 
 ```{r body x climate stats}
-respV <- "Body_mean"
-predVs <- c("Temp_mean_mean","RH_mean_mean", "DTR_mean", "Temp_min_mean", "RH_min_mean", "Temp_max_mean", "RH_max_mean")
-
-myCols <- c(respV, predVs, "block","class", "site")
-modDF <- seasonInfSite %>%
-  dplyr::select(one_of(myCols)) 
-modDF <- na.omit(modDF)
 
 #model selection
 m0 <- glm(Body_mean ~ 1,
-          data = modDF,
+          data = seasonInfSite,
          family = gaussian(link="log"))
 m1 <- glm(Body_mean ~ Temp_mean_mean, 
-          data=modDF, 
+          data=seasonInfSite, 
           family=gaussian(link="log"))
 
 
@@ -530,37 +524,24 @@ tidy(m1)
 
 
 finalBody <- glm(Body_mean ~ Temp_mean_mean, 
-          data=modDF, 
+          data=seasonInfSite, 
           family=gaussian(link="log"))
-plot(cooks.distance(finalBody))
-abline(h=4/length(modDF), lty=2)
+plot(finalBody)
+
 car::Anova(finalBody)
-#confint(finalBody)
+confint(finalBody)
 tidy(finalBody)
 drop1(finalBody, test="F")
-
-vif(finalBody)
-sqrt(vif(finalBody))>2
 
 ```
 
 ```{r head x climate stats}
-respV <- "Head_mean"
-predVs <- c("Temp_mean_mean","RH_mean_mean", "DTR_mean", "Temp_min_mean", "RH_min_mean", "Temp_max_mean", "RH_max_mean")
-
-myCols <- c(respV, predVs, "block","class", "site")
-modDF <- seasonInfSite %>%
-  dplyr::select(one_of(myCols)) 
-modDF <- na.omit(modDF)
-
-
-
 #model selection
 m0 <- glm(Head_mean ~ 1, 
-          data=modDF, 
+          data=seasonInfSite, 
           family=gaussian(link="log"))
 m1 <- glm(Head_mean ~ Temp_mean_mean, 
-          data=modDF, 
+          data=seasonInfSite, 
           family=gaussian(link="log"))
 
 modelSums <- do.call(rbind, lapply(list(m0, m1), broom::glance)) 
@@ -570,47 +551,41 @@ tidy(m1)
 
 
 finalHead <- glm(Head_mean ~ Temp_mean_mean, 
-          data=modDF, 
+          data=seasonInfSite, 
           family=gaussian(link="log"))
 
-plot(cooks.distance(finalHead))
-abline(h=4/length(modDF), lty=2)
+plot(finalHead)
+
 car::Anova(finalHead)
-#confint(finalHead)
+confint(finalHead)
 drop1(finalHead, test="F")
 tidy(finalHead)
 ```
 
 ```{r saliva x climate stats}
-respV <- "Saliva_mean"
-predVs <- c("Temp_mean_mean","RH_mean_mean", "DTR_mean", "Temp_min_mean", "RH_min_mean", "Temp_max_mean", "RH_max_mean")
-
-myCols <- c(respV, predVs, "block","class", "site")
-modDF <- seasonInfSite %>%
-  dplyr::select(one_of(myCols)) 
-modDF <- na.omit(modDF)
-
 #model selection
 m0 <- glm(Saliva_mean ~ 1, 
-          data=modDF,
+          data=seasonInfSite,
           family=gaussian)
 m1 <- glm(Saliva_mean ~ Temp_mean_mean, 
-          data=modDF,
+          data=seasonInfSite,
           family=gaussian)
 
 modelSums <- do.call(rbind, lapply(list(m0, m1), broom::glance)) 
 
 Weights(AICc(m0,m1))
-tidy(m2)
+
 
 finalSal <- glm(Saliva_mean ~ Temp_mean_mean, 
-                data=modDF,
+                data=seasonInfSite,
                 family=gaussian)
 
+plot(finalSal)
+
 plot(cooks.distance(finalSal))
-abline(h=4/length(modDF), lty=2)
+
 car::Anova(finalSal)
-#confint(finalSal)
+confint(finalSal)
 drop1(finalSal, test="F")
 tidy(finalSal)
 
@@ -682,85 +657,13 @@ plot_grid(plotBody, plotHead, plotSaliva,
 #dev.off()
 ```
 
-
-```{r, eval=F, include=F}
-#png(file="figures/forMS/supplement/InfxRH3Panel.png", width = 8, height=3, units="in", res=500, family="sans")
-plotBody <- ggplot(data=seasonInfSite, aes(x=RH_mean_mean, y=Body_mean))+
-  geom_errorbar(aes(ymin=Body_mean-Body_se, ymax=Body_mean+Body_se), color=errorColor, width=0.1) +
-  geom_point(aes(color=class, shape=block), size=4.5) + 
-  scale_color_manual(values=c(colR, colS, colU)) +
-  theme_fivethirtyeight() +
-  theme(panel.background = element_rect(fill = "transparent", colour = NA),
-        plot.background = element_rect(fill = "transparent", colour = NA),
-        legend.key = element_blank(),
-        legend.background = element_rect(fill = "transparent", colour = NA),
-        axis.title = element_text(),
-        axis.title.x = element_text(),
-        axis.title.y=element_text(),
-        axis.line=element_line(color=axisColor, size=0.5),
-        panel.grid = element_blank())+
-  ylab("Prop. Infected")+
-  xlab("") +  
-  theme(legend.position="none")
-
-plotHead <- ggplot(data=seasonInfSite, aes(x=RH_mean_mean, y=Head_mean))+
-   geom_errorbar(aes(ymin=Head_mean-Head_se, ymax=Head_mean+Head_se), color=errorColor, width=0.1) +
-  geom_point(aes(color=class, shape=block), size=4) + 
-  scale_color_manual(values=c(colR, colS, colU)) +
-  theme_fivethirtyeight() +
-    theme(panel.background = element_rect(fill = "transparent", colour = NA),
-        plot.background = element_rect(fill = "transparent", colour = NA),
-        legend.key = element_blank(),
-        legend.background = element_rect(fill = "transparent", colour = NA),
-        axis.title = element_text(),
-        axis.title.x = element_text(),
-        axis.title.y=element_blank(),
-        axis.line=element_line(color=axisColor, size=0.5),
-        panel.grid = element_blank())+
-  #ylab("Prop. Disseminated")+
-  xlab("Relative Humidity (%)")+
-  theme(legend.position="none")
-
-plotSaliva <- ggplot(data=seasonInfSite, aes(x=RH_mean_mean, y=Saliva_mean))+
-  geom_errorbar(aes(ymin=Saliva_mean-Saliva_se, ymax=Saliva_mean+Saliva_se), color=errorColor, width=0.1) +
-  geom_point(aes(color=class, shape=block), size=4.5) + 
-  scale_color_manual(values=c(colR, colS, colU)) +
-  theme_fivethirtyeight() +
-    theme(panel.background = element_rect(fill = "transparent", colour = NA),
-        plot.background = element_rect(fill = "transparent", colour = NA),
-        legend.key = element_blank(),
-        legend.background = element_rect(fill = "transparent", colour = NA),
-        axis.title = element_text(),
-        axis.title.x = element_text(),
-        axis.title.y=element_blank(),
-        axis.line=element_line(color=axisColor, size=0.5),
-        panel.grid = element_blank()) +
-  #ylab("Prop. Infectious")+
-  xlab("") +  
-  scale_y_continuous(limits=c(0,1))+
-  #theme(legend.position="right", legend.direction="vertical")
-  theme(legend.position="none")
-
-
-plot_grid(plotBody, plotHead, plotSaliva, 
-          labels=c("A", "B", "C"), 
-          ncol=3)
-#dev.off()
-```
-
 ## Infection and Body Size
 
 ### Body Infection
 
 ```{r body inf x size stats}
-bodyWingDF <- seasonInf %>%
-  dplyr::select(Body, Wing, site, block, class) %>%
-  filter(!is.na(Body)) %>%
-  filter(!is.na(Wing))
-
-
 bodyWing <- glmer(Body~Wing + (1|site),
-                          data=bodyWingDF,
+                          data=seasonInf,
                           family=binomial(link="logit"))
 
 tidy(bodyWing)
@@ -771,7 +674,7 @@ drop1(bodyWing, test="Chisq")
 ```
 
 ```{r body inf x size plot, eval=F, include=F}
-ggplot(data=bodyWingDF, aes(x=factor(Body), y=Wing))+
+ggplot(data=seasonInf, aes(x=factor(Body), y=Wing))+
   geom_boxplot() +
   geom_jitter(shape=16, position=position_jitter(0.1), aes(color=factor(class)), alpha=0.5) +
     theme_fivethirtyeight()+
@@ -791,18 +694,12 @@ ggplot(data=bodyWingDF, aes(x=factor(Body), y=Wing))+
 ### Head Infection
 
 ```{r head inf x size stats}
-headWingDF <- seasonInf %>%
-  dplyr::select(Head, Wing, site, block, class) %>%
-  filter(!is.na(Head)) %>%
-  filter(!is.na(Wing))
-
-
 headWing <- glmer(Head~Wing + (1|site),
-                          data=headWingDF,
+                          data=seasonInf,
                           family=binomial(link="logit"))
-# headWing <- lmer(Wing~Head + (1|site),
-#                           data=headWingDF) #this tests if the wing length is significantly different across infection classes
+
 tidy(headWing)
+plot(headWing)
 
 Anova(headWing)
 drop1(headWing, test="Chisq")
@@ -811,14 +708,8 @@ drop1(headWing, test="Chisq")
 ### Saliva Infection
 
 ```{r saliva inf x size stats}
-salWingDF <- seasonInf %>%
-  dplyr::select(Saliva, Wing, site, block, class) %>%
-  filter(!is.na(Saliva)) %>%
-  filter(!is.na(Wing))
-
-
 salWing <- glmer(Saliva~Wing + (1|site),
-                          data=salWingDF,
+                          data=seasonInf,
                           family=binomial(link="logit"))
 summary(salWing)
 tidy(salWing)
@@ -941,7 +832,7 @@ emergClim <- merge(emergTray, allClim, by.x=c("block","Tray_Code"), by.y=c("bloc
 ### Class x Season
 
 ```{r}
-SurvModSeason <- glmer(survival ~ Class *block + (1|Site_Code),
+SurvModSeason <- glmer(survival ~ Class*block + (1|Site_Code),
                    data=survTray,
                  family=gaussian(link="logit"))
 
@@ -950,13 +841,7 @@ modResults <- tidy(SurvModSeason)
 plot(SurvModSeason)
 car::Anova(SurvModSeason)
 
-#pairwise
-survPair <- pairs(lsmeans::lsmeans(SurvModSeason, ~block))
-survPair
-
-#coefficients
-boot::inv.logit(modResults$estimate[1]) #fall
-boot::inv.logit(modResults$estimate[1]+modResults$estimate[2]) #summer
+summary(multcomp::glht(SurvModSeason, linfct = multcomp::mcp(block = "Tukey"), test = adjusted("holm")))
 ```
 
 ### Microclimate
@@ -971,9 +856,6 @@ modResults <- tidy(survModClim)
 
 plot(survModClim)
 qqnorm(resid(survModClim))
-
-#coefficients
-modResults$estimate[2] #temp coefficient
 ```
 
 ## Emergence
@@ -1004,11 +886,6 @@ devClimMod <- lmerTest::lmer(devRate~Temp_mean +(1|Site_Code),
 plot(devClimMod)
 qqnorm(resid(devClimMod))
 summary(devClimMod)
-
-
-modResults <- tidy(devClimMod)
-#coefficients
-modResults$estimate[2] #temp coefficient
 ```
 
 # Indirect Effects
@@ -1086,6 +963,8 @@ summary(wingMod)
 plot(wingMod)
 car::Anova(wingMod)
 
+
+interaction.plot(allWing$class, allWing$block, allWing$mm)
 ```
 
 ## Microclimate
@@ -1354,6 +1233,105 @@ plot_grid(survPlot, emergePlot, growthPlot,
           align='v')
 
 #dev.off()
+```
+
+New three panel plot to be combined with infection dynamics.
+
+```{r}
+#survival
+survPlot <- ggplot(data=survTray)+
+  geom_boxplot(aes(alpha=block, x = as.factor(Class), y = (survival *100), fill = Class), width=0.7)+
+  scale_fill_manual(values=c(colR, colS, colU), labels=c("Rural", "Suburban", "Urban"))+
+  scale_color_manual(values=c(colR, colS, colU), labels=c("Rural", "Suburban", "Urban"))+
+  scale_alpha_discrete(range=c(1, 0.1), name="Season", labels=c("Summer", "Fall"))+
+  ylab("Percent Survival")+
+  theme_fivethirtyeight() +
+  theme(panel.background = element_rect(fill = "transparent", colour = NA), 
+        plot.background = element_rect(fill = "transparent", colour = NA),
+        legend.key = element_blank(),
+        panel.grid.major.x = element_blank(),
+        legend.background = element_rect(fill = "transparent", colour = NA),
+        axis.title = element_text(), 
+        axis.title.x = element_text(),
+        axis.title.y=element_text(),
+        #strip.background = element_blank(),
+        strip.text.x = element_text(size=12),
+        axis.line=element_line(color=axisColor, size=0.5),
+        panel.grid = element_blank(),
+        axis.text.y=element_text(size=12),
+        axis.text.x=element_text(size=12))+
+  theme(axis.title.x = element_blank(), 
+        axis.text.x = element_blank(),
+        axis.title.y= element_text(size=10),
+        strip.text = element_text(size=10))+
+  theme(legend.position="none")
+
+#Emergence Plot
+emergePlot <- ggplot(emergTray)+
+  geom_boxplot(aes(alpha=block, x = as.factor(Class), y = (devRate), fill = Class), width=0.7)+
+  scale_fill_manual(values=c(colR, colS, colU), labels=c("Rural", "Suburban", "Urban"))+
+  scale_alpha_discrete(range=c(1, 0.1), name="Season", labels=c("Summer", "Fall"))+
+  ylab("Development Rate")+
+   theme_fivethirtyeight() +
+  theme(panel.background = element_rect(fill = "transparent", colour = NA), 
+        plot.background = element_rect(fill = "transparent", colour = NA),
+        legend.key = element_blank(),
+        panel.grid.major.x = element_blank(),
+        legend.background = element_rect(fill = "transparent", colour = NA),
+        axis.title = element_text(), 
+        axis.title.x = element_text(),
+        axis.title.y=element_text(),
+        #strip.background = element_blank(),
+        strip.text.x = element_text(size=12),
+        axis.line=element_line(color=axisColor, size=0.5),
+        panel.grid = element_blank(),
+        axis.text.y=element_text(size=12),
+        axis.text.x=element_text(size=12))+
+  theme(legend.position="none") +
+  theme(strip.background = element_blank(),
+  strip.text.x = element_blank()) +
+  theme(axis.title.x = element_blank(), 
+        axis.text.x = element_blank(),
+        axis.title.y= element_text(size=10))
+
+# growth plot
+growthPlot <- ggplot(data=growthDF2)+
+  geom_boxplot(aes(alpha=block, x = as.factor(class), y = r, fill = class), width=0.7)+
+  scale_fill_manual(values=c(colR, colS, colU), labels=c("Rural", "Suburban", "Urban"))+
+  scale_alpha_discrete(range=c(1, 0.1), name="Season", labels=c("Summer", "Fall"))+
+   theme_fivethirtyeight() +
+  theme(panel.background = element_rect(fill = "transparent", colour = NA), 
+        plot.background = element_rect(fill = "transparent", colour = NA),
+        legend.key = element_blank(),
+        panel.grid.major.x = element_blank(),
+        legend.background = element_rect(fill = "transparent", colour = NA),
+        axis.title = element_text(), 
+        axis.title.x = element_text(),
+        axis.title.y=element_text(),
+        #strip.background = element_blank(),
+        strip.text.x = element_text(size=12),
+        axis.line=element_line(color=axisColor, size=0.5),
+        panel.grid = element_blank(),
+        axis.text.y=element_text(size=12),
+        axis.text.x=element_text(size=12))+
+  theme(legend.position="none") +
+  theme(strip.background = element_blank(),
+  strip.text.x = element_blank()) +
+  ylab("Per Capita Growth\nRate (r')")+
+  xlab("Land Class") +
+  theme(axis.text.x = element_text(size=10)) +
+  theme(axis.title = element_text(size=12), 
+        axis.title.y= element_text(size=10))
+```
+
+
+```{r}
+png(file="figures/forMS/survEmergeGrowth.png", width = 3, height=6, units="in", res=500, family="sans")
+plot_grid(survPlot, emergePlot, growthPlot,
+          labels=c("A", "B", "C"),
+          nrow=3,
+          align='v')
+dev.off()
 ```
 
 
@@ -1767,21 +1745,23 @@ ggdraw()+
 ```{r VC stats}
 VCplot$VCforStats <- VCplot$VC+0.000000001
 VCplot$VCforStatsnoCOE <- VCplot$VCnoCOE+0.000000001
-VCclass <- glmer(VCforStats~Class*block+ (1|Site_Code), 
-                 data=VCplot,
-                family=Gamma())
+VCclass <- lmer(VCforStats~Class*block+ (1|Site_Code), 
+                 data=VCplot)
+
+summary(multcomp::glht(VCclass, linfct = multcomp::mcp(block = "Tukey"), test = multcomp::adjusted("holm")))
 
 plot(VCclass)
 summary(VCclass)
 car::Anova(VCclass)
 
-VCclassnoCOE <- glmer(VCforStatsnoCOE~Class*block+ (1|Site_Code), 
-                 data=VCplot,
-                family=Gamma())
+VCclassnoCOE <- lmer(VCforStatsnoCOE~Class*block+ (1|Site_Code), 
+                 data=VCplot)
 
 plot(VCclassnoCOE)
 summary(VCclassnoCOE)
 car::Anova(VCclassnoCOE)
+
+summary(multcomp::glht(VCclassnoCOE, linfct = multcomp::mcp(block = "Tukey"), test = multcomp::adjusted("holm")))
 
 #make long for comparison of with and without carry-over
 VClong <- VCplot %>%
