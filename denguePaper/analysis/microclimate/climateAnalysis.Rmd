@@ -22,6 +22,7 @@ library(dplyr)
 library(ggthemes)
 library(lme4)
 library(multcomp)
+library(cowplot)
 ```
 
 #Load Data
@@ -36,7 +37,7 @@ climate$Site_ID <- as.factor(climate$Site_ID)
 climate$Tray_ID <- as.factor(climate$Tray_ID)
 climate$Class <- as.factor(climate$Class)
 
-#drop R3T4 because it has wierd errors
+#drop R3T4 because it malfunctioned
 climate <- filter(climate, Tray_ID!="R3T4")
 ```
 
@@ -54,9 +55,7 @@ clim <- climate %>%
 # Plots
 Temperature Plot:
 ```{r, eval = F}
-png(file="../figures/forMS/Figure2.png", width = 6, height=4, units = "in", res=400, family="sans")
-
-ggplot(data=clim, aes(x=Day, group=Class))+
+temperature <- ggplot(data=clim, aes(x=Day, group=Class))+
   geom_line(aes(y=meanT, col=Class)) + 
   geom_line(aes(y=minT, col=Class), linetype="dotted") +
   geom_line(aes(y=maxT, col=Class), linetype="dotted") +
@@ -74,14 +73,12 @@ ggplot(data=clim, aes(x=Day, group=Class))+
         axis.line=element_line(color=ggthemes_data$fivethirtyeight["dkgray"], size=0.5),
         panel.grid = element_blank())+
   theme(legend.background = element_rect(fill = "transparent", colour = NA))
-dev.off()
+
 ```
 
 Relative Humidity
 ```{r, eval=F}
-#pdf(file="../figures/forMS/supplement/relativeHumiditySupp1.pdf", width = 6, height=4, family="sans")
-
-ggplot(data=clim, aes(x=Day, group=Class))+
+rh <- ggplot(data=clim, aes(x=Day, group=Class))+
   geom_line(aes(y=meanRH, col=Class)) + 
   geom_line(aes(y=minRH, col=Class), linetype="dotted") +
   geom_line(aes(y=maxRH, col=Class), linetype="dotted") +
@@ -89,6 +86,7 @@ ggplot(data=clim, aes(x=Day, group=Class))+
   scale_color_manual(values=c("dodgerblue", "gray20", "maroon")) +
   theme(axis.title = element_text(), axis.title.x = element_blank()) +
   ylab("Relative Humidity (%)") + 
+  xlab("Date")+
   annotate("rect", xmin=as.Date("2016-08-01", format="%Y-%m-%d"), xmax=as.Date("2016-09-01", format="%Y-%m-%d"), ymin=-Inf, ymax=Inf, fill="gray20", alpha=0.1)+
     annotate("rect", xmin=as.Date("2016-09-26", format="%Y-%m-%d"), xmax=as.Date("2016-11-07", format="%Y-%m-%d"), ymin=-Inf, ymax=Inf, fill="gray20", alpha=0.1)+
     annotate("text", x = as.Date("2016-08-15", format="%Y-%m-%d"), y = 22, label = "Summer") +
@@ -100,6 +98,13 @@ ggplot(data=clim, aes(x=Day, group=Class))+
         panel.grid = element_blank())+
   theme(legend.background = element_rect(fill = "transparent", colour = NA))
 #dev.off()
+```
+
+
+```{r}
+pdf(file="../figures/forMS/SuppFig2.pdf", width = 6, height=8, family="sans")
+plot_grid(temperature, rh, align="v", nrow=2)
+dev.off()
 ```
 
 # Stats
@@ -119,8 +124,12 @@ climBlocks <- rbind(summer, fall)
 rm(summer,fall)
 
 climTray <- climBlocks %>%
-  group_by(Block, Tray_ID, Day, Site_ID, Class) %>%
-  dplyr::summarise(meanT=mean(Temp), minT=min(Temp), maxT=max(Temp), meanRH=mean(RH), maxRH=max(RH), minRH=min(RH), DTR=max(Temp)- min(Temp), DHR=max(RH)- min(RH))
+  dplyr::group_by(Tray_ID, Day, Site_ID, Class, Block) %>%
+  dplyr::summarise(meanT=mean(Temp), minT=min(Temp), maxT=max(Temp), meanRH=mean(RH), maxRH=max(RH), minRH=min(RH), DTR = max(Temp) - min(Temp), DHR = max(RH) - min(RH)) %>% #values per tray
+  ungroup() %>%
+  group_by(Block, Class, Site_ID, Tray_ID) %>% #get mean values per class
+  dplyr::summarise(meanT=mean(meanT), minT=mean(minT), maxT=mean(maxT), meanRH=mean(meanRH), maxRH=mean(maxRH), minRH=mean(minRH), meanDTR = mean(DTR), meanDHR = mean(DHR)) %>%
+  ungroup()
 
 climTray$classxBlock <- interaction(climTray$Class, climTray$Block)
 ```
@@ -129,7 +138,7 @@ Temperature:
 
 ```{r}
 ##------------ Mean T
-climModMean <- lmer(meanT~Class*Block + (1|Site_ID/Day), data=climTray)
+climModMean <- lmer(meanT~Class*Block + (1|Site_ID), data=climTray)
 plot(climModMean)
 summary(climModMean)
 confint(climModMean)
@@ -141,14 +150,26 @@ summary(glht(climModMean, linfct = mcp(Class = "Tukey"), test = adjusted("holm")
 summary(glht(climModMean, linfct = mcp(Block = "Tukey"), test = adjusted("holm")))
 
 #pairwise stats-interaction
-intMod <- lmer(meanT~classxBlock+ (1|Site_ID/Day), data=climTray)
+intMod <- lmer(meanT~classxBlock+ (1|Site_ID), data=climTray)
 summary(glht(intMod, linfct = mcp(classxBlock = "Tukey"), test = adjusted("holm")))
 
-anova(climModMean, intMod)
+#get means in a reasonable way
+extractMean  <- function(model){
+  results <- data.frame(unique(climTray[,c('Class', 'Block')]), Mean = NA)
+  results$Mean[1] <- fixef(model)[1]
+  results$Mean[2] <- fixef(model)[1] + fixef(model)[2]
+  results$Mean[3] <- fixef(model)[1] + fixef(model)[3]
+  results$Mean[4] <- fixef(model)[1] + fixef(model)[4]
+  results$Mean[5] <- fixef(model)[1] + fixef(model)[2] + fixef(model)[4] + fixef(model)[5]
+  results$Mean[6] <- fixef(model)[1] + fixef(model)[3] + fixef(model)[4] + fixef(model)[6]
+  return(results)
+}
+
+extractMean(climModMean)
 
 ##------------ Min T
 
-climModMin <- lmer(minT~Class*Block + (1|Site_ID/Day), data=climTray)
+climModMin <- lmer(minT~Class*Block + (1|Site_ID), data=climTray)
 plot(climModMin)
 summary(climModMin)
 confint(climModMin)
@@ -161,11 +182,13 @@ summary(glht(climModMin, linfct = mcp(Class = "Tukey"), test = adjusted("holm"))
 summary(glht(climModMin, linfct = mcp(Block = "Tukey"), test = adjusted("holm")))
 
 #pairwise stats-interaction
-intMod <- lmer(minT~classxBlock+ (1|Day) + (1|Site_ID), data=climTray)
+intMod <- lmer(minT~classxBlock+(1|Site_ID), data=climTray)
 summary(glht(intMod, linfct = mcp(classxBlock = "Tukey"), test = adjusted("holm")))
 
+extractMean(climModMin)
+
 ##------------ Max T
-climModMax <- lmer(maxT~Class*Block + (1|Site_ID/Day), data=climTray)
+climModMax <- lmer(maxT~Class*Block + (1|Site_ID), data=climTray)
 plot(climModMax)
 summary(climModMax)
 confint(climModMax)
@@ -178,8 +201,15 @@ summary(glht(climModMax, linfct = mcp(Class = "Tukey"), test = adjusted("holm"))
 #pairwise stats
 summary(glht(climModMax, linfct = mcp(Block = "Tukey"), test = adjusted("holm")))
 
+#pairwise stats-interaction
+intMod <- lmer(maxT~classxBlock+(1|Site_ID), data=climTray)
+summary(glht(intMod, linfct = mcp(classxBlock = "Tukey"), test = adjusted("holm")))
+
+
+extractMean(climModMax)
+
 ##------------ DTR
-climModDTR <- lmer(DTR~Class*Block + (1|Site_ID/Day), data=climTray)
+climModDTR <- lmer(meanDTR~Class*Block + (1|Site_ID), data=climTray)
 plot(climModDTR)
 summary(climModDTR)
 confint(climModDTR)
@@ -193,8 +223,10 @@ summary(glht(climModDTR, linfct = mcp(Class = "Tukey"), test = adjusted("holm"))
 summary(glht(climModDTR, linfct = mcp(Block = "Tukey"), test = adjusted("holm")))
 
 #pairwise stats-interaction
-intMod <- lmer(DTR~classxBlock+ (1|Site_ID/Day), data=climTray)
+intMod <- lmer(meanDTR~classxBlock+ (1|Site_ID), data=climTray)
 summary(glht(intMod, linfct = mcp(classxBlock = "Tukey"), test = adjusted("holm")))
+
+extractMean(climModDTR)
 
 ```
 
@@ -202,13 +234,8 @@ summary(glht(intMod, linfct = mcp(classxBlock = "Tukey"), test = adjusted("holm"
 ## Relative Humidity:
 ```{r}
 ## ------ mean RH
-ggplot(data=climTray, aes(x=Class, y=meanRH)) +
-  geom_boxplot() +
-  facet_wrap(~Block)
-ggplot(data=climTray, aes(x=meanRH)) +
-  geom_histogram()
 
-climModMeanRH <- lmer(meanRH~Class*Block + (1|Site_ID/Day), data=climTray)
+climModMeanRH <- lmer(meanRH~Class*Block + (1|Site_ID), data=climTray)
 plot(climModMeanRH)
 summary(climModMeanRH)
 #confint(climModMeanRH)
@@ -220,20 +247,15 @@ summary(glht(climModMeanRH, linfct = mcp(Class = "Tukey"), test = adjusted("holm
 summary(glht(climModMeanRH, linfct = mcp(Block = "Tukey"), test = adjusted("holm")))
 
 #pairwise stats-interaction
-intMod <- lmer(meanRH~classxBlock+ (1|Site_ID/Day), data=climTray)
+intMod <- lmer(meanRH~classxBlock+ (1|Site_ID), data=climTray)
 summary(glht(intMod, linfct = mcp(classxBlock = "Tukey"), test = adjusted("holm")))
 
 anova(climModMeanRH, intMod)
 
-## ------ min RH
-ggplot(data=climTray, aes(x=Class, y=minRH)) +
-  geom_boxplot() +
-  facet_wrap(~Block)
-ggplot(data=climTray, aes(x=minRH)) +
-  geom_histogram() +
-  facet_wrap(~Block)
+extractMean(climModMeanRH)
 
-climModMinRH <- lmer(minRH~Class*Block + (1|Site_ID/Day), data=climTray) #class not significant
+## ------ min RH
+climModMinRH <- lmer(minRH~Class*Block + (1|Site_ID), data=climTray)
 plot(climModMinRH)
 summary(climModMinRH)
 confint(climModMinRH)
@@ -246,31 +268,39 @@ summary(glht(climModMinRH, linfct = mcp(Class = "Tukey"), test = adjusted("holm"
 summary(glht(climModMinRH, linfct = mcp(Block = "Tukey"), test = adjusted("holm")))
 
 #pairwise stats-interaction
-intMod <- lmer(minRH~classxBlock+ (1|Day) + (1|Site_ID), data=climTray)
+intMod <- lmer(minRH~classxBlock+ (1|Site_ID), data=climTray)
 summary(glht(intMod, linfct = mcp(classxBlock = "Tukey"), test = adjusted("holm")))
+
+extractMean(climModMinRH)
 
 ## ------ max RH
 
-climModMaxRH <- lmer(maxRH~0+Class*Block + (1|Day)+ (1|Site_ID), data=climTray)
+climModMaxRH <- lmer(maxRH~Class*Block + (1|Site_ID), data=climTray)
 plot(climModMaxRH)
-# summary(climModMaxRH)
+summary(climModMaxRH)
 # confint(climModMaxRH)
 # 
+anova(climModMaxRH)
 car::Anova(climModMaxRH)
-# 
-# #pairwise stats
-# summary(glht(climModMaxRH, linfct = mcp(Class = "Tukey"), test = adjusted("holm")))
-# 
-# #pairwise stats
-# summary(glht(climModMaxRH, linfct = mcp(Block = "Tukey"), test = adjusted("holm")))
+
+anova(climModMaxRH)
+
+#pairwise stats
+summary(glht(climModMaxRH, linfct = mcp(Class = "Tukey"), test = adjusted("holm")))
+
+#pairwise stats
+summary(glht(climModMaxRH, linfct = mcp(Block = "Tukey"), test = adjusted("holm")))
+
+#pairwise stats-interaction
+intMod <- lmer(maxRH~classxBlock+ (1|Site_ID), data=climTray)
+summary(glht(intMod, linfct = mcp(classxBlock = "Tukey"), test = adjusted("holm")))
+
+
+extractMean(climModMaxRH)
 
 ## ------ DHR
 
-ggplot(data=climTray, aes(x=Class, y=DHR)) +
-  geom_boxplot() +
-  facet_wrap(~Block)
-
-climModDHR <- lmer(DHR~Class*Block + (1|Site_ID/Day), data=climTray)
+climModDHR <- lmer(meanDHR~Class*Block + (1|Site_ID), data=climTray)
 plot(climModDHR)
 summary(climModDHR)
 confint(climModDHR)
@@ -284,7 +314,8 @@ summary(glht(climModDHR, linfct = mcp(Class = "Tukey"), test = adjusted("holm"))
 summary(glht(climModDHR, linfct = mcp(Block = "Tukey"), test = adjusted("holm")))
 
 #pairwise stats-interaction
-intMod <- lmer(DHR~classxBlock+ (1|Site_ID/Day), data=climTray)
+intMod <- lmer(meanDHR~classxBlock+ (1|Site_ID), data=climTray)
 summary(glht(intMod, linfct = mcp(classxBlock = "Tukey"), test = adjusted("holm")))
 
+extractMean(climModDHR)
 ```
