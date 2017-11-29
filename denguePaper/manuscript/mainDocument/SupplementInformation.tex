@@ -1,0 +1,101 @@
+\documentclass[12pt]{article}
+\usepackage[paper=letterpaper, margin=0.8in]{geometry}
+
+%% The graphicx package provides the includegraphics command.
+\usepackage{graphicx}
+%% The amssymb package provides various useful mathematical symbols
+\usepackage{amssymb}
+%% The amsthm package provides extended theorem environments
+%% \usepackage{amsthm}
+%% fix strange gensymb error
+\usepackage{textcomp}
+%% symbols, especially degree
+\usepackage{gensymb}
+%% scientific units
+\usepackage{siunitx}
+%% line spacing
+\usepackage{setspace}
+\doublespacing
+%% put figures at the end
+%\usepackage[nomarkers]{endfloat}
+%% allow hyperlinks
+%\usepackage{hyperref}
+%% color comments
+\usepackage{soul}
+\usepackage{color}
+%% left justification in tables
+\usepackage{array}
+\newcolumntype{P}[1]{>{\raggedright\arraybackslash}p{#1}}
+%%references
+\usepackage[round]{natbib}
+%%landscape orientation
+\usepackage{pdflscape}
+
+\begin{document}
+
+{\Large
+\textbf\newline{Carry-over effects of larval microclimate on the transmission potential of a mosquito-borne pathogen}}
+
+\bigskip
+
+Michelle V. Evans\textsuperscript{1,2,3*},
+Justine C. Shiau\textsuperscript{4},
+Nicole Solano\textsuperscript{1,2},
+Melinda A. Brindley\textsuperscript{4,5},
+John M. Drake\textsuperscript{1,2},
+Courtney C. Murdock\textsuperscript{1,2,3,4,6,7}
+\smallskip
+
+{\Large{Supplemental Information}}
+
+\subsection{Intrinsic growth rates (r')}
+
+We calculated the per capita population growth rate per following citet{livdahl1984} {Supp. Eq. \ref{eq:1}}:
+
+\begin{equation} \label{eq:1}
+r' = \frac{ln(\frac{1}{N_0}\sum_{x}^{ }{A_x}f(\bar{w_x}))}{D+\frac{\sum_{x}^{ }xA_xf(\bar{w_x})}{\sum_{x}^{ }A_xf(\bar{w_x})}}
+\end{equation}
+
+Where $N_0$ is the initial number of female mosquitoes (assumed to be 50\% of the larvae, n=50), $A_x$ is the number of mosquitoes emerging on day $x$, $D$ is the time to reproduction following emergence (assumed to be 14 days \citep{livdahl1991}), and $f(\bar{w_x})$ is fecundity as a function of mean wing size on day $x$ ($w_x$; Supp. Equation \ref{eq:2}). This relationship is assumed to be linear and calculated via \citep{lounibos2002}:
+
+\begin{equation} \label{eq:2}
+f(\bar{w_x}) = -121.240 + (78.02 \times \bar{w_x})
+\end{equation}
+
+\subsection{Vectorial Capacity}
+
+We calculated the vectorial capacity ($VC$; Supp. Equation \ref{eq:3}) for each site and season using a temperature-dependent mechanistic dengue model defined in \citet{mordecai2017}.
+
+\begin{equation} \label{eq:3}
+VC(T) =\frac{a(T)^2b(T)c(T)e^{-\mu (T)/EIR(T)} EFD(T) p_{EA}(T) MDR(T)} {\mu(T)^2}
+\end{equation}
+
+Here, mosquito traits are a function of temperature, $T$, as described in Table \ref{table:traits}:
+
+\begin{table}[h]
+\centering
+\begin{tabular}{P{0.15\linewidth}P{0.3\linewidth}P{0.25\linewidth}P{0.25\linewidth}}
+\hline
+\textbf{Parameter} & \textbf{Definition} & \textbf{Without carry-over effects} & \textbf{With carry-over effects}\\
+\hline
+$a(T)$ & Per-mosquito bite rate & Mordecai et al. 2017 & Mordecai et al. 2017 \\
+$b(T)c(T)$* & Vector competence & Mordecai et al. 2017 & Current Study \\
+$\mu(T)$ & Adult mosquito mortality rate & Mordecai et al. 2017 & Mordecai et al. 2017 \\
+$EIR(T)$ & Extrinsic incubation rate (inverse of extrinsic incubation period) & Mordecai et al. 2017 & Mordecai et al. 2017 \\
+$EFD(T)$* & Number of eggs produced per female mosquito per day & Mordecai et al. 2017 & Current Study \\
+$p_{EA}(T)$ & Egg-to-adult survival probability & Current Study & Current Study \\
+$MDR(T)$ & Mosquito immature development rate & Current Study & Current Study \\
+\hline
+\end{tabular}
+\caption{Sources of parameters used in the $VC$ equation. Parameters sourced from \citep{mordecai2017} were mathematically estimated at a constant temperature of 27 \degree C. Parameters that included carry-over effects are starred.}
+\label{table:traits}
+\end{table}
+
+Site-level $VC$ was calculated using a combination of traits empirically measured in this study and traits estimated from thermal response models as described in \citep{mordecai2017}. The bite rate ($a(T)$), adult mosquito mortality rate ($\mu(T)$), and extrinsic incubation rate ($EIR(T)$), were calculated for mosquitoes at a constant 27 \degree C using temperature dependent functions from \citep{mordecai2017}. Vector competence ($b(T)c(T)$) was calculated as the proportion of infectious mosquitoes per site as found by our dengue infection assays. The number of eggs produced per female per day ($EFD(T)$) was calculated by estimating fecundity from average female wing length following Eq. \ref{eq:2}, and then dividing this by the expected lifespan of mosquitoes ($1/\mu$). The egg-to-adult survival probability ($p_{EA}(T)$) was defined as the average proportion of adults emerging at a site. The mosquito immature development rate ($MDR(T)$) was calculated as the inverse of the mean time to emergence for female mosquitoes per site, resulting in a daily rate of development.
+
+\newpage
+
+\bibliographystyle{vancouver}
+\bibliography{references}
+
+\end{document}
