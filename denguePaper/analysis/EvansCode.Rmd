@@ -265,49 +265,7 @@ infLong <- seasonInf %>%
 infLong$sampleLab <- paste0(infLong$positives, "(", infLong$samples, ")")
 ```
 
-Figure 2.
-
-```{r land class x season plot, eval=F}
-pdf(file="figures/forMS/Fig2.pdf", width = 3, height=6, family="sans")
-
-infPlot <- ggplot(data=infLong[order(infLong$block, decreasing=F),], aes(x=class, group=block))+
-  geom_bar(stat="identity", aes(y=mean.inf, alpha=block, fill=class, color=factor(class)), position=position_dodge(width=-0.9))+
-  #geom_text(aes(label=sampleLab, y=mean.inf), vjust=-2, color="black", position=position_dodge(width=-0.9), size=2.5)+
-  facet_wrap(~factor(stripLabel, levels=c("Infected", "Disseminated", "Infectious")), nrow=3, dir="v", scales='free') +
-  scale_y_continuous(breaks=c(0,0.5,1), minor_breaks = c(0.25, 0.75), labels=c("0%", "50%", "100%"), limits=c(0,1))+
-  #ylim(0,1)+
-  scale_fill_manual(values=c(colR, colS, colU))+
-  scale_color_manual(values=c(colR, colS, colU))+
-  scale_alpha_discrete(range=c(0,1), name="Season", labels=c("Fall", "Summer"))+
-  geom_errorbar(aes(ymin=mean.inf-se.inf, ymax=mean.inf+se.inf), width=0.2, color="gray20", position =position_dodge(-0.9))+
-  xlab("Land Class") +
-  ylab("Percent Positive") +
-  guides(fill = F, color = F,
-         alpha = F) +
-         #alpha=guide_legend(override.aes=list(color=axisColor, size=0.3), reverse=T)) +
-  theme_fivethirtyeight() +
-  theme(panel.background = element_rect(fill = "transparent", colour = NA), 
-        plot.background = element_rect(fill = "transparent", colour = NA),
-        legend.key = element_blank(),
-        panel.grid.major.x = element_blank(),
-        legend.background = element_rect(fill = "transparent", colour = NA),
-        axis.title = element_text(), 
-        axis.title.x = element_text(size = 8),
-        axis.title.y=element_text(size = 8),
-        strip.background = element_blank(),
-        strip.text.x = element_blank(),
-        axis.line=element_line(color=axisColor, size=0.5),
-        panel.grid = element_blank(),
-        axis.text.y=element_text(size=6),
-        axis.text.x=element_text(size=6),
-        legend.text = element_text(size = 6),
-        legend.title = element_text(size = 8),
-        legend.key.size = unit(1, "line"))
-infPlot
-dev.off()
-```
-
-Infection plot to combine in 6 panel figure
+Infection plot to combine in 6 panel figure in chunk 46.
 
 ```{r}
 infLong <- infLong[order(infLong$block, decreasing=F),]
@@ -1318,29 +1276,20 @@ growthPlot <- ggplot(data=growthDF2)+
 ```
 
 
-```{r}
-pdf(file="figures/forMS/Fig1.pdf", width = 3, height=6, family="sans")
-plot_grid(survPlot, emergePlot, growthPlot,
-          labels=c("A", "B", "C"),
-          nrow=3,
-          align='v')
-dev.off()
-```
-
 Combine infection and demographic data into Figure 1.
 
 ```{r Figure 1}
 pdf(file="figures/forMS/Fig1.pdf", width = 6.5, height=6, family="sans")
 ggdraw()+
-  draw_plot(survPlot, x=0.01, y=0.66, width=0.5, height=0.33)+
-  draw_plot(emergePlot, x=0, y=0.33, width=0.5, height=0.33)+
-  draw_plot(growthPlot, x=0, y=0, width=0.5, height=0.33)+
-  draw_plot(bodyPlot, x=0.475, y=0.66, width=0.5, height=0.33)+
-  draw_plot(headPlot, x=0.475, y=0.33, width=0.5, height=0.33)+
-  draw_plot(SalivaPlot, x=0.475, y=0, width=0.5, height=0.33)+
+  draw_plot(survPlot, x=0.01, y=0.69, width=0.5, height=0.31)+
+  draw_plot(emergePlot, x=0, y=0.38, width=0.5, height=0.31)+
+  draw_plot(growthPlot, x=0, y=0, width=0.5, height=0.36)+
+  draw_plot(bodyPlot, x=0.475, y=0.69, width=0.5, height=0.31)+
+  draw_plot(headPlot, x=0.475, y=0.38, width=0.5, height=0.31)+
+  draw_plot(SalivaPlot, x=0.475, y=0, width=0.5, height=0.36)+
   draw_plot_label(label=c("A", "B", "C", "D", "E", "F"),
                   x=c(0,0,0,0.45, 0.45, 0.45),
-                  y=c(1,0.67,0.34,1,0.67,0.34))
+                  y=c(1,0.69,0.38,1,0.69,0.38))
 dev.off()
 ```
 
@@ -1584,7 +1533,7 @@ VCxTempPlot <- ggplot(data=VCplot, aes(x=Temp_mean_mean))+
 ```
 
 ```{r}
-pdf(file="figures/forMS/Fig3.pdf", width = 5, height=4, family="sans")
+pdf(file="figures/forMS/Fig2.pdf", width = 5, height=4, family="sans")
 VCxTempPlot
 dev.off()
 ```
@@ -1723,7 +1672,7 @@ diffPlot <- ggplot(data=VCplotsumm[VCplotsumm$labels=="Difference due to COEs",]
                        guide=guide_legend(), 
                        labels=c("Summer", "Fall"))+
   geom_hline(aes(yintercept=0))+
-  guides(color=F, alpha=guide_legend(override.aes=list(color=axisColor)))+
+  guides(color = F, alpha= F, fill = F)+
   theme(panel.background = element_rect(fill = "transparent", colour = NA),
         plot.background = element_rect(fill = "transparent", colour = NA),
         legend.key = element_blank(),
@@ -1747,17 +1696,12 @@ diffPlot <- ggplot(data=VCplotsumm[VCplotsumm$labels=="Difference due to COEs",]
 ```
 
 Use cowplot to combine the three bar graphs and VC over temp chart.
-```{r, eval=F}
-pdf(file="figures/forMS/Fig3.pdf", width = 10, height=7, family="sans")
+```{r supp figure 3, eval=F}
+pdf(file="figures/forMS/SuppFig3.pdf", width = 3, height=6, family="sans")
 
-ggdraw()+
-  draw_plot(VCxTempPlot, x=0, y=0, width=0.7, height=1)+
-  draw_plot(noCOEplot, x=0.7, y=0.72, width=0.3, height=0.28)+
-  draw_plot(withCOEplot, x=0.7, y=0.44, width=0.3, height=0.28)+
-  draw_plot(diffPlot, x=0.685, y=0, width=0.3, height=0.44)+
-  draw_plot_label(label=c("A", "B", "C", "D"),
-                  x=c(0,0.67,0.67,0.67),
-                  y=c(1,1,0.72,0.44))
+plot_grid(noCOEplot, withCOEplot, diffPlot, labels = c("A", "B", "C"),
+          align = "v", nrow = 3)
+
 dev.off()
 ```
 
