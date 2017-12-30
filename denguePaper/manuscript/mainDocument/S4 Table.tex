@@ -1,0 +1,60 @@
+\documentclass[12pt]{article}
+\usepackage[paper=letterpaper, margin=0.8in]{geometry}
+
+%% The graphicx package provides the includegraphics command.
+\usepackage{graphicx}
+%% The amssymb package provides various useful mathematical symbols
+\usepackage{amssymb}
+%% The amsthm package provides extended theorem environments
+%% \usepackage{amsthm}
+%% fix strange gensymb error
+\usepackage{textcomp}
+%% symbols, especially degree
+\usepackage{gensymb}
+%% scientific units
+\usepackage{siunitx}
+%% line spacing
+\usepackage{setspace}
+\doublespacing
+%% put figures at the end
+%\usepackage[nomarkers]{endfloat}
+%% allow hyperlinks
+%\usepackage{hyperref}
+%% color comments
+\usepackage{soul}
+\usepackage{color}
+%% left justification in tables
+\usepackage{array}
+\newcolumntype{P}[1]{>{\raggedright\arraybackslash}p{#1}}
+%%references
+\usepackage[round]{natbib}
+%%landscape orientation
+\usepackage{pdflscape}
+\usepackage{nopageno}
+
+\begin{document}
+
+\begin{landscape}
+
+\begin{table}[]
+\centering
+\textbf{S4 Table. GZLM results of microclimate across season and land class.} Mean $\pm$ s.e. of climate metrics across season and land class. Superscripts represent significant differences within a season as measured by pair-wise comparisons using Tukey multiple comparisons of means, adjusting for significance with the Holm-Bonferroni method.
+\begin{tabular}{l|ccc|ccc}
+	                       & \multicolumn{3}{c}{Summer}                            & \multicolumn{3}{c}{Fall}                              \\
+	\hline
+	                       & Rural            & Suburban        & Urban            & Rural            & Suburban         & Urban           \\
+	\hline
+	Min. Temperature       & $21.69 \pm 0.23^a$  & $21.99 \pm 0.32^a$ & $22.69 \pm 0.33^a$  & $11.07 \pm 0.33^a$  & $12.23 \pm 0.47^{ab}$ & $13.32 \pm 0.47^b$ \\
+	Mean Temperature       & $25.41 \pm 0.16^a$  & $25.36 \pm 0.22^a$ & $26.30 \pm 0.23^b$  & $17.87 \pm 0.23^a$  & $18.11 \pm 0.33^a$  & $19.28 \pm 0.33^b$ \\
+	Max. Temperature       & $31.39 \pm 0.49^a$  & $30.86 \pm 0.68^a$ & $31.41 \pm 0.71^a$  & $27.52 \pm 0.37^a$  & $26.58 \pm 0.53^a$  & $26.87 \pm 0.55^a$ \\
+	DTR                    & $9.82 \pm 0.55^a$   & $8.86 \pm 0.76^a$  & $8.75 \pm 0.79^a$   & $16.46 \pm 0.57^a$  & $14.35 \pm 0.80^a$  & $13.58 \pm 0.82^b$ \\
+	Min. Relative Humidity & $73.59 \pm 1.84^{ab}$ & $76.29 \pm 2.55^b$ & $66.48 \pm 2.67^a$  & $47.81 \pm 1.75^a$  & $48.84 \pm 2.45^a$  & $44.28 \pm 2.52^a$ \\
+	Mean Relative Humidity & $93.80 \pm 1.04^a$ & $94.77 \pm 1.45^a$ & $87.52 \pm 1.51^b$ & $80.84  \pm 1.52^a$ & $80.41 \pm 2.14^a$  & $71.58 \pm 2.17^b$ \\
+	Max. Relative Humidity & $99.97 \pm 0.84^a$  & $99.97 \pm 1.31^a$ & $98.09 \pm 1.37^a$  & $99.33 \pm 1.25^a$  & $98.92 \pm 1.75^a$  & $92.07 \pm 1.78^b$ \\
+	DHR                    & $26.37 \pm 2.00^{ab}$ & $23.69 \pm 2.77^b$ & $31.62 \pm 2.90^a$  & $51.51 \pm 1.89^a$  & $50.09 \pm 2.65^a$  & $47.79 \pm 2.73^a$
+\end{tabular}
+\end{table}
+
+\end{landscape}
+
+\end{document}

@@ -1,0 +1,63 @@
+\documentclass[12pt]{article}
+\usepackage[paper=letterpaper, margin=0.8in]{geometry}
+
+%% The graphicx package provides the includegraphics command.
+\usepackage{graphicx}
+%% The amssymb package provides various useful mathematical symbols
+\usepackage{amssymb}
+%% The amsthm package provides extended theorem environments
+%% \usepackage{amsthm}
+%% fix strange gensymb error
+\usepackage{textcomp}
+%% symbols, especially degree
+\usepackage{gensymb}
+%% scientific units
+\usepackage{siunitx}
+%% line spacing
+\usepackage{setspace}
+\doublespacing
+%% put figures at the end
+%\usepackage[nomarkers]{endfloat}
+%% allow hyperlinks
+%\usepackage{hyperref}
+%% color comments
+\usepackage{soul}
+\usepackage{color}
+%% left justification in tables
+\usepackage{array}
+\newcolumntype{P}[1]{>{\raggedright\arraybackslash}p{#1}}
+%%references
+\usepackage[round]{natbib}
+%%landscape orientation
+\usepackage{pdflscape}
+%no page linenumbers
+\usepackage{nopageno}
+
+\begin{document}
+
+\begin{landscape}
+
+	\begin{table}[h]
+	\centering
+	\textbf{S5 Table. Dengue infection rates.} The efficiency rates of infection (mosquitoes with dengue positive bodies), dissemination (infected mosquitoes with dengue positive heads) and infectiousness (infected mosquitoes with dengue positive saliva) across season and land class. Raw numbers of positive samples are shown with percentages in parentheses.
+	\begin{tabular}{P{0.12\linewidth}P{0.12\linewidth}P{0.12\linewidth}P{0.12\linewidth}P{0.15\linewidth}P{0.15\linewidth}}
+	\hline
+	\textbf{Season} & \textbf{Land Class} & \textbf{No. tested} & \textbf{No. infected (\%)}  & \textbf{No. disseminated (\%)} & \textbf{No. infectious (\%)} \\
+	\hline
+	\hline
+	\textit{Summer} &   &   &   &   \\
+	     & Rural & 56 & 22 (39) & 19 (48) & 6 (15) \\
+	   & Suburban & 57 & 32 (56) & 26 (81) & 10 (31) \\
+	   & Urban & 51 & 10 (20) & 10 (100) & 7 (70) \\
+
+	\textit{Fall} &   &   &   &   \\
+	     & Rural & 50 & 32 (64) & 30 (94) & 3 (9) \\
+	   & Suburban & 43 & 28 (65) & 25 (89) & 3 (11) \\
+	   & Urban & 51 & 10 (20) & 10 (100) & 7 (70) \\
+	\hline
+	\end{tabular}
+	\end{table}
+
+\end{landscape}
+
+\end{document}
