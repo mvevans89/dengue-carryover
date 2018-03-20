@@ -1,9 +1,5 @@
-# urbanDengue
+# Carry-over effects of larval microclimate on the transmission potential of a mosquito-borne pathogen
 
-This repo contains all of the files related to the 2016 urban dengue project.  This includes:
+This repository contains all of the files necessary to reproduce the analysis and figures from:
 
-* larval habitat surveys
-
-* adult surveys
-
-* dengue infections
+Evans MV, Shiau JC, Solano N, Brindley MA, Drake JM, Murdock, CC. Carry-over effects of larval microclimate on the transmission potential of a mosquito-borne pathogen. 
