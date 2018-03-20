@@ -40,7 +40,9 @@ library(caret)
 library(ggthemes)
 library(dplyr)
 library(multcomp)
+```
 
+```{r set colors}
 colR <- "dodgerblue"
 colS <- "gray60"
 colU <- "maroon"
@@ -51,227 +53,41 @@ errorColor <- "gray20"
 
 # Data Loading and Formatting
 
-Load and format infection data:
-```{r data loading and formatting}
-formatData <- function(month){
-  #' format infection data
-  #' @params month (ie. "august")
-  #' @returns dataframe of properly formatted data
-  #adjust wingLength
-  monthDf <- read.csv(paste0("../data/infections/raw/", month,"Dengue.csv"))
-  #convert wingLength and drop extra columns
-  monthDf$Wing <- monthDf$WingLength*monthDf$conversion..mm.bar.
-  monthDf <- dplyr::select(monthDf, -WingLength, -conversion..mm.bar.)
-  
-  #dpi as factor
-  monthDf$DPI <- as.factor(monthDf$DPI)
-  
-  #add in class and site
-  monthDf$site <- as.factor(substr(as.character(monthDf$Individual), 1, 2))
-  monthDf$class <- NULL
-  for (i in 1:nrow(monthDf)){
-    if (substr(monthDf$site[i], 1,1)=="R"){
-    monthDf$class[i] <- "Rural"
-    } else if (substr(monthDf$site[i], 1,1)=="S"){
-    monthDf$class[i] <- "Suburban"
-    } else if (substr(monthDf$site[i], 1,1)=="U"){
-    monthDf$class[i] <- "Urban"
-    }
-  }
-  monthDf$class <- as.factor(monthDf$class)
-  
-  #convert Y and N to 1 and 0 for statistics
-  levels(monthDf$Body) <- c("NA", 0, 1)
-  monthDf$Body <- as.numeric(as.character(monthDf$Body))
-  levels(monthDf$Saliva) <- c("NA", 0, 1)
-  monthDf$Saliva <- as.numeric(as.character(monthDf$Saliva))
-  # august had no contaminated heads, so different corrections
-  if (month=="august"){
-    levels(monthDf$Head) <- c(0, 1)
-  } else levels(monthDf$Head) <- c("NA",0, 1)
-  monthDf$Head <- as.numeric(as.character(monthDf$Head))
-  
-  ##Fix false negatievs
-  #adjust so that if saliva is positive, so is head
-  #ddjust so that is head is positive, so is body
-  monthDf$Head[monthDf$Saliva>0] <- 1
-  monthDf$Body[monthDf$Head>0] <- 1
-  
-  return(monthDf)
-}
-
-august <- formatData("august")
-oct <- formatData("october")
-seasons <- rbind(august,oct)
-seasons$block <- as.factor(c(rep("summer", nrow(august)), rep("fall", nrow(oct))))
-
-seasonSumm <- seasons %>%
-  filter(DPI==21) %>%
-  #drop individual
-  dplyr::select(-Individual, -site, -Wing, -DPI) %>%
-  group_by(block, class) %>%
-  summarise_all(funs(mean(.,na.rm=T),sd(.,na.rm=T),se=(sd(., na.rm=T)/sqrt(n())))) %>%
-  ungroup()
-```
-
-Load and format microclimate data
-```{r load and format microclimate data}
-climate <- read.csv('../data/microclimate/clean/2016TrialsAdult.csv')[,-1]
-#toss out ridiculous levels
-climate <- climate[climate$Temp<75,]
-#format date
-climate$Date <- strptime(climate$Date, format="%Y-%m-%d %H:%M:%S")
-#draw out day
-climate$Day <- as.Date(climate$Date)
-
-# add tray id to climate data
-trayID <- read.csv("../data/microclimate/trayLoggerID.csv") #read in IDs
-climate <- merge(climate, trayID, by="Pot_ID")
-
-#fix duplicates for R1T1
-climate <- unique(climate)
-
-#U2T2 and U1T2 are missing data
-# range(climate[climate$Tray_ID=="U2T2", 'Date']) 
-# range(climate[climate$Tray_ID=="U1T2", 'Date']) 
-
-#drop U2T2 becuase it only has data until August 5th
-inds <- which(climate$Tray_ID=="U2T2")
-climate <- climate[-inds,]
-rm(inds)
-
-#U2T4 wasn't working right, reporting temps above 40C in October
-inds <- which(climate$Tray_ID=="U2T4")
-climate <- climate[-inds,]
-rm(inds)
-```
-
-Load and format emergence data
-```{r load emergence data,echo=T}
-augEmerg <- read.csv("../data/emergence/raw/AugustEmergence.csv")
-augEmerg$block <- as.factor("summer")
-octEmerg <- read.csv("../data/emergence/raw/OctoberEmergence.csv")
-octEmerg$block <- as.factor("fall")
-
-allEmerg <- rbind(augEmerg, octEmerg)
-```
-
-Subset and standardize emergence data to be used with infections (i.e. weight by number of days mosquitoes were in larval environment)
-```{r standardize and correct for emergence}
-#filter out only days when infected mosquitoes were in the trays
-octInf <- octEmerg %>%
-  filter(Sex=="F") %>%
-  filter((Site_Code %in% c("U3", "R3") & Day <= 21) |
-           (Site_Code %in% c("U2", "U1", "S3") & Day <= 20) |
-           (Site_Code %in% c("S1", "S2", "R1", "R2") & Day <= 24))
-
-augInf <- augEmerg %>%
-  filter(Sex=="F") %>%
-    filter((Site_Code %in% c("U2", "U1", "S3", "R1") & Day <= 14) |
-           (Site_Code %in% c("S1", "S2", "R2", "R3", "U3") & Day <= 17))
-```
-
-```{r process october climate}
-octClim <- climate %>%
-  dplyr::select(-Date) %>%
-  filter(Day >= as.Date("2016-09-26","%Y-%m-%d")) %>%
-  #filter out appropriate days
-  filter((Site_ID %in% c("U3", "R3") & Day <= "2016-10-21") |
-           (Site_ID %in% c("U2", "U1", "S3") & Day <= "2016-10-20") |
-           (Site_ID %in% c("S1", "S2", "R1", "R2") & Day <= "2016-10-24")) %>%
-  dplyr::select(-Site_ID, -Pot_ID, -Class) %>%
-  #get daily averages by Tray
-  group_by(Tray_ID, Day) %>%
-  summarise_all(funs(mean(., na.rm=T), min(., na.rm=T), max(., na.rm=T))) %>%
-  #calculate DTR
-  mutate(DTR=Temp_max-Temp_min) %>%
-  #get overall average over study period per tray (average daily values)
-  ungroup() %>%
-  dplyr::select(-Day) %>%
-  group_by(Tray_ID) %>%
-  summarise_all(funs(mean))
-
-##new method of weighting climate by expanded infection
-octInfExp <- octInf[rep(seq.int(1,nrow(octInf)), octInf$Num_Emerge),]
-test <- merge(octInfExp, octClim, by.x="Tray_Code", by.y="Tray_ID", all.x=T)
-
-octEnvVar <- test %>%
-  dplyr::select(-Tray_Code,-Site, -Tray, - Class, - Month, - Day, - Exp_Day, - Sex, -Num_Emerge) %>%
-  group_by(block,Site_Code) %>%
-  summarise_all(funs(mean(.,na.rm=T),se=(sd(., na.rm=T)/sqrt(n())))) 
-
-  
-rm(test) #clear unused temporary dataframe
-```
-
-```{r august climate formatting}
-##repeat above for August
-augClim <- climate %>%
-  dplyr::select(-Date) %>%
-  filter(Day >= as.Date("2016-08-01","%Y-%m-%d")) %>%
-    filter((Site_ID %in% c("U2", "U1", "S3", "R1") & Day <= "2016-08-14") |
-           (Site_ID %in% c("S1", "S2", "R2", "R3", "U3") & Day <= "2016-08-17")) %>%
-  dplyr::select(-Site_ID, -Pot_ID, -Class) %>%
-  #get daily averages by Tray
-  group_by(Tray_ID, Day) %>%
-  summarise_all(funs(mean(., na.rm=T), min(., na.rm=T), max(., na.rm=T))) %>%
-  #calculate DTR
-  mutate(DTR=Temp_max-Temp_min) %>%
-  #get overall average over study period per tray (average daily values)
-  ungroup() %>%
-  dplyr::select(-Day) %>%
-  group_by(Tray_ID) %>%
-  summarise_all(funs(mean))
-
-##new method of weighting climate by expanded infection
-augInfExp <- augInf[rep(seq.int(1,nrow(augInf)), augInf$Num_Emerge),]
-test <- merge(augInfExp, augClim, by.x="Tray_Code", by.y="Tray_ID", all.x=T)
-
-augEnvVar <- test %>%
-  dplyr::select(-Tray_Code,-Site, -Tray, - Class, - Month, - Day, - Exp_Day, - Sex, -Num_Emerge) %>%
-  group_by(block,Site_Code) %>%
-  summarise_all(funs(mean(.,na.rm=T),se=(sd(., na.rm=T)/sqrt(n())))) 
-
-rm(test)
-
-```
+## Climate
 
 ```{r}
-#merge the summer and fall into one dataframe
-oct$block <- as.factor("fall")
-august$block <- as.factor("summer")
-seasonInf <- merge(rbind(oct, august[august$DPI=="21",]), rbind(augEnvVar,octEnvVar), by.x=c("block", "site"), by.y=c("block", "Site_Code"))
+augEnvVar <- readRDS("denguePaper/data/microclimate/clean/summerInfectionClimate.RData")
+octEnvVar <- readRDS("denguePaper/data/microclimate/clean/fallInfectionClimate.RData")
+```
+
+## Infection
+
+```{r}
+seasons <- readRDS("denguePaper/data/infections/clean/seasonInfection.RData")
+```
+
+Combine infection with climate that is relevant to infection
+
+```{r}
+seasonInf <- merge(seasons, rbind(augEnvVar, octEnvVar), by = c("Block", "Site_ID"))
 ```
 
 # Infection Dynamics
 
 ## Infection by Class and Season
 
+### Prepping for Plot
+
 Make data long
 ```{r infection data format}
-infLong <- seasonInf %>%
-  gather(type, infection, Body:Saliva) %>%
-  dplyr::select(block, class, site, Individual, type, infection) %>%
-  dplyr::group_by(block, class, type, site) %>%
-  summarise(mean.inf=mean(infection, na.rm=T), sampleSize=sum(!is.na(infection)), positive=sum(infection, na.rm=T)) %>%
-  group_by(block, class, type) %>%
-  summarise(se.inf=sd(mean.inf, na.rm=T)/n(), mean.inf=mean(mean.inf), samples=sum(sampleSize), positives=sum(positive)) %>%
-  ungroup() %>%
-  mutate(stripLabel=case_when(
-    type=="Body" ~ "Infected",
-    type=="Head" ~ "Disseminated",
-    type=="Saliva" ~ "Infectious"
-  ))
-infLong$sampleLab <- paste0(infLong$positives, "(", infLong$samples, ")")
+infLong <- readRDS("denguePaper/data/infections/clean/infectionSummaryLong.RData")
 ```
 
 Infection plot to combine in 6 panel figure in chunk 46.
 
 ```{r}
-infLong <- infLong[order(infLong$block, decreasing=F),]
-
-bodyPlot <- ggplot(data=infLong[infLong$type=="Body",], aes(x=class, group=block))+
-  geom_bar(stat="identity", aes(y=mean.inf, alpha=block, fill=class), color="gray20", position=position_dodge(width=-0.9))+
+bodyPlot <- ggplot(data=infLong[infLong$type=="Body",], aes(x=Class, group=Block))+
+  geom_bar(stat="identity", aes(y=mean.inf, alpha=Block, fill=Class), color="gray20", position=position_dodge(width=-0.9))+
   scale_y_continuous(breaks=c(0,0.5,1), minor_breaks = c(0.25, 0.75), labels=c("0%", "50%", "100%"), limits=c(0,1))+
   scale_fill_manual(values=c(colR, colS, colU))+
   scale_alpha_discrete(range=c(0.1,1), name="Season", labels=c("Fall", "Summer"))+
@@ -295,8 +111,8 @@ bodyPlot <- ggplot(data=infLong[infLong$type=="Body",], aes(x=class, group=block
         legend.text = element_text(size = 10),
         legend.title = element_text(size = 10))
 
-headPlot <- ggplot(data=infLong[infLong$type=="Head",], aes(x=class, group=block))+
-  geom_bar(stat="identity", aes(y=mean.inf, alpha=block, fill=class), color="gray20", position=position_dodge(width=-0.9))+
+headPlot <- ggplot(data=infLong[infLong$type=="Head",], aes(x=Class, group=Block))+
+  geom_bar(stat="identity", aes(y=mean.inf, alpha=Block, fill=Class), color="gray20", position=position_dodge(width=-0.9))+
   scale_y_continuous(breaks=c(0,0.5,1), minor_breaks = c(0.25, 0.75), labels=c("0%", "50%", "100%"), limits=c(0,1))+
   scale_fill_manual(values=c(colR, colS, colU))+
   scale_alpha_discrete(range=c(0.1,1), name="Season", labels=c("Fall", "Summer"))+
@@ -322,8 +138,8 @@ headPlot <- ggplot(data=infLong[infLong$type=="Head",], aes(x=class, group=block
         legend.text = element_text(size = 10),
         legend.title = element_text(size = 10))
 
-SalivaPlot <- ggplot(data=infLong[infLong$type=="Saliva",], aes(x=class, group=block))+
-  geom_bar(stat="identity", aes(y=mean.inf, alpha=block, fill=class), color="gray20", position=position_dodge(width=-0.9))+
+SalivaPlot <- ggplot(data=infLong[infLong$type=="Saliva",], aes(x=Class, group=Block))+
+  geom_bar(stat="identity", aes(y=mean.inf, alpha=Block, fill=Class), color="gray20", position=position_dodge(width=-0.9))+
   scale_y_continuous(breaks=c(0,0.5,1), minor_breaks = c(0.25, 0.75), labels=c("0%", "50%", "100%"), limits=c(0,1))+
   scale_fill_manual(values=c(colR, colS, colU))+
   scale_alpha_discrete(range=c(0.1,1), name="Season", labels=c("Fall", "Summer"))+

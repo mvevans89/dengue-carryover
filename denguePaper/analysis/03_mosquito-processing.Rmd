@@ -1,0 +1,159 @@
+---
+title: "Cleaning and Processing Mosquito Data"
+author: "Michelle Evans"
+date: ""
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = T)
+knitr::opts_chunk$set(cache=TRUE)
+knitr::opts_chunk$set(message=FALSE)
+knitr::opts_chunk$set(warning=FALSE)
+
+#packages
+library(dplyr)
+
+```
+
+This document contains the code for the cleaning and processing of mosquito emergence and infection data in 'Carry-over effects of larval microclimate on the transmission potential of a mosquito-borne pathogen' (Evans et al. 2018).
+
+Paper Citation:
+
+Evans MV, Shiau JC, Solano N, Brindley MA, Drake JM, Murdock, CC. 2018. Carry-over effects of larval microclimate on the transmission potential of a mosquito-borne pathogen.  
+
+# Infection Data
+
+```{r formatting function}
+formatData <- function(month){
+  #' format infection data
+  #' @params month (ie. "august")
+  #' @returns dataframe of properly formatted data
+  #adjust wingLength
+  monthDf <- read.csv(paste0("denguePaper/data/infections/raw/", month,"Dengue.csv"))
+  #convert wingLength and drop extra columns
+  monthDf$Wing <- monthDf$WingLength*monthDf$conversion..mm.bar.
+  monthDf <- dplyr::select(monthDf, -WingLength, -conversion..mm.bar.)
+  
+  #dpi as factor
+  monthDf$DPI <- as.factor(monthDf$DPI)
+  
+  #add in class and site
+  monthDf$site <- as.factor(substr(as.character(monthDf$Individual), 1, 2))
+  monthDf$class <- NULL
+  for (i in 1:nrow(monthDf)){
+    if (substr(monthDf$site[i], 1,1)=="R"){
+    monthDf$class[i] <- "Rural"
+    } else if (substr(monthDf$site[i], 1,1)=="S"){
+    monthDf$class[i] <- "Suburban"
+    } else if (substr(monthDf$site[i], 1,1)=="U"){
+    monthDf$class[i] <- "Urban"
+    }
+  }
+  monthDf$class <- as.factor(monthDf$class)
+  
+  #convert Y and N to 1 and 0 for statistics
+  levels(monthDf$Body) <- c("NA", 0, 1)
+  monthDf$Body <- as.numeric(as.character(monthDf$Body))
+  levels(monthDf$Saliva) <- c("NA", 0, 1)
+  monthDf$Saliva <- as.numeric(as.character(monthDf$Saliva))
+  # august had no contaminated heads, so different corrections
+  if (month=="august"){
+    levels(monthDf$Head) <- c(0, 1)
+  } else levels(monthDf$Head) <- c("NA",0, 1)
+  monthDf$Head <- as.numeric(as.character(monthDf$Head))
+  
+  ##Fix false negatives
+  #adjust so that if saliva is positive, so is head
+  #ddjust so that is head is positive, so is body
+  monthDf$Head[monthDf$Saliva>0] <- 1
+  monthDf$Body[monthDf$Head>0] <- 1
+  
+  return(monthDf)
+}
+```
+
+Format each month via above function and combine together.
+
+```{r}
+summerInfection <- formatData("august")
+fallInfection <- formatData("october")
+seasonInfection <- rbind(summerInfection, fallInfection)
+seasonInfection$Block <- factor(c(rep("Summer", nrow(summerInfection)), rep("Fall", nrow(fallInfection))), levels = c("Summer", "Fall"))
+
+seasonInfection <- seasonInfection %>%
+  rename(Site_ID = site, Class = class) %>%
+  #only need 21 dpi
+  filter(DPI==21) %>%
+  select(-DPI)
+```
+
+##  Summary
+
+Calculate the mean and sd for plots per block and class.
+
+```{r}
+seasonInfSummary <- seasonInfection %>%
+  #drop individual
+  dplyr::select(-Individual, -Site_ID, -Wing) %>%
+  group_by(Block, Class) %>%
+  summarise_all(funs(mean(.,na.rm=T),sd(.,na.rm=T),se=(sd(., na.rm=T)/sqrt(n())))) %>%
+  ungroup()
+```
+
+```{r}
+saveRDS(seasonInfection, "denguePaper/data/infections/clean/seasonInfection.RData")
+
+saveRDS(seasonInfSummary, "denguePaper/data/infections/clean/infectionSummary.RData")
+```
+
+## Long Infection Data
+
+This data is long for the plot.
+
+```{r}
+infLong <- seasonInfection %>%
+  gather(type, infection, Body:Saliva) %>%
+  dplyr::select(Block, Class, Site_ID, Individual, type, infection) %>%
+  dplyr::group_by(Block, Class, type, Site_ID) %>%
+  summarise(mean.inf=mean(infection, na.rm=T), sampleSize=sum(!is.na(infection)), positive=sum(infection, na.rm=T)) %>%
+  group_by(Block, Class, type) %>%
+  summarise(se.inf=sd(mean.inf, na.rm=T)/n(), mean.inf=mean(mean.inf), samples=sum(sampleSize), positives=sum(positive)) %>%
+  ungroup() %>%
+  mutate(stripLabel=case_when(
+    type=="Body" ~ "Infected",
+    type=="Head" ~ "Disseminated",
+    type=="Saliva" ~ "Infectious"
+  ))
+infLong$sampleLab <- paste0(infLong$positives, "(", infLong$samples, ")")
+```
+
+```{r}
+saveRDS(infLong, "denguePaper/data/infections/clean/infectionSummaryLong.RData")
+```
+
+
+# Emergence Data
+
+```{r}
+augEmerg <- read.csv("denguePaper/data/emergence/raw/AugustEmergence.csv")
+augEmerg$Block <- as.factor("Summer")
+augEmerg$Class <- factor(Hmisc::capitalize(as.character(augEmerg$Class)), levels = c("Rural", "Suburban", "Urban"))
+augEmerg <- rename(augEmerg, Site_ID = Site_Code, Tray_ID = Tray_Code)
+octEmerg <- read.csv("denguePaper/data/emergence/raw/OctoberEmergence.csv")
+octEmerg$Block <- as.factor("Fall")
+octEmerg$Class <- factor(Hmisc::capitalize(as.character(octEmerg$Class)), levels = c("Rural", "Suburban", "Urban"))
+octEmerg <- rename(octEmerg, Site_ID = Site_Code, Tray_ID = Tray_Code)
+
+allEmerg <- rbind(augEmerg, octEmerg)
+```
+
+```{r}
+saveRDS(augEmerg, "denguePaper/data/emergence/clean/summerEmergence.RData")
+saveRDS(octEmerg, "denguePaper/data/emergence/clean/fallEmergence.RData")
+saveRDS(allEmerg, "denguePaper/data/emergence/clean/bothEmergence.RData")
+```
+
+
+
+

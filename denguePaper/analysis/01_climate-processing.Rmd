@@ -1,0 +1,210 @@
+---
+title: "Process and Clean Climate Data"
+author: "Michelle Evans"
+date: ""
+output: html_document
+---
+
+This document processes data logger data used in the `urbanDengue` project. 
+
+The clean data is output into `data/microclimate/clean/2016TrialsAdult.csv` (and as RData).
+
+```{r setup}
+library(dplyr)
+```
+
+# Total Climate
+
+## Merge CSVs 
+
+This works from inside the microclimate data folder, reading files from `raw` and saving in `clean`.
+
+```{r load these grouped tables}
+aug1 <- read.csv("denguePaper/data/microclimate/raw/AdultTable_July14-Aug8_2016.csv")[,-1]
+aug2 <- read.csv("denguePaper/data/microclimate/raw/AdultTable_Aug8-Aug29_2016.csv")[,-1]
+aug3 <- read.csv("denguePaper/data/microclimate/raw/AdultTable_Aug29-Sep19_2016.csv")[,-1]
+oct1 <- read.csv("denguePaper/data/microclimate/raw/AdultTable_Sep19-Oct14_2016.csv")
+oct2 <- read.csv("denguePaper/data/microclimate/raw/AdultTable_Oct14-Nov7_2016.csv")
+loggerAll <- rbind(aug1, aug2, aug3, oct1, oct2)
+#correct Date format
+loggerAll$Date <- as.character(loggerAll$Date)
+loggerAll$Date <- strptime(loggerAll$Date, format="%m/%d/%Y %H:%M:%S")
+
+#cutoff those before august start date
+climate <- loggerAll[loggerAll$Date>strptime("08-01-2016 17:00:00", format="%m-%d-%Y %H:%M:%S"),]
+
+```
+
+## Clean and Format
+
+```{r}
+#toss out ridiculous levels
+climate <- climate[climate$Temp<65,]
+#format date
+climate$Date <- strptime(climate$Date, format="%Y-%m-%d %H:%M:%S")
+#get date
+climate$Day <- as.Date(climate$Date)
+#drop horrible format of date
+climate <- select(climate, -Date)
+
+# add tray id to climate data
+trayID <- read.csv("denguePaper/data/microclimate/trayLoggerID.csv") #read in IDs
+climate <- merge(climate, trayID, by="Pot_ID")
+
+#fix duplicates because some loggers were downloaded multiple times
+climate <- unique(climate)
+```
+
+## Drop malfunctioning loggers
+
+U2T2, U2T4, R3T4
+
+```{r}
+toDrop <- which(climate$Tray_ID %in% c("U2T2", "U2T4", "R3T4"))
+climate <- climate[-toDrop,]
+rm(toDrop)
+```
+
+## Save
+
+```{r}
+saveRDS(climate, "denguePaper/data/microclimate/clean/2016TrialsAdult.RData")
+write.csv(climate, "denguePaper/data/microclimate/clean/2016TrialsAdult.csv", row.names = F)
+```
+
+# Replicate Summary Statistics for Climate Stats
+
+Calculate the necessary statistics per the summer and fall feplicate to be used in the climate statistical analysis.
+
+This calculates the mean daily mean, minimum, maximum and range per tray over both blocks.
+
+```{r}
+fall <- climate %>%
+  filter(Day>"2016-09-26") %>%
+  mutate(Block="Fall")
+
+summer <- climate %>%
+  filter(Day < "2016-09-01") %>%
+  mutate(Block="Summer")
+
+climBlocks <- rbind(summer, fall)
+rm(summer,fall)
+
+climTray <- climBlocks %>%
+  dplyr::group_by(Tray_ID, Day, Site_ID, Class, Block) %>%
+  dplyr::summarise(meanT=mean(Temp), minT=min(Temp), maxT=max(Temp), meanRH=mean(RH), maxRH=max(RH), minRH=min(RH), DTR = max(Temp) - min(Temp), DHR = max(RH) - min(RH)) %>% #values per tray
+  ungroup() %>%
+  group_by(Block, Class, Site_ID, Tray_ID) %>% #get mean values per class
+  dplyr::summarise(meanT=mean(meanT), minT=mean(minT), maxT=mean(maxT), meanRH=mean(meanRH), maxRH=mean(maxRH), minRH=mean(minRH), meanDTR = mean(DTR), meanDHR = mean(DHR)) %>%
+  ungroup()
+
+#create interaction
+climTray$classxBlock <- interaction(climTray$Class, climTray$Block)
+```
+
+```{r}
+saveRDS(climTray, "denguePaper/data/microclimate/clean/climateTraySummary.RData")
+```
+
+# Weighted Climate Data
+
+This calculates climate data that is weighted by the number of mosquitoes that emerged from each tray that were used for infections. It is a mean calculated on the individual emerging mosquitoes, rather than each tray. For example, on site U3, no mosquitoes emerged from one tray becuase it was knocked over by wildlife, therefore its microclimate data isn't included in the weighted mean used to calculate the effects of climate on infection.
+
+This data is only to be used in reference to infections.
+
+## Summer
+
+```{r}
+augEmerg <- read.csv("denguePaper/data/emergence/raw/AugustEmergence.csv")
+
+augInf <- augEmerg %>%
+  filter(Sex=="F") %>%
+    filter((Site_Code %in% c("U2", "U1", "S3", "R1") & Day <= 14) |
+           (Site_Code %in% c("S1", "S2", "R2", "R3", "U3") & Day <= 17)) %>%
+  mutate(Block="Summer")
+```
+
+```{r}
+augClim <- climate %>%
+  filter(Day >= as.Date("2016-08-01","%Y-%m-%d")) %>%
+    filter((Site_ID %in% c("U2", "U1", "S3", "R1") & Day <= "2016-08-14") |
+           (Site_ID %in% c("S1", "S2", "R2", "R3", "U3") & Day <= "2016-08-17")) %>%
+  dplyr::select(-Site_ID, -Pot_ID, -Class) %>%
+  #get daily averages by Tray
+  group_by(Tray_ID, Day) %>%
+  summarise_all(funs(mean(., na.rm=T), min(., na.rm=T), max(., na.rm=T))) %>%
+  #calculate DTR
+  mutate(DTR=Temp_max-Temp_min) %>%
+  #get overall average over study period per tray (average daily values)
+  ungroup() %>%
+  dplyr::select(-Day) %>%
+  group_by(Tray_ID) %>%
+  summarise_all(funs(mean))
+
+##new method of weighting climate by expanded infection
+augInfExp <- augInf[rep(seq.int(1,nrow(augInf)), augInf$Num_Emerge),]
+test <- merge(augInfExp, augClim, by.x="Tray_Code", by.y="Tray_ID", all.x=T)
+
+augEnvVar <- test %>%
+  dplyr::select(-Tray_Code,-Site, -Tray, - Class, - Month, - Day, - Exp_Day, - Sex, -Num_Emerge) %>%
+  group_by(Block, Site_Code) %>%
+  summarise_all(funs(mean(.,na.rm=T),se=(sd(., na.rm=T)/sqrt(n())))) %>%
+  ungroup() %>%
+  rename(Site_ID = Site_Code)
+
+rm(test)
+```
+
+## Fall
+
+```{r}
+octEmerg <- read.csv("denguePaper/data/emergence/raw/OctoberEmergence.csv")
+
+octInf <- octEmerg %>%
+  filter(Sex=="F") %>%
+  filter((Site_Code %in% c("U3", "R3") & Day <= 21) |
+           (Site_Code %in% c("U2", "U1", "S3") & Day <= 20) |
+           (Site_Code %in% c("S1", "S2", "R1", "R2") & Day <= 24)) %>%
+  mutate(Block = "Fall")
+```
+
+```{r}
+octClim <- climate %>%
+  filter(Day >= as.Date("2016-09-26","%Y-%m-%d")) %>%
+  #filter out appropriate days
+  filter((Site_ID %in% c("U3", "R3") & Day <= "2016-10-21") |
+           (Site_ID %in% c("U2", "U1", "S3") & Day <= "2016-10-20") |
+           (Site_ID %in% c("S1", "S2", "R1", "R2") & Day <= "2016-10-24")) %>%
+  dplyr::select(-Site_ID, -Pot_ID, -Class) %>%
+  #get daily averages by Tray
+  group_by(Tray_ID, Day) %>%
+  summarise_all(funs(mean(., na.rm=T), min(., na.rm=T), max(., na.rm=T))) %>%
+  #calculate DTR
+  mutate(DTR=Temp_max-Temp_min) %>%
+  #get overall average over study period per tray (average daily values)
+  ungroup() %>%
+  dplyr::select(-Day) %>%
+  group_by(Tray_ID) %>%
+  summarise_all(funs(mean))
+
+##new method of weighting climate by expanded infection
+octInfExp <- octInf[rep(seq.int(1,nrow(octInf)), octInf$Num_Emerge),]
+test <- merge(octInfExp, octClim, by.x="Tray_Code", by.y="Tray_ID", all.x=T)
+
+octEnvVar <- test %>%
+  dplyr::select(-Tray_Code,-Site, -Tray, - Class, - Month, - Day, - Exp_Day, - Sex, -Num_Emerge) %>%
+  group_by(Block,Site_Code) %>%
+  summarise_all(funs(mean(.,na.rm=T),se=(sd(., na.rm=T)/sqrt(n())))) %>%
+  ungroup() %>%
+  rename(Site_ID = Site_Code)
+  
+rm(test) #clear unused temporary dataframe
+```
+
+## Save
+
+```{r}
+saveRDS(augEnvVar, "denguePaper/data/microclimate/clean/summerInfectionClimate.RData")
+saveRDS(octEnvVar, "denguePaper/data/microclimate/clean/fallInfectionClimate.RData")
+```
+
