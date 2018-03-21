@@ -323,16 +323,16 @@ getClass <- function(monthDf){
   monthDf$Class <- NULL
   for (i in 1:nrow(monthDf)){
     if (substr(monthDf$Site_ID[i], 1,1)=="R"){
-    monthDf$class[i] <- "Rural"
+    monthDf$Class[i] <- "Rural"
     }
     if (substr(monthDf$Site_ID[i], 1,1)=="S"){
-    monthDf$class[i] <- "Suburban"
+    monthDf$Class[i] <- "Suburban"
     }
     if (substr(monthDf$Site_ID[i], 1,1)=="U"){
-    monthDf$class[i] <- "Urban"
+    monthDf$Class[i] <- "Urban"
     }
   }
-  monthDf$class <- as.factor(monthDf$class)
+  monthDf$Class <- factor(monthDf$Class, levels = c("Rural", "Suburban", "Urban"))
   return(monthDf)
 }
 
@@ -351,13 +351,14 @@ octWing$Exp_Day <- as.numeric(octWing$Date-as.Date("2016-09-26", format="%Y-%m-%
 
 #combine
 fallWing <- octWing %>%
-  dplyr::select(Block, class, Site_ID, Tray_ID = TrayCode, Exp_Day, Date, mm)
+  dplyr::select(Block, Class, Site_ID, Tray_ID = TrayCode, Exp_Day, Date, mm)
 
 summerWing <- augWing %>%
-  dplyr::select(Block, class, Site_ID, Tray_ID = TrayCode, Exp_Day, Date, mm)
+  dplyr::select(Block, Class, Site_ID, Tray_ID = TrayCode, Exp_Day, Date, mm)
 
 allWing <- rbind(summerWing, fallWing)
 allWing$Block<- factor(allWing$Block, levels=c("Summer", "Fall"))
+allWing$Tray_ID <- factor(allWing$Tray_ID)
 
 #drop outlier in S2 (wing size =1.56 mm)
 allWing <- allWing %>%

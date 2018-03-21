@@ -1,0 +1,113 @@
+---
+title: "Calculations for Growth and VC Models"
+author: "Michelle Evans"
+date: ""
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+#packages
+library(dplyr)
+```
+
+This document calculates the growth rate and VC based on field-derived and literature based data.
+
+# Growth Rate
+
+## Load Data
+
+```{r}
+allWing <- readRDS("denguePaper/data/emergence/clean/wingLength.RData")
+emergence <- readRDS("denguePaper/data/emergence/clean/individuals.RData")
+climateTray <- readRDS("denguePaper/data/microclimate/clean/climateTraySummary.RData")
+```
+
+## Calculate Tray Level Growth Rates
+
+Data cleaning, mainly imputing for missing values.
+
+```{r}
+#get mean winglenth per tray and day of emergence
+wingTray <- allWing %>%
+  dplyr::group_by(Block, Class, Site_ID, Tray_ID, Exp_Day) %>%
+  dplyr::summarise(meanWing=mean(mm, na.rm=T)) %>%
+  dplyr::ungroup()
+
+#subset out emerging females
+emergF <- emergence %>%
+  filter(Sex == "F" & event == 1)
+
+#merge with emergence rates
+growthDF <- merge(emergF, wingTray, by = c("Block", "Class", "Site_ID", "Tray_ID", "Exp_Day"), all.x = T)
+
+#females that were used in infections may not have winglengths, they receive the tray level mean for that block
+trayMeans <- allWing %>%
+  dplyr::group_by(Block, Tray_ID) %>%
+  dplyr::summarise(meanWing=mean(mm, na.rm=T))
+
+#fill in missing with mean of tray during that Block
+for (i in 1:nrow(growthDF)){
+  if (is.na(growthDF$meanWing[i])){
+    temp <- trayMeans$meanWing[trayMeans$Block==growthDF$Block[i] & trayMeans$Tray_ID==growthDF$Tray_ID[i]]
+    if (length(temp)==0) next
+    growthDF$meanWing[i] <- temp
+  } else next
+}
+
+rm(trayMeans)
+
+#some trays had mosquitoes that were only used for infections, they receive the site level mean to calculate their growth rates
+siteMeans <- allWing %>%
+  dplyr::group_by(Site_ID, Block) %>%
+  dplyr::summarise(meanWing=mean(mm, na.rm=T))
+
+for (i in 1:nrow(growthDF)){
+  if (is.na(growthDF$meanWing[i])){
+    temp <- siteMeans$meanWing[siteMeans$Block==growthDF$Block[i] & siteMeans$Site_ID==growthDF$Site_ID[i]]
+    if (length(temp)==0) next
+    growthDF$meanWing[i] <- temp
+  } else next
+}
+
+rm(siteMeans)
+
+growthDF <- growthDF %>%
+  group_by(Block, Class, Site_ID, Tray_ID, Exp_Day) %>%
+  summarise(Ax = sum(event), meanWing = mean(meanWing)) %>%
+  ungroup()
+
+```
+
+Calculate growth rate:
+
+```{r}
+growthDF$Fwx <- -121.240 + (78.02 * growthDF$meanWing)
+growthDF$AxFwx <- growthDF$Ax*growthDF$Fwx
+growthDF$xAxFwx <- growthDF$Exp_Day*growthDF$AxFwx
+
+#get sum per day
+growthDF2 <- growthDF %>%
+  dplyr::group_by(Block, Tray_ID, Class, Site_ID) %>%
+  dplyr::summarise(xAxFwx = sum(xAxFwx), AxFwx=sum(AxFwx))
+
+growthDF2 <- growthDF2 %>%
+  mutate(r=(log((1/50)*AxFwx))/(14+(xAxFwx/AxFwx))) %>%
+  ungroup() 
+```
+
+Add in temperature data:
+
+```{r}
+growthTemp <- growthDF2 %>%
+  select(Block, Class, Site_ID, Tray_ID, r) %>%
+  left_join(climateTray, by = c("Block", "Class", "Site_ID","Tray_ID"))
+```
+
+## Save
+
+```{r}
+saveRDS(growthTemp, "denguePaper/data/emergence/clean/growthRates.RData")
+```
+

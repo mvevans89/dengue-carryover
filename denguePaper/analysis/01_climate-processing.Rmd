@@ -74,6 +74,10 @@ write.csv(climate, "denguePaper/data/microclimate/clean/2016TrialsAdult.csv", ro
 
 # Replicate Summary Statistics for Climate Stats
 
+```{r}
+climate <- readRDS("denguePaper/data/microclimate/clean/2016TrialsAdult.RData")
+```
+
 Calculate the necessary statistics per the summer and fall feplicate to be used in the climate statistical analysis.
 
 This calculates the mean daily mean, minimum, maximum and range per tray over both blocks.
@@ -92,15 +96,41 @@ rm(summer,fall)
 
 climTray <- climBlocks %>%
   dplyr::group_by(Tray_ID, Day, Site_ID, Class, Block) %>%
-  dplyr::summarise(meanT=mean(Temp), minT=min(Temp), maxT=max(Temp), meanRH=mean(RH), maxRH=max(RH), minRH=min(RH), DTR = max(Temp) - min(Temp), DHR = max(RH) - min(RH)) %>% #values per tray
+  dplyr::summarise(meanT=mean(Temp, na.rm = T), 
+                   minT=min(Temp, na.rm = T), 
+                   maxT=max(Temp, na.rm = T), 
+                   meanRH=mean(RH, na.rm = T), 
+                   maxRH=max(RH, na.rm = T),
+                   minRH=min(RH, na.rm = T), 
+                   DTR = max(Temp, na.rm = T) - min(Temp, na.rm = T),
+                   DHR = max(RH, na.rm = T) - min(RH, na.rm = T)) %>% #values per tray
   ungroup() %>%
   group_by(Block, Class, Site_ID, Tray_ID) %>% #get mean values per class
   dplyr::summarise(meanT=mean(meanT), minT=mean(minT), maxT=mean(maxT), meanRH=mean(meanRH), maxRH=mean(maxRH), minRH=mean(minRH), meanDTR = mean(DTR), meanDHR = mean(DHR)) %>%
   ungroup()
 
-#create interaction
-climTray$classxBlock <- interaction(climTray$Class, climTray$Block)
+climTray$Block <- factor(climTray$Block, levels = c("Summer", "Fall"))
 ```
+
+Impute mean for missing data loggers:
+
+```{r}
+allLoggers <- data.frame(expand.grid(
+  Tray_ID = levels(climate$Tray_ID),
+  Block = levels(climTray$Block)), 
+  Site_ID = rep(rep(levels(climate$Site_ID), each =4),2), 
+  Class = rep(rep(levels(climate$Class), each = 12), 2))
+
+climImpute <- right_join(climTray, allLoggers, by = c("Block", "Tray_ID", "Class", "Site_ID")) 
+
+climImpute <- climImpute %>%
+  group_by(Block, Class, Site_ID) %>%
+  mutate_all(funs(impute(., mean))) %>%
+  ungroup()
+
+climTray <- climImpute
+```
+
 
 ```{r}
 saveRDS(climTray, "denguePaper/data/microclimate/clean/climateTraySummary.RData")
