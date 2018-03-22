@@ -1,0 +1,268 @@
+---
+title: "Figures"
+author: "Michelle Evans"
+date: "March 21, 2018"
+output: html_document
+---
+
+This document makes the figures for 'Carry-over effects of larval microclimate on the transmission potential of a mosquito-borne pathogen' (Evans et al.).
+
+Paper Citation:
+
+Evans MV, Shiau JC, Solano N, Brindley MA, Drake JM, Murdock, CC. Carry-over effects of larval microclimate on the transmission potential of a mosquito-borne pathogen. 
+
+Data is loaded individually for each figure so they are easier to make individually.
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+#packages
+library(ggplot2)
+library(ggthemes)
+```
+
+
+```{r set colors}
+colR <- "dodgerblue"
+colS <- "gray60"
+colU <- "maroon"
+
+axisColor <- "gray40"
+errorColor <- "gray20"
+```
+# Population Dynamics
+
+```{r}
+survTray <-  readRDS("denguePaper/data/emergence/clean/survivalTray.RData")
+emergTray <- readRDS("denguePaper/data/emergence/clean/emergenceTray.RData")
+growthDF2 <- readRDS("denguePaper/data/emergence/clean/growthRates.RData")
+```
+
+
+Figure 1.
+
+```{r}
+#survival
+survPlot <- ggplot(data=survTray)+
+  geom_boxplot(aes(alpha=Block, x = as.factor(Class), y = (percSurv), fill = Class), width=0.7)+
+  scale_fill_manual(values=c(colR, colS, colU), labels=c("Rural", "Suburban", "Urban"))+
+  scale_color_manual(values=c(colR, colS, colU), labels=c("Rural", "Suburban", "Urban"))+
+  scale_alpha_discrete(range=c(1, 0.1), name="Season", labels=c("Summer", "Fall"))+
+  ylab("Percent Survival")+
+  theme_fivethirtyeight() +
+  theme(panel.background = element_rect(fill = "transparent", colour = NA), 
+        plot.background = element_rect(fill = "transparent", colour = NA),
+        legend.key = element_blank(),
+        panel.grid.major.x = element_blank(),
+        legend.background = element_rect(fill = "transparent", colour = NA),
+        axis.title = element_text(), 
+        axis.title.x = element_text(),
+        axis.title.y=element_text(),
+        #strip.background = element_blank(),
+        strip.text.x = element_text(size=10),
+        axis.line=element_line(color=axisColor, size=0.5),
+        panel.grid = element_blank(),
+        axis.text.y=element_text(size=10),
+        axis.text.x=element_text(size=10))+
+  theme(axis.title.x = element_blank(), 
+        axis.text.x = element_blank(),
+        axis.title.y= element_text(size=10),
+        strip.text = element_text(size=10))+
+  theme(legend.position="none")
+
+#Emergence Plot
+emergePlot <- ggplot(emergTray)+
+  geom_boxplot(aes(alpha=Block, x = as.factor(Class), y = (devRate), fill = Class), width=0.7)+
+  scale_fill_manual(values=c(colR, colS, colU), labels=c("Rural", "Suburban", "Urban"))+
+  scale_alpha_discrete(range=c(1, 0.1), name="Season", labels=c("Summer", "Fall"))+
+  ylab("Development Rate")+
+   theme_fivethirtyeight() +
+  theme(panel.background = element_rect(fill = "transparent", colour = NA), 
+        plot.background = element_rect(fill = "transparent", colour = NA),
+        legend.key = element_blank(),
+        panel.grid.major.x = element_blank(),
+        legend.background = element_rect(fill = "transparent", colour = NA),
+        axis.title = element_text(), 
+        axis.title.x = element_text(),
+        axis.title.y=element_text(),
+        #strip.background = element_blank(),
+        strip.text.x = element_text(size=10),
+        axis.line=element_line(color=axisColor, size=0.5),
+        panel.grid = element_blank(),
+        axis.text.y=element_text(size=10),
+        axis.text.x=element_text(size=10))+
+  theme(legend.position="none") +
+  theme(strip.background = element_blank(),
+  strip.text.x = element_blank()) +
+  theme(axis.title.x = element_blank(), 
+        axis.text.x = element_blank(),
+        axis.title.y= element_text(size=10))
+
+# growth plot
+growthPlot <- ggplot(data=growthDF2)+
+  geom_boxplot(aes(alpha=Block, x = as.factor(Class), y = r, fill = Class), width=0.7)+
+  scale_fill_manual(values=c(colR, colS, colU), labels=c("Rural", "Suburban", "Urban"))+
+  scale_alpha_discrete(range=c(1, 0.1), name="Season", labels=c("Summer", "Fall"))+
+   theme_fivethirtyeight() +
+  theme(panel.background = element_rect(fill = "transparent", colour = NA), 
+        plot.background = element_rect(fill = "transparent", colour = NA),
+        legend.key = element_blank(),
+        panel.grid.major.x = element_blank(),
+        legend.background = element_rect(fill = "transparent", colour = NA),
+        axis.title = element_text(), 
+        axis.title.x = element_text(),
+        axis.title.y=element_text(),
+        #strip.background = element_blank(),
+        strip.text.x = element_text(size=10),
+        axis.line=element_line(color=axisColor, size=0.5),
+        panel.grid = element_blank(),
+        axis.text.y=element_text(size=10),
+        axis.text.x=element_text(size=10))+
+  theme(legend.position="none") +
+  theme(strip.background = element_blank(),
+  strip.text.x = element_blank()) +
+  ylab("Growth Rate (r')")+
+  xlab("Land Class") +
+  theme(axis.text.x = element_text(size=10)) +
+  theme(axis.title = element_text(size=10), 
+        axis.title.y= element_text(size=10))
+```
+
+
+```{r }
+pdf(file="figures/forMS/demographic.pdf", width = 3.25, height=6, family="sans")
+ggdraw()+
+  draw_plot(survPlot, x=0.01, y=0.69, width=0.99, height=0.31)+
+  draw_plot(emergePlot, x=0, y=0.38, width=1, height=0.31)+
+  draw_plot(growthPlot, x=0, y=0, width=1, height=0.36)+
+  draw_plot_label(label=c("A", "B", "C"),
+                  x=c(0,0,0),
+                  y=c(1,0.69,0.38))
+dev.off()
+```
+
+
+
+# Infection Dynamics
+
+```{r infection data format}
+infLong <- readRDS("denguePaper/data/infections/clean/infectionSummaryLong.RData")
+```
+
+Infection plot to combine in 6 panel figure in chunk 46. **NOTE** I am now trying to make this a seperate plot. A 6 panel figure just has too much going on.
+
+```{r}
+bodyPlot <- ggplot(data=infLong[infLong$type=="Body",], aes(x=Class, group=Block))+
+  geom_bar(stat="identity", aes(y=mean.inf, alpha=Block, fill=Class), color="gray20", position=position_dodge(width=-0.9))+
+  scale_y_continuous(breaks=c(0,0.5,1), minor_breaks = c(0.25, 0.75), labels=c("0%", "50%", "100%"), limits=c(0,1))+
+  scale_fill_manual(values=c(colR, colS, colU))+
+  scale_alpha_discrete(range=c(0.1,1), name="Season", labels=c("Fall", "Summer"))+
+  geom_errorbar(aes(ymin=mean.inf-se.inf, ymax=mean.inf+se.inf), width=0.2, color="gray20", position =position_dodge(-0.9))+
+  guides(fill = F, color = F,
+         alpha = F) +
+  ylab("Percent Positive") +
+  theme_fivethirtyeight() +
+  theme(panel.background = element_rect(fill = "transparent", colour = NA), 
+        plot.background = element_rect(fill = "transparent", colour = NA),
+        legend.key = element_blank(),
+        panel.grid.major.x = element_blank(),
+        legend.background = element_rect(fill = "transparent", colour = NA),
+        axis.title = element_text(), 
+        axis.title.x = element_blank(),
+        axis.title.y=element_text(size = 10),
+        axis.line=element_line(color=axisColor, size=0.5),
+        panel.grid = element_blank(),
+        axis.text.y=element_text(size = 10),
+        axis.text.x=element_blank(),
+        legend.text = element_text(size = 10),
+        legend.title = element_text(size = 10))
+
+headPlot <- ggplot(data=infLong[infLong$type=="Head",], aes(x=Class, group=Block))+
+  geom_bar(stat="identity", aes(y=mean.inf, alpha=Block, fill=Class), color="gray20", position=position_dodge(width=-0.9))+
+  scale_y_continuous(breaks=c(0,0.5,1), minor_breaks = c(0.25, 0.75), labels=c("0%", "50%", "100%"), limits=c(0,1))+
+  scale_fill_manual(values=c(colR, colS, colU))+
+  scale_alpha_discrete(range=c(0.1,1), name="Season", labels=c("Fall", "Summer"))+
+  geom_errorbar(aes(ymin=mean.inf-se.inf, ymax=mean.inf+se.inf), width=0.2, color="gray20", position =position_dodge(-0.9))+
+  ylab("Percent Positive") +
+  guides(fill = F, color = F,
+         alpha = F) +
+  theme_fivethirtyeight() +
+  theme(panel.background = element_rect(fill = "transparent", colour = NA), 
+        plot.background = element_rect(fill = "transparent", colour = NA),
+        legend.key = element_blank(),
+        panel.grid.major.x = element_blank(),
+        legend.background = element_rect(fill = "transparent", colour = NA),
+        axis.title = element_text(), 
+        axis.title.x = element_blank(),
+        axis.title.y=element_text(size = 10),
+        strip.background = element_blank(),
+        strip.text.x = element_blank(),
+        axis.line=element_line(color=axisColor, size=0.5),
+        panel.grid = element_blank(),
+        axis.text.y=element_text(size = 10),
+        axis.text.x=element_blank(),
+        legend.text = element_text(size = 10),
+        legend.title = element_text(size = 10))
+
+SalivaPlot <- ggplot(data=infLong[infLong$type=="Saliva",], aes(x=Class, group=Block))+
+  geom_bar(stat="identity", aes(y=mean.inf, alpha=Block, fill=Class), color="gray20", position=position_dodge(width=-0.9))+
+  scale_y_continuous(breaks=c(0,0.5,1), minor_breaks = c(0.25, 0.75), labels=c("0%", "50%", "100%"), limits=c(0,1))+
+  scale_fill_manual(values=c(colR, colS, colU))+
+  scale_alpha_discrete(range=c(0.1,1), name="Season", labels=c("Fall", "Summer"))+
+  geom_errorbar(aes(ymin=mean.inf-se.inf, ymax=mean.inf+se.inf), width=0.2, color="gray20", position =position_dodge(-0.9))+
+  xlab("Land Class") +
+  ylab("Percent Positive")+
+  guides(fill = F, color = F,
+         alpha = F) +
+  theme_fivethirtyeight() +
+  theme(panel.background = element_rect(fill = "transparent", colour = NA), 
+        plot.background = element_rect(fill = "transparent", colour = NA),
+        legend.key = element_blank(),
+        panel.grid.major.x = element_blank(),
+        legend.background = element_rect(fill = "transparent", colour = NA),
+        axis.title = element_text(), 
+        axis.title.x = element_text(size = 10),
+        axis.title.y=element_text(size = 10),
+        strip.background = element_blank(),
+        strip.text.x = element_blank(),
+        axis.line=element_line(color=axisColor, size=0.5),
+        panel.grid = element_blank(),
+        axis.text.y=element_text(size = 10),
+        axis.text.x=element_text(size = 10),
+        legend.text = element_text(size = 10),
+        legend.title = element_text(size = 10))
+```
+
+
+# Vectorial Capacity
+
+# Map of Study Site
+
+# Infection Efficicency
+
+This plot needs to be updated to make sure it still works.
+
+```{r plot efficiency, eval=F}
+efficiencyPlot <- readRDS("denguePaper/data/infections/clean/efficiencyPlot.RData")
+
+#supplemental plot
+ggplot(data=efficiencyPlot[order(meltAll$Block, decreasing=F),], aes(x=Class, group=Block))+
+  geom_bar(stat="identity", aes(y=mean, alpha=factor(Block), fill=factor(Class)), color="gray20", position=position_dodge(width=-0.9))+
+  facet_wrap(~type, nrow=3, dir="v") +
+  scale_fill_manual(values=c(colR, colS, colU))+
+  scale_alpha_discrete(range=c(1,0.3), name="Season", labels=c("Fall", "Summer"), guide=guide_legend(reverse=T))+
+  geom_errorbar(aes(ymin=mean-SE, ymax=mean+SE), width=0.2, color="gray20", position =position_dodge(-0.9))+
+  theme_base() + 
+  xlab("Land Class") +
+  ylab("Infection Efficiency") +
+  guides(fill=F)
+```
+
+
+
+
+
+
+
+

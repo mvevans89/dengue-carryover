@@ -42,14 +42,6 @@ library(dplyr)
 library(multcomp)
 ```
 
-```{r set colors}
-colR <- "dodgerblue"
-colS <- "gray60"
-colU <- "maroon"
-
-axisColor <- "gray40"
-errorColor <- "gray20"
-```
 
 # Data Loading and Formatting
 
@@ -127,100 +119,7 @@ growthDF2 <- readRDS("denguePaper/data/emergence/clean/growthRates.RData")
 
 # Infection Dynamics
 
-## Infection by Class and Season
-
-### Prepping for Plot
-
-```{r infection data format}
-infLong <- readRDS("denguePaper/data/infections/clean/infectionSummaryLong.RData")
-```
-
-Infection plot to combine in 6 panel figure in chunk 46.
-
-```{r}
-bodyPlot <- ggplot(data=infLong[infLong$type=="Body",], aes(x=Class, group=Block))+
-  geom_bar(stat="identity", aes(y=mean.inf, alpha=Block, fill=Class), color="gray20", position=position_dodge(width=-0.9))+
-  scale_y_continuous(breaks=c(0,0.5,1), minor_breaks = c(0.25, 0.75), labels=c("0%", "50%", "100%"), limits=c(0,1))+
-  scale_fill_manual(values=c(colR, colS, colU))+
-  scale_alpha_discrete(range=c(0.1,1), name="Season", labels=c("Fall", "Summer"))+
-  geom_errorbar(aes(ymin=mean.inf-se.inf, ymax=mean.inf+se.inf), width=0.2, color="gray20", position =position_dodge(-0.9))+
-  guides(fill = F, color = F,
-         alpha = F) +
-  ylab("Percent Positive") +
-  theme_fivethirtyeight() +
-  theme(panel.background = element_rect(fill = "transparent", colour = NA), 
-        plot.background = element_rect(fill = "transparent", colour = NA),
-        legend.key = element_blank(),
-        panel.grid.major.x = element_blank(),
-        legend.background = element_rect(fill = "transparent", colour = NA),
-        axis.title = element_text(), 
-        axis.title.x = element_blank(),
-        axis.title.y=element_text(size = 10),
-        axis.line=element_line(color=axisColor, size=0.5),
-        panel.grid = element_blank(),
-        axis.text.y=element_text(size = 10),
-        axis.text.x=element_blank(),
-        legend.text = element_text(size = 10),
-        legend.title = element_text(size = 10))
-
-headPlot <- ggplot(data=infLong[infLong$type=="Head",], aes(x=Class, group=Block))+
-  geom_bar(stat="identity", aes(y=mean.inf, alpha=Block, fill=Class), color="gray20", position=position_dodge(width=-0.9))+
-  scale_y_continuous(breaks=c(0,0.5,1), minor_breaks = c(0.25, 0.75), labels=c("0%", "50%", "100%"), limits=c(0,1))+
-  scale_fill_manual(values=c(colR, colS, colU))+
-  scale_alpha_discrete(range=c(0.1,1), name="Season", labels=c("Fall", "Summer"))+
-  geom_errorbar(aes(ymin=mean.inf-se.inf, ymax=mean.inf+se.inf), width=0.2, color="gray20", position =position_dodge(-0.9))+
-  ylab("Percent Positive") +
-  guides(fill = F, color = F,
-         alpha = F) +
-  theme_fivethirtyeight() +
-  theme(panel.background = element_rect(fill = "transparent", colour = NA), 
-        plot.background = element_rect(fill = "transparent", colour = NA),
-        legend.key = element_blank(),
-        panel.grid.major.x = element_blank(),
-        legend.background = element_rect(fill = "transparent", colour = NA),
-        axis.title = element_text(), 
-        axis.title.x = element_blank(),
-        axis.title.y=element_text(size = 10),
-        strip.background = element_blank(),
-        strip.text.x = element_blank(),
-        axis.line=element_line(color=axisColor, size=0.5),
-        panel.grid = element_blank(),
-        axis.text.y=element_text(size = 10),
-        axis.text.x=element_blank(),
-        legend.text = element_text(size = 10),
-        legend.title = element_text(size = 10))
-
-SalivaPlot <- ggplot(data=infLong[infLong$type=="Saliva",], aes(x=Class, group=Block))+
-  geom_bar(stat="identity", aes(y=mean.inf, alpha=Block, fill=Class), color="gray20", position=position_dodge(width=-0.9))+
-  scale_y_continuous(breaks=c(0,0.5,1), minor_breaks = c(0.25, 0.75), labels=c("0%", "50%", "100%"), limits=c(0,1))+
-  scale_fill_manual(values=c(colR, colS, colU))+
-  scale_alpha_discrete(range=c(0.1,1), name="Season", labels=c("Fall", "Summer"))+
-  geom_errorbar(aes(ymin=mean.inf-se.inf, ymax=mean.inf+se.inf), width=0.2, color="gray20", position =position_dodge(-0.9))+
-  xlab("Land Class") +
-  ylab("Percent Positive")+
-  guides(fill = F, color = F,
-         alpha = F) +
-  theme_fivethirtyeight() +
-  theme(panel.background = element_rect(fill = "transparent", colour = NA), 
-        plot.background = element_rect(fill = "transparent", colour = NA),
-        legend.key = element_blank(),
-        panel.grid.major.x = element_blank(),
-        legend.background = element_rect(fill = "transparent", colour = NA),
-        axis.title = element_text(), 
-        axis.title.x = element_text(size = 10),
-        axis.title.y=element_text(size = 10),
-        strip.background = element_blank(),
-        strip.text.x = element_blank(),
-        axis.line=element_line(color=axisColor, size=0.5),
-        panel.grid = element_blank(),
-        axis.text.y=element_text(size = 10),
-        axis.text.x=element_text(size = 10),
-        legend.text = element_text(size = 10),
-        legend.title = element_text(size = 10))
-```
-
-
-### Statistics on infection by season and land class
+## Class x Season
 
 ```{r final seasonal infection stats}
 mixModelseasonsBody21 <- lme4::glmer(Body~Class*Block + (1|Site_ID), 
@@ -255,24 +154,7 @@ drop1(mixModelseasonsSaliva21, test="Chisq")
 summary(multcomp::glht(mixModelseasonsSaliva21, linfct = multcomp::mcp(Block = "Tukey"), test = multcomp::adjusted("holm")))
 ```
 
-## Infection Efficiency
-
-Plot of infection efficiency.
-
-```{r plot efficiency, eval=F}
-#supplemental plot
-ggplot(data=efficiencyPlot[order(meltAll$Block, decreasing=F),], aes(x=Class, group=Block))+
-  geom_bar(stat="identity", aes(y=mean, alpha=factor(Block), fill=factor(Class)), color="gray20", position=position_dodge(width=-0.9))+
-  facet_wrap(~type, nrow=3, dir="v") +
-  scale_fill_manual(values=c(colR, colS, colU))+
-  scale_alpha_discrete(range=c(1,0.3), name="Season", labels=c("Fall", "Summer"), guide=guide_legend(reverse=T))+
-  geom_errorbar(aes(ymin=mean-SE, ymax=mean+SE), width=0.2, color="gray20", position =position_dodge(-0.9))+
-  theme_base() + 
-  xlab("Land Class") +
-  ylab("Infection Efficiency") +
-  guides(fill=F)
-```
-
+## Efficiency
 
 ```{r efficiency stats}
 #model 
@@ -303,7 +185,7 @@ summary(multcomp::glht(mixModelseasonsSaliva21, linfct = multcomp::mcp(class = "
 summary(multcomp::glht(mixModelseasonsSaliva21, linfct = multcomp::mcp(Block = "Tukey"), test = multcomp::adjusted("holm")))
 ```
 
-## Infection and Microclimate
+## Microclimate
 
 ```{r create dataframe of site-aggregated infections}
 seasonSite <- seasons %>%
@@ -314,9 +196,6 @@ seasonSite <- seasons %>%
 
 #group with temperature data
 seasonInfSite <- merge(seasonSite, rbind(augEnvVar,octEnvVar), by=c("Block", "Site_ID"))
-
-# inspect variable correlations
-# cor(seasonInfSite[,10:18])
 ```
 
 ```{r body x climate stats}
@@ -471,7 +350,7 @@ plot_grid(plotBody, plotHead, plotSaliva,
 #dev.off()
 ```
 
-## Infection and Body Size
+## Body Size
 
 ### Body Infection
 
@@ -597,7 +476,7 @@ summary(devClimMod)
 
 # Indirect Effects
 
-## Uninfected Body Size
+## Body Size (Uninfected)
 
 ### Land Class x Season
 
@@ -625,120 +504,10 @@ qqnorm(resid(wingModTemp))
 car::Anova(wingModTemp)
 ```
 
-# Growth Rate
-
-## Plot
-
-Figure 1.
-
-```{r}
-#survival
-survPlot <- ggplot(data=survTray)+
-  geom_boxplot(aes(alpha=Block, x = as.factor(Class), y = (survival *100), fill = Class), width=0.7)+
-  scale_fill_manual(values=c(colR, colS, colU), labels=c("Rural", "Suburban", "Urban"))+
-  scale_color_manual(values=c(colR, colS, colU), labels=c("Rural", "Suburban", "Urban"))+
-  scale_alpha_discrete(range=c(1, 0.1), name="Season", labels=c("Summer", "Fall"))+
-  ylab("Percent Survival")+
-  theme_fivethirtyeight() +
-  theme(panel.background = element_rect(fill = "transparent", colour = NA), 
-        plot.background = element_rect(fill = "transparent", colour = NA),
-        legend.key = element_blank(),
-        panel.grid.major.x = element_blank(),
-        legend.background = element_rect(fill = "transparent", colour = NA),
-        axis.title = element_text(), 
-        axis.title.x = element_text(),
-        axis.title.y=element_text(),
-        #strip.background = element_blank(),
-        strip.text.x = element_text(size=10),
-        axis.line=element_line(color=axisColor, size=0.5),
-        panel.grid = element_blank(),
-        axis.text.y=element_text(size=10),
-        axis.text.x=element_text(size=10))+
-  theme(axis.title.x = element_blank(), 
-        axis.text.x = element_blank(),
-        axis.title.y= element_text(size=10),
-        strip.text = element_text(size=10))+
-  theme(legend.position="none")
-
-#Emergence Plot
-emergePlot <- ggplot(emergTray)+
-  geom_boxplot(aes(alpha=Block, x = as.factor(Class), y = (devRate), fill = Class), width=0.7)+
-  scale_fill_manual(values=c(colR, colS, colU), labels=c("Rural", "Suburban", "Urban"))+
-  scale_alpha_discrete(range=c(1, 0.1), name="Season", labels=c("Summer", "Fall"))+
-  ylab("Development Rate")+
-   theme_fivethirtyeight() +
-  theme(panel.background = element_rect(fill = "transparent", colour = NA), 
-        plot.background = element_rect(fill = "transparent", colour = NA),
-        legend.key = element_blank(),
-        panel.grid.major.x = element_blank(),
-        legend.background = element_rect(fill = "transparent", colour = NA),
-        axis.title = element_text(), 
-        axis.title.x = element_text(),
-        axis.title.y=element_text(),
-        #strip.background = element_blank(),
-        strip.text.x = element_text(size=10),
-        axis.line=element_line(color=axisColor, size=0.5),
-        panel.grid = element_blank(),
-        axis.text.y=element_text(size=10),
-        axis.text.x=element_text(size=10))+
-  theme(legend.position="none") +
-  theme(strip.background = element_blank(),
-  strip.text.x = element_blank()) +
-  theme(axis.title.x = element_blank(), 
-        axis.text.x = element_blank(),
-        axis.title.y= element_text(size=10))
-
-# growth plot
-growthPlot <- ggplot(data=growthDF2)+
-  geom_boxplot(aes(alpha=Block, x = as.factor(class), y = r, fill = class), width=0.7)+
-  scale_fill_manual(values=c(colR, colS, colU), labels=c("Rural", "Suburban", "Urban"))+
-  scale_alpha_discrete(range=c(1, 0.1), name="Season", labels=c("Summer", "Fall"))+
-   theme_fivethirtyeight() +
-  theme(panel.background = element_rect(fill = "transparent", colour = NA), 
-        plot.background = element_rect(fill = "transparent", colour = NA),
-        legend.key = element_blank(),
-        panel.grid.major.x = element_blank(),
-        legend.background = element_rect(fill = "transparent", colour = NA),
-        axis.title = element_text(), 
-        axis.title.x = element_text(),
-        axis.title.y=element_text(),
-        #strip.background = element_blank(),
-        strip.text.x = element_text(size=10),
-        axis.line=element_line(color=axisColor, size=0.5),
-        panel.grid = element_blank(),
-        axis.text.y=element_text(size=10),
-        axis.text.x=element_text(size=10))+
-  theme(legend.position="none") +
-  theme(strip.background = element_blank(),
-  strip.text.x = element_blank()) +
-  ylab("Growth Rate (r')")+
-  xlab("Land Class") +
-  theme(axis.text.x = element_text(size=10)) +
-  theme(axis.title = element_text(size=10), 
-        axis.title.y= element_text(size=10))
-```
+## Growth Rate
 
 
-Combine infection and demographic data into Figure 1.
-
-```{r Figure 1}
-pdf(file="figures/forMS/Fig1.pdf", width = 6.5, height=6, family="sans")
-ggdraw()+
-  draw_plot(survPlot, x=0.01, y=0.69, width=0.5, height=0.31)+
-  draw_plot(emergePlot, x=0, y=0.38, width=0.5, height=0.31)+
-  draw_plot(growthPlot, x=0, y=0, width=0.5, height=0.36)+
-  draw_plot(bodyPlot, x=0.475, y=0.69, width=0.5, height=0.31)+
-  draw_plot(headPlot, x=0.475, y=0.38, width=0.5, height=0.31)+
-  draw_plot(SalivaPlot, x=0.475, y=0, width=0.5, height=0.36)+
-  draw_plot_label(label=c("A", "B", "C", "D", "E", "F"),
-                  x=c(0,0,0,0.45, 0.45, 0.45),
-                  y=c(1,0.69,0.38,1,0.69,0.38))
-dev.off()
-```
-
-
-## Statistics
-### Season x Land Class
+### Class x Season
 
 ```{r}
 growthModSeason <- lmer(r~ Class*Block+ (1|Site_ID), 

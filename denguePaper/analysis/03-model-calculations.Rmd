@@ -111,3 +111,4 @@ growthTemp <- growthDF2 %>%
 saveRDS(growthTemp, "denguePaper/data/emergence/clean/growthRates.RData")
 ```
 
+# Vectorial Capacity
