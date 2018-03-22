@@ -112,3 +112,108 @@ saveRDS(growthTemp, "denguePaper/data/emergence/clean/growthRates.RData")
 ```
 
 # Vectorial Capacity
+
+## Load Data
+
+```{r}
+allWing <- readRDS("denguePaper/data/emergence/clean/wingLength.RData")
+emergeTray <- readRDS("denguePaper/data/emergence/clean/emergenceTray.RData")
+survTray <- readRDS("denguePaper/data/emergence/clean/survivalTray.RData")
+infInd <- readRDS("denguePaper/data/infections/clean/seasonInfection.RData")
+```
+
+## Calculate Values at Constant 27C
+
+These are adult traits that we didn't measure. The mosquitoes were kept at a constant 27C, so this is what we calculate them at. These are calculated at the site level because that is what level the infection data is at.
+
+Briere:  $y = a * x * (x - t_0) * (t_{max} - x)^{(1/2)}$
+Quad: $y = a * (x-t_0) * (x-t_{max})$
+
+```{r}
+parameters <- survTray %>%
+  select(-numFSurv, -Tray_ID) %>%
+  mutate(a = (1.93/10000)*27*(27-10.25)*((38.32-27)^0.5)) %>%
+  mutate(PDR = (1.09/10000)*27*(27-10.39)*((43.05-27)^0.5)) %>%
+  mutate(lf = -1.43*(27- 13.41)*(27-31.51)) %>%
+  mutate(mu = 1/lf) %>%
+  distinct()
+
+``` 
+
+## Calculate Field Derived Parameters
+
+These are not carry-over effects, but larval survival (pEA) and emergence rate (MDR).
+
+```{r}
+pEA <- survTray %>%
+  group_by(Block, Class, Site_ID) %>%
+  dplyr::summarise(pEA=mean(numFSurv/50)) %>%
+  ungroup()
+
+MDR <- emergeTray %>%
+  group_by(Block, Class, Site_ID) %>%
+  dplyr::summarise(MDR=mean(devRate)) %>%
+  ungroup()
+```
+
+## Calculate Carry-over Effect Parameters
+
+```{r}
+fecundity <- allWing %>%
+  group_by(Block, Class, Site_ID) %>%
+  dplyr::summarise(wingL=mean(mm, na.rm=T)) %>%
+  ungroup() %>%
+  mutate(fecundity=-121.240 + (78.02*wingL))
+#EFD will be calculated later by dividing multiplying by bite rate
+
+bc <- infInd %>%
+  group_by(Block, Class, Site_ID) %>%
+  summarise(bc = mean(Saliva, na.rm = T)) %>%
+  ungroup()
+```
+
+## Combine Into VC
+
+Experimental
+
+```{r}
+VC <- parameters %>%
+  left_join(pEA, by = c("Block", "Class", "Site_ID")) %>%
+  left_join(MDR, by = c("Block", "Class", "Site_ID")) %>%
+  left_join(fecundity, by = c("Block", "Class", "Site_ID")) %>%
+  left_join(bc, by = c("Block", "Class", "Site_ID")) %>%
+  #calculate EFD
+  mutate(EFD = fecundity * a) %>%
+  mutate(VC = ((a^2)*bc*(exp(-mu/PDR))*EFD*pEA*(MDR^2))/((mu^2)))
+```
+
+Grand Mean
+
+```{r}
+VCmean <- VC %>%
+  group_by(Block) %>%
+  summarise_at(c("a", "PDR", "lf", "mu", "pEA", "MDR", "wingL", "fecundity", "bc", "EFD"), mean) %>%
+  mutate(VC = ((a^2)*bc*(exp(-mu/PDR))*EFD*pEA*(MDR^2))/((mu^2))) %>%
+  ungroup() %>%
+  mutate(Site_ID = "GrandMean") %>%
+  mutate(Class = "GrandMean")
+```
+
+Combine Into One Dataframe
+
+```{r}
+VCAll <- bind_rows(VC, VCmean) %>%
+  mutate(Class = factor(Class, levels = c("Rural", "Suburban", "Urban", "GrandMean"))) %>%
+  mutate(Site_ID = factor(Site_ID, levels = c("R1", "R2", "R3", "S1", "S2", "S3", "U1", "U2", "U3", "GrandMean")))
+```
+
+## Save
+
+```{r}
+saveRDS(VCAll, "denguePaper/data/infections/clean/VecCapacity.RData")
+```
+
+
+
+
+

@@ -534,6 +534,8 @@ plot(growthTempMod)
 
 # Vectorial Capacity
 
+**Note, I think I can delete all of this now**
+
 ```{r}
 climS <- climate[climate$Day >="2016-08-01" & climate$Day <="2016-09-03",]
 climS$Block <- "summer"

@@ -13,7 +13,7 @@ knitr::opts_chunk$set(warning=FALSE)
 
 #packages
 library(dplyr)
-
+library(tidyr)
 ```
 
 This document contains the code for the cleaning and processing of mosquito emergence and infection data in 'Carry-over effects of larval microclimate on the transmission potential of a mosquito-borne pathogen' (Evans et al. 2018).
@@ -211,7 +211,7 @@ Expand so that each mosquito is on its own row.
 
 ```{r}
 emergExp <- allEmerg[rep(seq.int(1,nrow(allEmerg)), allEmerg$Num_Emerge),
-                      c(names(allEmerg) %in% c('Block', 'Class', 'Site_ID', 'Tray_ID','Exp_Day', 'Sex'))]
+                      c(colnames(allEmerg) %in% c('Block', 'Class', 'Site_ID', 'Tray_ID','Exp_Day', 'Sex'))]
 #sum(allEmerg$Num_Emerge)==nrow(emergExp) #quick check this worked
 ```
 
@@ -276,6 +276,7 @@ fillIn <- function(df, endDay, totalMosq=50){
   #' @param endDay the last day of emergence
   #' @param totalMosq estimated starting number of mosquitoes per pot
   #' @returns dataframe with census data filled in for mosquitoes that did not emerge
+
   toRep <- df[1,]
   toRep$Exp_Day <- endDay
   toRep$event <- 0
@@ -296,17 +297,34 @@ applyFill <- function(season, allData=emergExp){
   #' @param season "fall" or "summer"
   #' @param allData full dataframe with row for each mosquito that emerged
   #' @returns censused data for the full season
+  
   tempList <- list()
   tempDF <- allData
   tempDF <- tempDF[tempDF$Sex=="F",]
   tempDF <- tempDF[tempDF$Block==season,]
   tempDF$event <- 1 #add emergence event
-  for (i in 1:length(unique(tempDF$Tray_ID))){ 
-    df <- tempDF[tempDF$Tray_ID==unique(tempDF$Tray_ID)[i],]
-    endDay <- max(tempDF$Exp_Day)
+  endDay <- max(tempDF$Exp_Day)
+  for (i in 1:length(levels(tempDF$Tray_ID))){ 
+    df <- tempDF[tempDF$Tray_ID==levels(tempDF$Tray_ID)[i],]
+    if (nrow(df)==0){
+      #if no mosquitoes emerged for that tray, create a zero emergence
+      df <- allEmerg%>%
+        select(Site_ID, Tray_ID, Class, Exp_Day, Sex, Block) %>%
+        filter(Block == season & Tray_ID == levels(tempDF$Tray_ID)[i]) %>%
+        slice(1) %>%
+        mutate(Sex = factor("F", levels = c("F", "M"))) %>%
+        mutate(event = 0) %>%
+        mutate(Exp_Day = endDay)
+    }
+    #skip failed trays in fall
+    if (season == "Fall" & df$Tray_ID[1] %in% c("U3T1", "S1T3", "U1T4")){
+      next
+    } else {
     tempList[[i]] <- fillIn(df=df, endDay=endDay)
+    }
   }
   allSurv <- do.call(rbind.data.frame, tempList)
+  allSurv <- na.omit(allSurv)
   return(allSurv)
 }
 ```
@@ -318,8 +336,6 @@ applyFill <- function(season, allData=emergExp){
 summerSurv <- applyFill(season="Summer")
 fallSurv <- applyFill(season="Fall")
 allSurv <- rbind(summerSurv, fallSurv)
-
-allSurv$Block <- factor(allSurv$Block, levels = c("Summer", "Fall"))
 
 ```
 
