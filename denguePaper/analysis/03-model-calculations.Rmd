@@ -165,11 +165,14 @@ fecundity <- allWing %>%
   ungroup() %>%
   mutate(fecundity=-121.240 + (78.02*wingL))
 #EFD will be calculated later by dividing multiplying by bite rate
+fecundityMean <- mean(fecundity$fecundity)
 
 bc <- infInd %>%
   group_by(Block, Class, Site_ID) %>%
   summarise(bc = mean(Saliva, na.rm = T)) %>%
   ungroup()
+
+bcMean <- mean(bc$bc)
 ```
 
 ## Combine Into VC
@@ -184,27 +187,24 @@ VC <- parameters %>%
   left_join(bc, by = c("Block", "Class", "Site_ID")) %>%
   #calculate EFD
   mutate(EFD = fecundity * a) %>%
-  mutate(VC = ((a^2)*bc*(exp(-mu/PDR))*EFD*pEA*(MDR^2))/((mu^2)))
+  mutate(VC = ((a^2)*bc*(exp(-mu/PDR))*EFD*pEA*(MDR^2))/((mu^2))) %>%
+  mutate(Calculation = "FieldBased")
 ```
 
-Grand Mean. In this case, the grand mean takes the mean over all values, including survival, development rate, fecundity, and vector competence.
+Grand Mean. In this case, the grand mean takes the mean over the parameters effected by carry-over effects, namely fecundity and vector competence.
 
 ```{r}
 VCmean <- VC %>%
-  group_by(Block) %>%
-  summarise_at(c("a", "PDR", "lf", "mu", "pEA", "MDR", "wingL", "fecundity", "bc", "EFD"), mean) %>%
+  mutate(bc = bcMean, fecundity = fecundityMean) %>%
+  mutate(EFD = fecundity * a) %>%
   mutate(VC = ((a^2)*bc*(exp(-mu/PDR))*EFD*pEA*(MDR^2))/((mu^2))) %>%
-  ungroup() %>%
-  mutate(Site_ID = "GrandMean") %>%
-  mutate(Class = "GrandMean")
+  mutate(Calculation = "GrandMean") 
 ```
 
 Combine Into One Dataframe
 
 ```{r}
-VCAll <- bind_rows(VC, VCmean) %>%
-  mutate(Class = factor(Class, levels = c("Rural", "Suburban", "Urban", "GrandMean"))) %>%
-  mutate(Site_ID = factor(Site_ID, levels = c("R1", "R2", "R3", "S1", "S2", "S3", "U1", "U2", "U3", "GrandMean")))
+VCAll <- bind_rows(VC, VCmean)
 ```
 
 ## Save

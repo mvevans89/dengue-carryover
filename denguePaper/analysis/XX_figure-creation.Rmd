@@ -53,17 +53,17 @@ growthDF2 <- readRDS("denguePaper/data/emergence/clean/growthRates.RData")
 ```
 
 
-Figure 1.
+
 
 ```{r}
 #survival
 survPlot <- ggplot(data=survTray)+
-  geom_boxplot(aes(alpha=Block, x = as.factor(Class), y = (percSurv), fill = Class), width=0.7)+
+  geom_boxplot(aes(alpha=Block, x = as.factor(Class), y = numFSurv/50, fill = Class), width=0.7)+
   scale_fill_manual(values=c(colR, colS, colU), labels=c("Rural", "Suburban", "Urban"))+
   scale_color_manual(values=c(colR, colS, colU), labels=c("Rural", "Suburban", "Urban"))+
   scale_alpha_discrete(range=c(1, 0.1), name="Season", labels=c("Summer", "Fall"))+
   ylab("Percent Survival")+
-  theme_fivethirtyeight() +
+  theme_bw() +
   theme(panel.background = element_rect(fill = "transparent", colour = NA), 
         plot.background = element_rect(fill = "transparent", colour = NA),
         legend.key = element_blank(),
@@ -90,7 +90,7 @@ emergePlot <- ggplot(emergTray)+
   scale_fill_manual(values=c(colR, colS, colU), labels=c("Rural", "Suburban", "Urban"))+
   scale_alpha_discrete(range=c(1, 0.1), name="Season", labels=c("Summer", "Fall"))+
   ylab("Development Rate")+
-   theme_fivethirtyeight() +
+   theme_bw() +
   theme(panel.background = element_rect(fill = "transparent", colour = NA), 
         plot.background = element_rect(fill = "transparent", colour = NA),
         legend.key = element_blank(),
@@ -117,7 +117,7 @@ growthPlot <- ggplot(data=growthDF2)+
   geom_boxplot(aes(alpha=Block, x = as.factor(Class), y = r, fill = Class), width=0.7)+
   scale_fill_manual(values=c(colR, colS, colU), labels=c("Rural", "Suburban", "Urban"))+
   scale_alpha_discrete(range=c(1, 0.1), name="Season", labels=c("Summer", "Fall"))+
-   theme_fivethirtyeight() +
+   theme_bw() +
   theme(panel.background = element_rect(fill = "transparent", colour = NA), 
         plot.background = element_rect(fill = "transparent", colour = NA),
         legend.key = element_blank(),
@@ -144,18 +144,16 @@ growthPlot <- ggplot(data=growthDF2)+
 
 
 ```{r }
-pdf(file="figures/forMS/demographic.pdf", width = 3.25, height=6, family="sans")
+pdf(file="denguePaper/results/figures/forMS/demographic.pdf", width = 3.25, height=6, family="sans")
 ggdraw()+
-  draw_plot(survPlot, x=0.01, y=0.69, width=0.99, height=0.31)+
+  draw_plot(survPlot, x=0.017, y=0.69, width=0.98, height=0.31)+
   draw_plot(emergePlot, x=0, y=0.38, width=1, height=0.31)+
-  draw_plot(growthPlot, x=0, y=0, width=1, height=0.36)+
+  draw_plot(growthPlot, x=0.016, y=0, width=0.98, height=0.36)+
   draw_plot_label(label=c("A", "B", "C"),
                   x=c(0,0,0),
                   y=c(1,0.69,0.38))
 dev.off()
 ```
-
-
 
 # Infection Dynamics
 
@@ -177,7 +175,7 @@ bodyPlot <- ggplot(data=infLong[infLong$type=="Body",], aes(x=Class, group=Block
   guides(fill = F, color = F,
          alpha = F) +
   ylab("Percent Positive") +
-  theme_fivethirtyeight() +
+  theme_bw() +
   theme(panel.background = element_rect(fill = "transparent", colour = NA), 
         plot.background = element_rect(fill = "transparent", colour = NA),
         legend.key = element_blank(),
@@ -202,7 +200,7 @@ headPlot <- ggplot(data=infLong[infLong$type=="Head",], aes(x=Class, group=Block
   ylab("Percent Positive") +
   guides(fill = F, color = F,
          alpha = F) +
-  theme_fivethirtyeight() +
+  theme_bw() +
   theme(panel.background = element_rect(fill = "transparent", colour = NA), 
         plot.background = element_rect(fill = "transparent", colour = NA),
         legend.key = element_blank(),
@@ -230,7 +228,7 @@ SalivaPlot <- ggplot(data=infLong[infLong$type=="Saliva",], aes(x=Class, group=B
   ylab("Percent Positive")+
   guides(fill = F, color = F,
          alpha = F) +
-  theme_fivethirtyeight() +
+  theme_bw() +
   theme(panel.background = element_rect(fill = "transparent", colour = NA), 
         plot.background = element_rect(fill = "transparent", colour = NA),
         legend.key = element_blank(),
@@ -247,6 +245,19 @@ SalivaPlot <- ggplot(data=infLong[infLong$type=="Saliva",], aes(x=Class, group=B
         axis.text.x=element_text(size = 10),
         legend.text = element_text(size = 10),
         legend.title = element_text(size = 10))
+```
+
+
+```{r}
+pdf(file="denguePaper/results/figures/forMS/infection.pdf", width = 3.25, height=6, family="sans")
+ggdraw()+
+  draw_plot(bodyPlot, x=0, y=0.69, width=0.98, height=0.31)+
+  draw_plot(headPlot, x=0, y=0.38, width=1, height=0.31)+
+  draw_plot(SalivaPlot, x=0, y=0, width=0.98, height=0.36)+
+  draw_plot_label(label=c("A", "B", "C"),
+                  x=c(0,0,0),
+                  y=c(1,0.69,0.38))
+dev.off()
 ```
 
 
@@ -269,12 +280,13 @@ seasonInfSite <- merge(seasonSite, rbind(augEnvVar,octEnvVar), by=c("Block", "Si
 
 
 ```{r}
-#pdf(file="figures/forMS/InfxTemp3Panel.pdf", width = 8, height=3, family="sans")
+pdf(file="denguePaper/results/figures/extra/InfxTemp.pdf", width = 8, height=3, family="sans")
 plotBody <- ggplot(data=seasonInfSite, aes(x=Temp_mean_mean, y=Body_mean))+
   geom_errorbar(aes(ymin=Body_mean-Body_se, ymax=Body_mean+Body_se), color=errorColor, width=0.1) +
+  geom_smooth(method = "glm", formula = y ~ x, color = axisColor, method.args = list(family = gaussian(link = "log")), se = F) +
   geom_point(aes(color=Class, shape=Block), size=4.5) + 
   scale_color_manual(values=c(colR, colS, colU)) +
-  theme_fivethirtyeight() +
+  theme_bw() +
   theme(panel.background = element_rect(fill = "transparent", colour = NA),
         plot.background = element_rect(fill = "transparent", colour = NA),
         legend.key = element_blank(),
@@ -289,10 +301,11 @@ plotBody <- ggplot(data=seasonInfSite, aes(x=Temp_mean_mean, y=Body_mean))+
   theme(legend.position="none")
 
 plotHead <- ggplot(data=seasonInfSite, aes(x=Temp_mean_mean, y=Head_mean))+
+    geom_smooth(method = "glm", formula = y ~ x, color = axisColor, method.args = list(family = gaussian(link = "log")), se = F) +
    geom_errorbar(aes(ymin=Head_mean-Head_se, ymax=Head_mean+Head_se), color=errorColor, width=0.1) +
   geom_point(aes(color=Class, shape=Block), size=4) + 
   scale_color_manual(values=c(colR, colS, colU)) +
-  theme_fivethirtyeight() +
+  theme_bw() +
     theme(panel.background = element_rect(fill = "transparent", colour = NA),
         plot.background = element_rect(fill = "transparent", colour = NA),
         legend.key = element_blank(),
@@ -302,16 +315,15 @@ plotHead <- ggplot(data=seasonInfSite, aes(x=Temp_mean_mean, y=Head_mean))+
         axis.title.y=element_blank(),
         axis.line=element_line(color=axisColor, size=0.5),
         panel.grid = element_blank())+
-  #ylab("Prop. Disseminated")+
   xlab("Mean Daily Temperature (C)")+
   theme(legend.position="none")
 
 plotSaliva <- ggplot(data=seasonInfSite, aes(x=Temp_mean_mean, y=Saliva_mean))+
+    # geom_smooth(method = "glm", formula = y ~ x, color = axisColor, method.args = list(family = gaussian(link = "log")), se = F) +
   geom_errorbar(aes(ymin=Saliva_mean-Saliva_se, ymax=Saliva_mean+Saliva_se), color=errorColor, width=0.1) +
-  #geom_errorbarh(aes(xmin=Temp_mean_mean-Temp_mean_se, xmax=Temp_mean_mean+Temp_mean_se, y=Body_mean),color="gray20", height=0.05) + #not enough error to see
   geom_point(aes(color=Class, shape=Block), size=4.5) + 
   scale_color_manual(values=c(colR, colS, colU)) +
-  theme_fivethirtyeight() +
+  theme_bw() +
     theme(panel.background = element_rect(fill = "transparent", colour = NA),
         plot.background = element_rect(fill = "transparent", colour = NA),
         legend.key = element_blank(),
@@ -321,20 +333,20 @@ plotSaliva <- ggplot(data=seasonInfSite, aes(x=Temp_mean_mean, y=Saliva_mean))+
         axis.title.y=element_blank(),
         axis.line=element_line(color=axisColor, size=0.5),
         panel.grid = element_blank()) +
-  #ylab("Prop. Infectious")+
   xlab("") +  
   scale_y_continuous(limits=c(0,1))+
-  #theme(legend.position="right", legend.direction="vertical")
   theme(legend.position="none")
 
 
 plot_grid(plotBody, plotHead, plotSaliva, 
           labels=c("A", "B", "C"), 
           ncol=3)
-#dev.off()
+dev.off()
 ```
 
 ## Wing Length
+
+Not currently included in anything.
 
 ```{r}
 seasons <- readRDS("denguePaper/data/infections/clean/seasonInfection.RData")
@@ -361,8 +373,86 @@ ggplot(data=seasonInf, aes(x=factor(Body), y=Wing))+
   ylab("Wing Size")
 ```
 
-
 # Vectorial Capacity
+
+```{r}
+VecCapacity <- readRDS("denguePaper/data/infections/clean/VecCapacity.RData")
+
+siteTemp <- climateTray %>%
+  group_by(Block, Class, Site_ID) %>%
+  summarise(meanT = mean(meanT))
+
+VecCapacityClimate <- left_join(VecCapacity, siteTemp, by = c("Block", "Class", "Site_ID"))
+```
+
+Calculate Difference Between each for Plot
+
+```{r}
+VecCapacityDiff <- VecCapacity %>%
+  select(Block, Class, Site_ID, Calculation, VC) %>%
+  spread(Calculation, VC) %>%
+  mutate(Difference = FieldBased - GrandMean) %>%
+  gather(Calculation, VC, FieldBased:Difference)
+```
+
+
+## Season x Class
+
+```{r}
+ggplot(data=VecCapacity)+
+  geom_boxplot(aes(alpha=Calculation, x = as.factor(Class), y = VC, fill = Class), width=0.7)+
+  scale_fill_manual(values=c(colR, colS, colU), labels=c("Rural", "Suburban", "Urban"))+
+  scale_color_manual(values=c(colR, colS, colU), labels=c("Rural", "Suburban", "Urban"))+
+  scale_alpha_discrete(range=c(1, 0.1), name="Calculation", labels=c("Field Based", "Grand Mean"))+
+  ylab("Vectorial Capacity")+
+  xlab("Land Class") + 
+  theme_bw() +
+  guides(color = "none", 
+         fill = "none",
+         alpha = guide_legend(override.aes = list(fill = colS))) +
+  facet_wrap(~Block, dir = "h") + 
+  theme(panel.background = element_rect(fill = "transparent", colour = NA), 
+        plot.background = element_rect(fill = "transparent", colour = NA),
+        legend.key = element_blank(),
+        panel.grid.major.x = element_blank(),
+        legend.background = element_rect(fill = "transparent", colour = NA),
+        #strip.background = element_blank(),
+        axis.line=element_line(color=axisColor, size=0.5),
+        panel.grid = element_blank(),
+        axis.text = element_text(size=10),
+        axis.title.y = element_text(size=10),
+        strip.text = element_text(size=10))
+```
+
+
+## Temperature
+
+Create predicted model outputs to better include the effect of temperature and random effect of site.
+
+```{r}
+VCTempModel <- lme4::lmer(VC+0.01 ~ meanT*Calculation + (1|Site_ID), 
+                    data = VecCapacityClimate)
+
+VecCapacityClimate$VChat <- predict(VCTempModel)
+```
+
+
+```{r}
+ggplot(data = VecCapacityClimate, aes(x=meanT, y = VC+0.01)) +
+  geom_point(aes(color = Class, 
+                 shape = Calculation), 
+             size = 3) +
+  geom_smooth(aes(y = VChat, linetype = Calculation), 
+            method = "lm", 
+            se = F, 
+            col = "gray20") +
+  scale_shape_discrete(labels = c("Field Based", "Grand Mean")) +
+  ylab("Vectorial Capacity") +
+  xlab("Mean Temperature (C)") +
+  scale_color_manual(values=c(colR, colS, colU), 
+                     labels=c("Rural", "Suburban", "Urban"))+
+  guides(linetype = "none")
+```
 
 # Map of Study Site
 
