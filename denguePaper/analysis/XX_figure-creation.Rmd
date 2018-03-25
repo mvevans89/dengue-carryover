@@ -255,7 +255,7 @@ SalivaPlot <- ggplot(data=infLong[infLong$type=="Saliva",], aes(x=Class, group=B
 impSurf <- raster("denguePaper/data/spatial/impSurfFocal.tif")
 sites <- read.csv("denguePaper/data/spatial/sites.csv", header=T)
 sitesSp <- SpatialPointsDataFrame(sites[,c('X','Y')], data= sites,
-                                  proj4string=crs("+init=epsg:4326"))
+                                proj4string=crs("+init=epsg:4326"))
 sitesSp <- spTransform(sitesSp, "+proj=utm +zone=17 +datum=NAD83 +units=m +no_defs +ellps=GRS80 +towgs84=0,0,0")
 
 counties <- readOGR("denguePaper/data/spatial/","cb_2016_us_county_500k") #downloaded from US census bureau 2015
