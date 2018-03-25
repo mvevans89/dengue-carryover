@@ -43,6 +43,7 @@ colU <- "maroon"
 axisColor <- "gray40"
 errorColor <- "gray20"
 ```
+
 # Population Dynamics
 
 ```{r}
@@ -158,6 +159,8 @@ dev.off()
 
 # Infection Dynamics
 
+## Class x Block
+
 ```{r infection data format}
 infLong <- readRDS("denguePaper/data/infections/clean/infectionSummaryLong.RData")
 ```
@@ -246,6 +249,90 @@ SalivaPlot <- ggplot(data=infLong[infLong$type=="Saliva",], aes(x=Class, group=B
         legend.title = element_text(size = 10))
 ```
 
+
+## Temperature
+
+```{r}
+seasons <- readRDS("denguePaper/data/infections/clean/seasonInfection.RData")
+augEnvVar <- readRDS("denguePaper/data/microclimate/clean/summerInfectionClimate.RData")
+octEnvVar <- readRDS("denguePaper/data/microclimate/clean/fallInfectionClimate.RData")
+
+seasonSite <- seasons %>%
+  dplyr::select(-Individual, - Wing) %>%
+  dplyr::group_by(Block, Class, Site_ID) %>%
+  summarise_all(funs(mean(.,na.rm=T), se=(sd(., na.rm=T)/sqrt(n())))) %>%
+  ungroup()
+
+#group with temperature data
+seasonInfSite <- merge(seasonSite, rbind(augEnvVar,octEnvVar), by=c("Block", "Site_ID"))
+```
+
+
+```{r}
+#pdf(file="figures/forMS/InfxTemp3Panel.pdf", width = 8, height=3, family="sans")
+plotBody <- ggplot(data=seasonInfSite, aes(x=Temp_mean_mean, y=Body_mean))+
+  geom_errorbar(aes(ymin=Body_mean-Body_se, ymax=Body_mean+Body_se), color=errorColor, width=0.1) +
+  geom_point(aes(color=Class, shape=Block), size=4.5) + 
+  scale_color_manual(values=c(colR, colS, colU)) +
+  theme_fivethirtyeight() +
+  theme(panel.background = element_rect(fill = "transparent", colour = NA),
+        plot.background = element_rect(fill = "transparent", colour = NA),
+        legend.key = element_blank(),
+        legend.background = element_rect(fill = "transparent", colour = NA),
+        axis.title = element_text(),
+        axis.title.x = element_text(),
+        axis.title.y=element_text(),
+        axis.line=element_line(color=axisColor, size=0.5),
+        panel.grid = element_blank())+
+  ylab("Prop. Infected")+
+  xlab("") +  
+  theme(legend.position="none")
+
+plotHead <- ggplot(data=seasonInfSite, aes(x=Temp_mean_mean, y=Head_mean))+
+   geom_errorbar(aes(ymin=Head_mean-Head_se, ymax=Head_mean+Head_se), color=errorColor, width=0.1) +
+  geom_point(aes(color=Class, shape=Block), size=4) + 
+  scale_color_manual(values=c(colR, colS, colU)) +
+  theme_fivethirtyeight() +
+    theme(panel.background = element_rect(fill = "transparent", colour = NA),
+        plot.background = element_rect(fill = "transparent", colour = NA),
+        legend.key = element_blank(),
+        legend.background = element_rect(fill = "transparent", colour = NA),
+        axis.title = element_text(),
+        axis.title.x = element_text(),
+        axis.title.y=element_blank(),
+        axis.line=element_line(color=axisColor, size=0.5),
+        panel.grid = element_blank())+
+  #ylab("Prop. Disseminated")+
+  xlab("Mean Daily Temperature (C)")+
+  theme(legend.position="none")
+
+plotSaliva <- ggplot(data=seasonInfSite, aes(x=Temp_mean_mean, y=Saliva_mean))+
+  geom_errorbar(aes(ymin=Saliva_mean-Saliva_se, ymax=Saliva_mean+Saliva_se), color=errorColor, width=0.1) +
+  #geom_errorbarh(aes(xmin=Temp_mean_mean-Temp_mean_se, xmax=Temp_mean_mean+Temp_mean_se, y=Body_mean),color="gray20", height=0.05) + #not enough error to see
+  geom_point(aes(color=Class, shape=Block), size=4.5) + 
+  scale_color_manual(values=c(colR, colS, colU)) +
+  theme_fivethirtyeight() +
+    theme(panel.background = element_rect(fill = "transparent", colour = NA),
+        plot.background = element_rect(fill = "transparent", colour = NA),
+        legend.key = element_blank(),
+        legend.background = element_rect(fill = "transparent", colour = NA),
+        axis.title = element_text(),
+        axis.title.x = element_text(),
+        axis.title.y=element_blank(),
+        axis.line=element_line(color=axisColor, size=0.5),
+        panel.grid = element_blank()) +
+  #ylab("Prop. Infectious")+
+  xlab("") +  
+  scale_y_continuous(limits=c(0,1))+
+  #theme(legend.position="right", legend.direction="vertical")
+  theme(legend.position="none")
+
+
+plot_grid(plotBody, plotHead, plotSaliva, 
+          labels=c("A", "B", "C"), 
+          ncol=3)
+#dev.off()
+```
 
 # Vectorial Capacity
 
