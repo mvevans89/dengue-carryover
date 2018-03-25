@@ -187,7 +187,7 @@ VC <- parameters %>%
   mutate(VC = ((a^2)*bc*(exp(-mu/PDR))*EFD*pEA*(MDR^2))/((mu^2)))
 ```
 
-Grand Mean
+Grand Mean. In this case, the grand mean takes the mean over all values, including survival, development rate, fecundity, and vector competence.
 
 ```{r}
 VCmean <- VC %>%

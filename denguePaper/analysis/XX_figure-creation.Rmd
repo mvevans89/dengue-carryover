@@ -334,6 +334,34 @@ plot_grid(plotBody, plotHead, plotSaliva,
 #dev.off()
 ```
 
+## Wing Length
+
+```{r}
+seasons <- readRDS("denguePaper/data/infections/clean/seasonInfection.RData")
+augEnvVar <- readRDS("denguePaper/data/microclimate/clean/summerInfectionClimate.RData")
+octEnvVar <- readRDS("denguePaper/data/microclimate/clean/fallInfectionClimate.RData")
+seasonInf <- seasonInf <- merge(seasons, rbind(augEnvVar, octEnvVar), by = c("Block", "Site_ID"))
+```
+
+```{r body inf x size plot, eval=F, include=F}
+ggplot(data=seasonInf, aes(x=factor(Body), y=Wing))+
+  geom_boxplot() +
+  geom_jitter(shape=16, position=position_jitter(0.1), aes(color=factor(Class)), alpha=0.5) +
+    theme_fivethirtyeight()+
+  theme(axis.title = element_text()) +
+  theme(panel.background = element_rect(fill = "transparent", colour = NA), 
+        plot.background = element_rect(fill = "transparent", colour = NA),
+        legend.key = element_blank())+
+  theme(legend.background = element_rect(fill = "transparent", colour = NA))+
+  theme(legend.position="right", legend.direction="vertical") +
+  scale_color_manual(values=c("dodgerblue", "gray10", "maroon"), labels=c("Rural", "Suburban", "Urban"))+
+    scale_fill_manual(values=c("dodgerblue", "gray80", "maroon"), labels=c("Rural", "Suburban", "Urban")) +
+  guides(color=F) +
+  xlab("Body Positivity") +
+  ylab("Wing Size")
+```
+
+
 # Vectorial Capacity
 
 # Map of Study Site

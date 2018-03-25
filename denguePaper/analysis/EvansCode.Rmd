@@ -91,6 +91,14 @@ survTray <- allSurv %>%
 
 survClim <- survTray %>%
   left_join(climateTray, by = c("Block", "Tray_ID", "Class", "Site_ID"))
+
+survBinomial <- allSurv %>%
+  filter(Sex == "F") %>%
+  group_by(Tray_ID, Site_ID, Class, Block) %>%
+  summarise(success = sum(event)) %>%
+  mutate(failure = 50 - success) %>%
+  ungroup() %>%
+  left_join(climateTray, by = c("Block", "Tray_ID", "Class", "Site_ID"))
 ```
 
 Add tray-level climate data to emergence
@@ -112,6 +120,21 @@ Growth Rate
 ```{r}
 growthDF2 <- readRDS("denguePaper/data/emergence/clean/growthRates.RData")
 ```
+
+```{r}
+VecCapacity <- readRDS("denguePaper/data/infections/clean/VecCapacity.RData")
+```
+
+Combine with site level temperature data.
+
+```{r}
+siteTemp <- climateTray %>%
+  group_by(Block, Class, Site_ID) %>%
+  summarise(meanT = mean(meanT))
+
+VecCapacityClimate <- left_join(VecCapacity, siteTemp, by = c("Block", "Class", "Site_ID"))
+```
+
 
 # Infection Dynamics
 
@@ -297,24 +320,6 @@ Anova(bodyWing)
 drop1(bodyWing, test="Chisq")
 ```
 
-```{r body inf x size plot, eval=F, include=F}
-ggplot(data=seasonInf, aes(x=factor(Body), y=Wing))+
-  geom_boxplot() +
-  geom_jitter(shape=16, position=position_jitter(0.1), aes(color=factor(class)), alpha=0.5) +
-    theme_fivethirtyeight()+
-  theme(axis.title = element_text()) +
-  theme(panel.background = element_rect(fill = "transparent", colour = NA), 
-        plot.background = element_rect(fill = "transparent", colour = NA),
-        legend.key = element_blank())+
-  theme(legend.background = element_rect(fill = "transparent", colour = NA))+
-  theme(legend.position="right", legend.direction="vertical") +
-  scale_color_manual(values=c("dodgerblue", "gray10", "maroon"), labels=c("Rural", "Suburban", "Urban"))+
-    scale_fill_manual(values=c("dodgerblue", "gray80", "maroon"), labels=c("Rural", "Suburban", "Urban")) +
-  guides(color=F) +
-  xlab("Body Positivity") +
-  ylab("Wing Size")
-```
-
 ### Head Infection
 
 ```{r head inf x size stats}
@@ -326,7 +331,6 @@ tidy(headWing)
 plot(headWing)
 
 Anova(headWing)
-drop1(headWing, test="Chisq")
 ```
 
 ### Saliva Infection
@@ -339,7 +343,6 @@ summary(salWing)
 tidy(salWing)
 
 Anova(salWing)
-drop1(salWing, test="Chisq")
 ```
 
 # Direct Effects
@@ -349,28 +352,31 @@ drop1(salWing, test="Chisq")
 ### Class x Season
 
 ```{r}
-SurvModSeason <- glmer(survival ~ Class*Block + (1|Site_ID),
-                   data=survTray,
-                 family=gaussian(link="logit"))
+SurvModSeason <- glmer(cbind(success, failure) ~ Class*Block + (1|Site_ID),
+                   data=survBinomial,
+                 family=binomial(link="logit"))
 
 summary(SurvModSeason)
 modResults <- tidy(SurvModSeason)
+modResults
 plot(SurvModSeason)
 car::Anova(SurvModSeason)
 
 summary(multcomp::glht(SurvModSeason, linfct = multcomp::mcp(Block = "Tukey"), test = adjusted("holm")))
+
+interaction.plot(survTray$Class, survTray$Block, survTray$survival)
 ```
 
 ### Microclimate
 
 ```{r}
-survModClim <- glmer(survival~meanT+(1|Site_ID),
-                    data=survClim,
-                    family=gaussian("logit"))
+survModClim <- glmer(cbind(success, failure)~meanT+(1|Site_ID),
+                    data=survBinomial,
+                    family=binomial("logit"))
 
 summary(survModClim)
 modResults <- tidy(survModClim)
-
+modResults
 plot(survModClim)
 qqnorm(resid(survModClim))
 ```
@@ -381,7 +387,7 @@ qqnorm(resid(survModClim))
 
 ```{r}
 mixEmergeTray <- lmer(devRate ~ Class*Block +(1|Site_ID), 
-                   data=emergTray)
+                   data=emergTray[emergTray$devRate!=0,])
 
 summary(mixEmergeTray)
 tidy(mixEmergeTray)
@@ -398,7 +404,7 @@ summary(multcomp::glht(mixEmergeTray, linfct = multcomp::mcp(Block = "Tukey"), t
 
 ```{r}
 devClimMod <- lmerTest::lmer(devRate~meanT +(1|Site_ID),
-                    data=emergClim)
+                    data=emergClim[emergClim$devRate!=0,])
 
 plot(devClimMod)
 qqnorm(resid(devClimMod))
@@ -412,14 +418,14 @@ summary(devClimMod)
 ### Land Class x Season
 
 ```{r}
-wingMod <- lmerTest::lmer(mm~class*Block +(1|Site_ID),
+wingMod <- lmerTest::lmer(mm~Class*Block +(1|Site_ID),
                 data=allWing)
 summary(wingMod)
 plot(wingMod)
 car::Anova(wingMod)
 
 
-interaction.plot(allWing$class, allWing$Block, allWing$mm)
+interaction.plot(allWing$Class, allWing$Block, allWing$mm)
 ```
 
 ### Microclimate
@@ -437,11 +443,10 @@ car::Anova(wingModTemp)
 
 ## Growth Rate
 
-
 ### Class x Season
 
 ```{r}
-growthModSeason <- lmer(r~ Class*Block+ (1|Site_ID), 
+growthModSeason <- lmer(r ~ Class*Block+ (1|Site_ID), 
                         data=growthDF2)
 
 summary(growthModSeason)
@@ -450,7 +455,6 @@ plot(growthModSeason)
 tidy(growthModSeason)
 car::Anova(growthModSeason) #Wald test
 #confint(growthModSeason) #profiled confidence interval
-
 ```
 
 ### Microclimate
@@ -465,425 +469,29 @@ plot(growthTempMod)
 
 # Vectorial Capacity
 
-**Note, I think I can delete all of this now**
+## Class x Season
 
 ```{r}
-climS <- climate[climate$Day >="2016-08-01" & climate$Day <="2016-09-03",]
-climS$Block <- "summer"
+#gamma has better residuals than gaussian
+VCModel <- glmer(VC+0.01 ~ Class * Block * Calculation + (1|Site_ID),
+                     data = VecCapacity,
+                 family = Gamma) 
 
-climF <- climate[climate$Day >="2016-09-26" & climate$Day <="2016-11-08",]
-climF$Block <- "fall"
 
-#bind back together
-climAll <- rbind(climS, climF)
-climAll$Date <- as.POSIXct(climAll$Date)
-climAll$Hour <- lubridate::hour(climAll$Date)
-
-parameters <- dplyr::select(climAll, Block, Class, Site_ID, Tray_ID, Temp, Day, Hour)
+plot(VCModel)
+summary(VCModel)
+car::Anova(VCModel)
 ```
 
-Calculated set at 27C constant (x=27):
-
-Briere:  $y = a * x * (x - t_0) * (t_{max} - x)^{(1/2)}$
-Quad: $y = a * (x-t_0) * (x-t_{max})$
+## Temperature
 
 ```{r}
-parameters <- unique(dplyr::select(climAll, Block, Class, Site_ID))
-#a -- bite rate
-parameters$a <- ((1.93/10000)*27*(27-10.25)*((38.32-27)^0.5))
-#adjust negatives
-parameters$a[parameters$a<0] <- 0
-parameters$a[is.na(parameters$a)] <- 0
+VCTempModel <- lmer(VC+0.01 ~ meanT*Calculation + (1|Site_ID), 
+                    data = VecCapacityClimate)
 
-# PDR - parasite development rate
-parameters$PDR <- ((1.09/10000)*27*(27-10.39)*((43.05-27)^0.5))
-#adjust negatives
-parameters$PDR[parameters$PDR<0] <- 0
-parameters$PDR[is.na(parameters$PDR)] <- 0
-
-# lf - mosquito lifespan
-parameters$lf <- -1.43*(27- 13.41)*(27-31.51)
-#adjust for zeros
-parameters$lf[parameters$lf<0] <- 0
-parameters$lf[is.na(parameters$lf)] <- 0
-
-# we will then calculate the mean and se for these parameters per site and hour, then sum them up for a daily value
-library(dplyr)
-
-paramRate <- parameters
-
-paramRate <- dplyr::rename(paramRate, Site_ID=Site_ID)
-paramRate <- dplyr::rename(paramRate, Block=Block)
-
-## u - daily probability of mosquito mortality
-paramRate$mu <- 1/paramRate$lf
-
-paramRate$Block <- tolower(paramRate$Block)
-paramRate$Class <- tolower(paramRate$Class)
-
-paramRateOld <- paramRate
-```
-
-Combine with field measured fecundity, survival, development rate and vector competence:
-
-```{r}
-#EFD: from wing length
-EFD  <- allWing %>%
-  group_by(Block, Class=class, Site_ID) %>%
-  dplyr::summarise(wingL=mean(mm, na.rm=T)) %>%
-  ungroup() %>%
-  mutate(fecundity=-121.240 + (78.02*wingL))
-EFD$Block <- tolower(EFD$Block)
-EFD$Class <- tolower(EFD$Class)
-
-#pEA: larval survival
-pEA <- survSumm %>%
-  group_by(Block, Class, Site_ID) %>%
-  dplyr::summarise(pEA=mean((percSurv/50), na.rm=T))
-pEA$Block <- tolower(pEA$Block)
-pEA$Class <- tolower(pEA$Class)
-
-#MDR: emergence rate (day^-1)
-MDR <- emergTray %>%
-  group_by(Block, Class, Site_ID) %>%
-  dplyr::summarise(MDR=mean(devRate, na.rm=T))
-MDR$Block <- tolower(MDR$Block)
-MDR$Class <- tolower(MDR$Class)
-
-#bc
-bc <- seasonInfSite %>%
-  dplyr::select(Block, Class=class, Site_ID=site, bc=Saliva_mean)
-bc$Block <- tolower(bc$Block)
-bc$Class <- tolower(bc$Class)
-```
-
-Merge traits together
-```{r}
-paramRate <- full_join(paramRate, EFD, by=c("Block", "Class", "Site_ID"))
-paramRate <- full_join(paramRate, pEA, by=c("Block", "Class", "Site_ID"))
-paramRate <- full_join(paramRate, MDR, by=c("Block", "Class", "Site_ID"))
-paramRate <- full_join(paramRate, bc, by=c("Block", "Class", "Site_ID"))
-```
-
-Calculate EFD
-```{r}
-paramRate$EFD <- paramRate$fecundity*paramRate$a
-```
-
-
-Calcuate VC w/o carry-over effects
-```{r}
-paramNoCOE <- dplyr::select(climAll, Block, Class, Site_ID, Tray_ID, Temp, Day, Hour)
-
-#based on model
-paramNoCOE$fecundity2 <- ((4.88/100)*27*(27-8.02)*((35.65-27)^0.5))/24
-paramNoCOE$fecundity2[paramNoCOE$fecundity2<0] <- 0
-paramNoCOE$fecundity2[is.na(paramNoCOE$fecundity2)] <- 0
-
-paramNoCOE$bc2 <- (((7.35/10000)*27*(27-15.84)*((36.40-27)^0.5)) * ((4.39/10000)*27*(27-3.62)*((36.82-27)^0.5)))/24
-paramNoCOE$bc2[paramNoCOE$bc2<0] <- 0
-paramNoCOE$bc2[is.na(paramNoCOE$bc2)] <- 0
-
-
-#take mean of each hour and sum up
-library(dplyr)
-paramRateNoCOE <- paramNoCOE %>%
-  group_by(Block, Class, Site_ID, Hour) %>%
-  dplyr::select(-Temp, -Day, -Tray_ID) %>%
-  summarise_all(funs(mean(.,na.rm=T))) %>%
-  ungroup() %>%
-  group_by(Block, Class, Site_ID) %>%
-  summarise_all(funs(sum)) %>%
-  ungroup()
-
-paramRateNoCOE <- dplyr::rename(paramRateNoCOE, Site_ID=Site_ID)
-paramRateNoCOE <- dplyr::rename(paramRateNoCOE, Block=Block)
-
-paramRateNoCOE$Class <- tolower(paramRateNoCOE$Class)
-```
-
-Merge w/ and w/o carry-over effects together
-```{r}
-paramAll <- full_join(paramRate, paramRateNoCOE, by=c("Block", "Class", "Site_ID"))
-
-#calculate EFD 
-paramAll$EFD2 <- paramAll$fecundity2*paramAll$a
-```
-
-
-Calculate VC from traits (VCnoCOE is w/o carry-over)
-
-```{r}
-paramAll <- mutate(paramAll, 
-                    VC=((a^2)*bc*(exp(-mu/PDR))*EFD*pEA*(MDR^2))/((mu^2)))
-
-paramAll <- mutate(paramAll,
-                   VCnoCOE=(((a^2)*bc2*(exp(-mu/PDR))*EFD2*pEA*(MDR^2))/((mu^2))))
-```
-
-## Plot
-
-Figure 3.
-
-```{r}
-siteTemps <- dplyr::select(seasonInfSite, Block, site, class, Temp_mean_mean)
-levels(paramAll$Class) <- c("Rural", "Suburban", "Urban")
-VCplot <- merge(paramAll, siteTemps, by.x=c("Block", "Site_ID"), by.y=c("Block", "site"))
-VCplot <- VCplot %>%
-  dplyr::select(Block, Class, Site_ID, VC, VCnoCOE, Temp_mean_mean) %>%
-  mutate(VCdiff=(VC-VCnoCOE)/VCnoCOE*100)
-VCplot$Block <- factor(VCplot$Block, levels=c("summer", "fall"))
-```
-
-```{r VC over Temp plot}
-
-VCxTempPlot <- ggplot(data=VCplot, aes(x=Temp_mean_mean))+
-  geom_smooth(aes(y=VC, color="WithCOE"), method="lm", show.legend=F)+
-  geom_smooth(aes(y=VCnoCOE, color="WithoutCOE"),  method="lm", show.legend=F)+
-  geom_smooth(aes(y=VC, color="WithCOE"), method="lm", fill=NA)+
-  geom_smooth(aes(y=VCnoCOE, color="WithoutCOE"),  method="lm", fill=NA)+
-  geom_point(aes(y=VC, color="WithCOE")) +
-  geom_point(aes(y=VCnoCOE, color="WithoutCOE"))+
-  coord_cartesian(ylim=c(0,40))+
-  theme_fivethirtyeight()+
-  theme(panel.background = element_rect(fill = "transparent", colour = NA),
-        plot.background = element_rect(fill = "transparent", colour = NA),
-        legend.key = element_blank(),
-        legend.background = element_rect(fill = "transparent", colour = NA),
-        legend.position="bottom", 
-        legend.direction="horizontal",
-        axis.title = element_text(),
-        legend.text=element_text(size=8), 
-        legend.title = element_text(size=10),
-        axis.line=element_line(color="gray40", size=0.5),
-        panel.grid = element_blank())+
-  guides(color = F)+
-  #guides(colour=guide_legend(title.position="top", title.hjust=0.5))+
-  xlab("Temperature (C)")+
-  ylab("Vectorial Capacity")+
-  scale_colour_manual(name="Calcuation Type", 
-                      #values=c(WithCOE="#af8dc3", WithoutCOE="#7fbf7b"),
-                      values=c(WithCOE="black", WithoutCOE="gray55"),
-                      labels=c("With COEs", "Without COEs")) +
-  annotate(geom = "text", x = 21, y = 38, col = "black", size = 3,
-           label = "VC = -72.208 + 3.912 x Temp (without COE)") +
-  annotate(geom = "text", x = 20.845, y = 35, col = "black", size = 3,
-           label = "VC = -15.280 + 0.802 x Temp (with COE)")
-```
-
-```{r}
-pdf(file="figures/forMS/Fig2.pdf", width = 5, height=4, family="sans")
-VCxTempPlot
-dev.off()
-```
-
-
-```{r}
-#get mean and se summary
-VCplotsumm <- VCplot %>%
-  dplyr::select(-Site_ID) %>%
-  gather(calc, value, VC, VCnoCOE, VCdiff) %>%
-  group_by(Block, Class, calc) %>%
-  dplyr::summarise_all(funs(mean=mean(., na.rm=T), se=sd(.)/sqrt(n()))) %>%
-  ungroup()
-#add in facet labels
-VCplotsumm$labels <- case_when(
-  VCplotsumm$calc=="VC" ~ "With COEs" ,
-  VCplotsumm$calc=="VCnoCOE" ~ "No COEs",
-  VCplotsumm$calc=="VCdiff" ~ "Difference due to COEs"
-)
-VCplotsumm$labels <- factor(VCplotsumm$labels, levels=c("No COEs", "With COEs", "Difference due to COEs"))
-#order factor
-VCplotsumm$calc <- factor(VCplotsumm$calc, levels=c("VCnoCOE", "VC", "VCdiff"))
-```
-
-
-```{r three panel bar graph of VC, eval = F, include = F}
-
-noCOEplot <- ggplot(data=VCplotsumm[VCplotsumm$labels=="No COEs",], aes(x=factor(Class), group=Block)) +
-  geom_bar(stat='identity',
-           aes(y=value_mean, fill=Class, alpha=Block, color=Class), 
-           position=position_dodge(0.9), 
-           width=0.7) + 
-  geom_errorbar(aes(ymin=value_mean-value_se, ymax=value_mean+value_se),
-                position=position_dodge(0.9), 
-                width=0.4,
-                color=errorColor)+
-  ylim(0,50)+
-  #facet_wrap(~labels, nrow=3) +
-  #theme_fivethirtyeight() +
-  ylab("Vectorial Capacity")+
-  xlab("Land Class")+
-  #theme_fivethirtyeight() +
-  scale_x_discrete(labels=c("Rural", "Suburban", "Urban"))+
-  scale_fill_manual(values=c(colR, colS, colU), 
-                    labels=c("Rural", "Suburban", "Urban")) +
-  scale_color_manual(values=c(colR, colS, colU))+
-  scale_alpha_discrete(range=c(1,0), 
-                       name="Season", 
-                       guide=guide_legend(), 
-                       labels=c("Summer", "Fall"))+
-  #geom_hline(aes(yintercept=0))+
-  guides(fill=F, alpha=F, color=F)+
-  theme(panel.background = element_rect(fill = "transparent", colour = NA),
-        plot.background = element_rect(fill = "transparent", colour = NA),
-        legend.key = element_blank(),
-        legend.background = element_rect(fill = "transparent", colour = NA),
-        legend.position="right", 
-        axis.title.y=element_text(size=12), 
-        axis.title.x = element_blank(), 
-        axis.text.x = element_text(size=10),
-        legend.text=element_text(size=6), 
-        legend.title = element_text(size=8), 
-        legend.key.size = unit(0.1, "in"), 
-        legend.direction = "vertical", 
-        legend.box = "vertical",
-        panel.grid.major.x = element_blank(),
-        panel.grid.major=element_blank(),
-        strip.background = element_blank(),
-        axis.ticks=element_blank(),
-        axis.line=element_line(color=axisColor)) +
- theme(strip.text.x = element_text()) #this has to be seperate for some reason?
-
-
-withCOEplot <- ggplot(data=VCplotsumm[VCplotsumm$labels=="With COEs",], aes(x=factor(Class), group=Block)) +
-  geom_bar(stat='identity',
-           aes(y=value_mean, fill=Class, alpha=Block, color=Class), 
-           position=position_dodge(0.9), 
-           width=0.7) + 
-  geom_errorbar(aes(ymin=value_mean-value_se, ymax=value_mean+value_se),
-                position=position_dodge(0.9), 
-                width=0.4,
-                color=errorColor)+
-  ylim(0,50)+
-  #facet_wrap(~labels, nrow=3) +
-  ylab("Vectorial Capacity")+
-  xlab("Land Class")+
-  #theme_fivethirtyeight() +
-  scale_x_discrete(labels=c("Rural", "Suburban", "Urban"))+
-  scale_fill_manual(values=c(colR, colS, colU), 
-                    labels=c("Rural", "Suburban", "Urban")) +
-  scale_color_manual(values=c(colR, colS, colU))+
-  scale_alpha_discrete(range=c(1,0), 
-                       name="Season", 
-                       guide=guide_legend(), 
-                       labels=c("Summer", "Fall"))+
-  #geom_hline(aes(yintercept=0))+
-  guides(color=F, fill=F, alpha=F)+
-  theme(panel.background = element_rect(fill = "transparent", colour = NA),
-        plot.background = element_rect(fill = "transparent", colour = NA),
-        legend.key = element_blank(),
-        legend.background = element_rect(fill = "transparent", colour = NA),
-        legend.position="right", 
-        axis.title.y=element_text(size=12), 
-        axis.title.x = element_blank(), 
-        axis.text.x = element_text(size=10),
-        legend.text=element_text(size=6), 
-        legend.title = element_text(size=8), 
-        legend.key.size = unit(0.1, "in"), 
-        legend.direction = "vertical", 
-        legend.box = "vertical",
-        panel.grid.major.x = element_blank(),
-        panel.grid.major=element_blank(),
-        strip.background = element_blank(),
-        axis.line = element_line(color=axisColor),
-        axis.ticks=element_blank()) +
- theme(strip.text.x = element_text()) #this has to be seperate for some reason?
-
-diffPlot <- ggplot(data=VCplotsumm[VCplotsumm$labels=="Difference due to COEs",], aes(x=factor(Class), group=Block)) +
-  geom_bar(stat='identity',
-           aes(y=value_mean, fill=Class, alpha=Block, color=Class), 
-           position=position_dodge(0.9), 
-           width=0.7) + 
-  geom_errorbar(aes(ymin=value_mean-value_se, ymax=value_mean+value_se),
-                position=position_dodge(0.9), 
-                width=0.4,
-                color=errorColor)+
-  #theme_fivethirtyeight() +
-  ylab("Change in VC") +
-  xlab("Land Class") +
-  scale_x_discrete(labels=c("Rural", "Suburban", "Urban"))+
-  scale_fill_manual(values=c(colR, colS, colU), 
-                    labels=c("Rural", "Suburban", "Urban")) +
-  scale_color_manual(values=c(colR, colS, colU))+
-  scale_alpha_discrete(range=c(1,0), 
-                       name="Season", 
-                       guide=guide_legend(), 
-                       labels=c("Summer", "Fall"))+
-  geom_hline(aes(yintercept=0))+
-  guides(color = F, alpha= F, fill = F)+
-  theme(panel.background = element_rect(fill = "transparent", colour = NA),
-        plot.background = element_rect(fill = "transparent", colour = NA),
-        legend.key = element_blank(),
-        legend.background = element_rect(fill = "transparent", colour = NA),
-        legend.position="bottom", 
-        axis.title.y = element_text(size=12), 
-        axis.title.x = element_text(size=12), 
-        axis.text.x = element_text(size=10),
-        legend.text=element_text(size=8), 
-        legend.title = element_text(size=12), 
-        legend.key.size = unit(0.1, "in"), 
-        legend.direction = "horizontal", 
-        legend.box = "vertical",
-        panel.grid.major.x = element_blank(),
-        panel.grid.major=element_blank(),
-        strip.background = element_blank(),
-        axis.ticks=element_blank(),
-        axis.line = element_line(color=axisColor)) +
- theme(strip.text.x = element_text()) #this has to be seperate for some reason?
-
-```
-
-Use cowplot to combine the three bar graphs and VC over temp chart.
-```{r supp figure 3, eval=F}
-pdf(file="figures/forMS/SuppFig3.pdf", width = 3, height=6, family="sans")
-
-plot_grid(noCOEplot, withCOEplot, diffPlot, labels = c("A", "B", "C"),
-          align = "v", nrow = 3)
-
-dev.off()
-```
-
-
-## Statistics
-
-```{r VC stats}
-VCplot$VCforStats <- VCplot$VC+0.000000001
-VCplot$VCforStatsnoCOE <- VCplot$VCnoCOE+0.000000001
-VCclass <- lmer(VCforStats~Class*Block+ (1|Site_ID), 
-                 data=VCplot)
-
-summary(multcomp::glht(VCclass, linfct = multcomp::mcp(Block = "Tukey"), test = multcomp::adjusted("holm")))
-
-plot(VCclass)
-summary(VCclass)
-car::Anova(VCclass)
-
-VCclassnoCOE <- lmer(VCforStatsnoCOE~Class*Block+ (1|Site_ID), 
-                 data=VCplot)
-
-plot(VCclassnoCOE)
-summary(VCclassnoCOE)
-car::Anova(VCclassnoCOE)
-
-summary(multcomp::glht(VCclassnoCOE, linfct = multcomp::mcp(Block = "Tukey"), test = multcomp::adjusted("holm")))
-
-#make long for comparison of with and without carry-over
-VClong <- VCplot %>%
-  gather(COE, value, VC, VCnoCOE)
-
-VCtemp <- lmer(value~Temp_mean_mean*COE + (1|Site_ID), data=VClong)
-
-summary(VCtemp)
-
-## Vectorial Capacity (w carry over) across Temp
-VCtempCOE <- lmerTest::lmer(VCforStats~Temp_mean_mean + (1|Site_ID), data=VCplot)
-
-summary(VCtempCOE)
-
-## Vectorial Capacity (w/o carry over) across Temp
-VCtempNoCOE <- lmerTest::lmer(VCforStatsnoCOE ~ Temp_mean_mean + (1|Site_ID), data=VCplot)
-summary(VCtempNoCOE)
+plot(VCTempModel)
+summary(VCTempModel)
+car::Anova(VCTempModel)
 ```
 
 
