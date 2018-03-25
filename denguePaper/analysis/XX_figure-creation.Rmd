@@ -20,6 +20,18 @@ knitr::opts_chunk$set(echo = TRUE)
 #packages
 library(ggplot2)
 library(ggthemes)
+library(raster)
+library(sp)
+library(ggmap)
+library(rgdal)
+library(rasterVis)
+library(RColorBrewer)
+library(viridis)
+library(latticeExtra)
+library(scales)
+library(png)
+library(grid)
+library(dplyr)
 ```
 
 
@@ -238,6 +250,69 @@ SalivaPlot <- ggplot(data=infLong[infLong$type=="Saliva",], aes(x=Class, group=B
 # Vectorial Capacity
 
 # Map of Study Site
+
+```{r}
+impSurf <- raster("denguePaper/data/spatial/impSurfFocal.tif")
+sites <- read.csv("denguePaper/data/spatial/sites.csv", header=T)
+sitesSp <- SpatialPointsDataFrame(sites[,c('X','Y')], data= sites,
+                                  proj4string=crs("+init=epsg:4326"))
+sitesSp <- spTransform(sitesSp, "+proj=utm +zone=17 +datum=NAD83 +units=m +no_defs +ellps=GRS80 +towgs84=0,0,0")
+
+counties <- readOGR("denguePaper/data/spatial/","cb_2016_us_county_500k") #downloaded from US census bureau 2015
+acc <- counties[counties$GEOID==13059,]
+acc <- spTransform(acc, "+proj=utm +zone=17 +datum=NAD83 +units=m +no_defs +ellps=GRS80 +towgs84=0,0,0")
+```
+
+```{r}
+#bound Athens around sites
+athens <- crop(impSurf, c(262000, 297000, 3748000,3765000))
+```
+
+```{r}
+#load map of georgia
+gaMap <- readPNG("denguePaper/data/spatial/accMap.png")
+mapRaster<- as.raster(gaMap)
+```
+
+```{r}
+png("denguePaper/results/figures/forMS/siteMap.png", family="sans", width=7, height=4, units="in", res=500)
+levelplot(athens, 
+          margin=FALSE,                       
+          colorkey=list(
+            space='bottom',                   
+            labels=list(at=c(0,5,40,100), 
+                        labels=c("0%","5%", "40%", "100%"),
+                        font=4),
+            axis.line=list(col='black')       
+          ),    
+          par.settings=list(
+            axis.line=list(col='gray20') 
+          ),
+          scales=list(draw=FALSE),
+          col.regions=c("white", alpha("dodgerblue",0.7), alpha("maroon",0.7)),
+          at=c(0,5,40,100)) +           
+  layer(sp.polygons(sitesSp, 
+                    pch=c(15,16,17)[sitesSp$CLASS], 
+                    fill="gray20",
+                    cex=1, lwd=2
+                    ))+
+  layer(sp.polygons(acc, lwd=2, col="black"))+
+  layer(SpatialPolygonsRescale(layout.north.arrow(), offset = c(265000, 3749000), scale = 2000)) +
+  layer({
+    xs <- seq(267000, 269250, by=750)
+    grid.rect(x=xs, y=3750000,
+              width=750, height=300,
+              gp=gpar(fill=rep(c('transparent', 'black'), 2)),
+              default.units='native')
+    grid.text(x=seq(266800, 270000, by=750), y=rep(c(3749500, 3750400), 2), label=c("","", "1.5", "", "3 km"),
+              gp=gpar(cex=0.5), rot=0,
+              default.units='native')
+  })
+
+dev.off()
+```
+
+
 
 # Infection Efficicency
 
