@@ -431,7 +431,7 @@ ggplot(data=VecCapacity)+
 Create predicted model outputs to better include the effect of temperature and random effect of site.
 
 ```{r}
-VCTempModel <- lm((VC)~ meanT, 
+VCTempModel <- lm(VC~ meanT*Block, 
                     data = VecCapacityClimate)
 
 VecCapacityClimate$VChat <- predict(VCTempModel, response = T)
@@ -439,11 +439,11 @@ VecCapacityClimate$VChat <- predict(VCTempModel, response = T)
 
 
 ```{r}
-ggplot(data = VecCapacityClimate, aes(x=meanT, y = VC+0.01)) +
+ggplot(data = VecCapacityClimate, aes(x=meanT, y = VC, group = Block)) +
   geom_point(aes(color = Class), 
              size = 3) +
   geom_smooth(method = "lm", 
-            se = T, 
+            se = F, 
             formula = y ~ x,
             col = "gray20", 
             level = 0.95) +
@@ -520,18 +520,16 @@ dev.off()
 
 # Infection Efficicency
 
-This plot needs to be updated to make sure it still works.
-
 ```{r plot efficiency, eval=F}
 efficiencyPlot <- readRDS("denguePaper/data/infections/clean/efficiencyPlot.RData")
 
 #supplemental plot
-ggplot(data=efficiencyPlot[order(meltAll$Block, decreasing=F),], aes(x=Class, group=Block))+
-  geom_bar(stat="identity", aes(y=mean, alpha=factor(Block), fill=factor(Class)), color="gray20", position=position_dodge(width=-0.9))+
+ggplot(data=efficiencyPlot, aes(x=Class, group=Block))+
+  geom_bar(stat="identity", aes(y=mean, alpha=factor(Block), fill=factor(Class)), color="gray20", position=position_dodge(width=0.9))+
   facet_wrap(~type, nrow=3, dir="v") +
   scale_fill_manual(values=c(colR, colS, colU))+
-  scale_alpha_discrete(range=c(1,0.3), name="Season", labels=c("Fall", "Summer"), guide=guide_legend(reverse=T))+
-  geom_errorbar(aes(ymin=mean-SE, ymax=mean+SE), width=0.2, color="gray20", position =position_dodge(-0.9))+
+  scale_alpha_discrete(range=c(1,0.1), name="Season")+
+  geom_errorbar(aes(ymin=mean-SE, ymax=mean+SE), width=0.2, color="gray20", position =position_dodge(0.9))+
   theme_base() + 
   xlab("Land Class") +
   ylab("Infection Efficiency") +
