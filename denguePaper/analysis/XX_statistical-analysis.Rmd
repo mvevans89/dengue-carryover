@@ -136,6 +136,12 @@ VecCapacityClimate <- left_join(VecCapacity, siteTemp, by = c("Block", "Class", 
   filter(Calculation == "FieldBased")
 ```
 
+# Load Everything to Here to Load all Data
+
+```{r}
+
+```
+
 
 # Infection Dynamics
 
@@ -477,27 +483,28 @@ Is the grand mean different than field derived?
 ```{r}
 t.test(VecCapacity$VC[VecCapacity$Calculation=="GrandMean"], VecCapacity$VC[VecCapacity$Calculation=="FieldBased"])
 
-VCModelBoth <- lmer(VC+0.01 ~ Class * Block * Calculation + (1|Site_ID),
-                     data = VecCapacity[VecCapacity$VC>0,]) 
+VCModelBoth <- lmer(VC ~ Class * Block * Calculation + (1|Site_ID),
+                     data = VecCapacity) 
 
 summary(VCModelBoth)
 tidy(VCModelBoth)
+Anova(VCModelBoth)
 
-VCpreds <- cbind(VecCapacity[VecCapacity$VC>0,], predict(VCModelBoth, response = T))
+VCpredsBoth <- cbind(VecCapacity, predict(VCModelBoth, response = T))
 ```
 
 Because there is no significant difference, I only report the other stats on the field-based calculation.
 
 ```{r}
-#gamma has better residuals than gaussian
 VCModel <- lm(VC+0.01 ~ Class * Block,
                      data = VecCapacity[VecCapacity$Calculation=="FieldBased",]) 
-
 
 plot(VCModel)
 summary(VCModel)
 car::Anova(VCModel)
 tidy(VCModel)
+
+VCpreds <- cbind(VecCapacity[VecCapacity$Calculation=="FieldBased",], pred = predict(VCModel, response = T))
 ```
 
 ## Temperature
@@ -505,7 +512,7 @@ tidy(VCModel)
 As above, there was no effect of the grand mean on VC, so only calculating the field based.
 
 ```{r}
-VCTempModel <- lm(sqrt(VC+0.01) ~ meanT, 
+VCTempModel <- lm(VC ~ meanT, 
                     data = VecCapacityClimate)
 
 plot(VCTempModel)
