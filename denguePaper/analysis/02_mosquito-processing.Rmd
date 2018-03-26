@@ -336,7 +336,6 @@ applyFill <- function(season, allData=emergExp){
 summerSurv <- applyFill(season="Summer")
 fallSurv <- applyFill(season="Fall")
 allSurv <- rbind(summerSurv, fallSurv)
-
 ```
 
 ## Save

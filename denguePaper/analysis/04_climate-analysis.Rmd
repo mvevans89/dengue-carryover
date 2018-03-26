@@ -101,7 +101,7 @@ rh <- ggplot(data=climateSummary, aes(x=Day, group=Class))+
 ## Create Plot
 
 ```{r}
-pdf(file="../figures/forMS/SuppFig2.pdf", width = 6, height=8, family="sans")
+pdf(file="denguePaper/results/figures/forMS/climate.pdf", width = 6, height=8, family="sans")
 plot_grid(temperature, rh, align="v", nrow=2)
 dev.off()
 ```

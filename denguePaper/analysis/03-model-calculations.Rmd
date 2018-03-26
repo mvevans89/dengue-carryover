@@ -212,8 +212,3 @@ VCAll <- bind_rows(VC, VCmean)
 ```{r}
 saveRDS(VCAll, "denguePaper/data/infections/clean/VecCapacity.RData")
 ```
-
-
-
-
-

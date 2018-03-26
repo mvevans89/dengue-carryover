@@ -382,7 +382,8 @@ siteTemp <- climateTray %>%
   group_by(Block, Class, Site_ID) %>%
   summarise(meanT = mean(meanT))
 
-VecCapacityClimate <- left_join(VecCapacity, siteTemp, by = c("Block", "Class", "Site_ID"))
+VecCapacityClimate <- left_join(VecCapacity, siteTemp, by = c("Block", "Class", "Site_ID")) %>%
+  filter(Calculation == "FieldBased")
 ```
 
 Calculate Difference Between each for Plot
@@ -430,28 +431,26 @@ ggplot(data=VecCapacity)+
 Create predicted model outputs to better include the effect of temperature and random effect of site.
 
 ```{r}
-VCTempModel <- lme4::lmer(VC+0.01 ~ meanT*Calculation + (1|Site_ID), 
+VCTempModel <- lm((VC)~ meanT, 
                     data = VecCapacityClimate)
 
-VecCapacityClimate$VChat <- predict(VCTempModel)
+VecCapacityClimate$VChat <- predict(VCTempModel, response = T)
 ```
 
 
 ```{r}
 ggplot(data = VecCapacityClimate, aes(x=meanT, y = VC+0.01)) +
-  geom_point(aes(color = Class, 
-                 shape = Calculation), 
+  geom_point(aes(color = Class), 
              size = 3) +
-  geom_smooth(aes(y = VChat, linetype = Calculation), 
-            method = "lm", 
-            se = F, 
-            col = "gray20") +
-  scale_shape_discrete(labels = c("Field Based", "Grand Mean")) +
+  geom_smooth(method = "lm", 
+            se = T, 
+            formula = y ~ x,
+            col = "gray20", 
+            level = 0.95) +
   ylab("Vectorial Capacity") +
   xlab("Mean Temperature (C)") +
   scale_color_manual(values=c(colR, colS, colU), 
-                     labels=c("Rural", "Suburban", "Urban"))+
-  guides(linetype = "none")
+                     labels=c("Rural", "Suburban", "Urban"))
 ```
 
 # Map of Study Site
