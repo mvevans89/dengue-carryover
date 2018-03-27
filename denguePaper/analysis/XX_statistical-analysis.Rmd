@@ -159,6 +159,7 @@ summary(multcomp::glht(mixModelseasonsBody21, linfct = multcomp::mcp(Class = "Tu
 summary(multcomp::glht(mixModelseasonsBody21, linfct = multcomp::mcp(Block = "Tukey"), test = multcomp::adjusted("holm")))
 #confint(mixModelseasonsBody21)
 
+
 mixModelseasonsHead21 <- lme4::glmer(Head~Class*Block  + (1|Site_ID), 
                           data=seasons,
                           family=binomial(link="logit"))
@@ -377,7 +378,7 @@ interaction.plot(survTray$Class, survTray$Block, survTray$survival)
 ### Microclimate
 
 ```{r}
-survModClim <- glmer(cbind(success, failure)~meanT+(1|Site_ID),
+survModClim <- glmer(cbind(success, failure)~meanT*Block+(1|Site_ID),
                     data=survBinomial,
                     family=binomial("logit"))
 
@@ -393,7 +394,8 @@ qqnorm(resid(survModClim))
 ### Class x Season
 
 ```{r}
-mixEmergeTray <- lmer(devRate ~ Class*Block +(1|Site_ID), 
+#do not include trays with no survival as devRate could not be estimated (==0)
+mixEmergeTray <- lmerTest::lmer(devRate ~ Class*Block +(1|Site_ID), 
                    data=emergTray[emergTray$devRate!=0,])
 
 summary(mixEmergeTray)
@@ -410,7 +412,7 @@ summary(multcomp::glht(mixEmergeTray, linfct = multcomp::mcp(Block = "Tukey"), t
 ### Microclimate
 
 ```{r}
-devClimMod <- lmerTest::lmer(devRate~meanT +(1|Site_ID),
+devClimMod <- lmerTest::lmer(devRate~meanT + (1|Site_ID),
                     data=emergClim[emergClim$devRate!=0,])
 
 plot(devClimMod)
@@ -478,11 +480,9 @@ plot(growthTempMod)
 
 ## Class x Season
 
-Is the grand mean different than field derived?
+Is the grand mean different than field derived? We will look at this qualitatively in the plot, and maybe use some coef variation terms.
 
 ```{r}
-t.test(VecCapacity$VC[VecCapacity$Calculation=="GrandMean"], VecCapacity$VC[VecCapacity$Calculation=="FieldBased"])
-
 VCModelBoth <- lmer(VC ~ Class * Block * Calculation + (1|Site_ID),
                      data = VecCapacity) 
 
