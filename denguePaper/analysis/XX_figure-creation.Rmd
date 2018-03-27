@@ -52,9 +52,6 @@ emergTray <- readRDS("denguePaper/data/emergence/clean/emergenceTray.RData")
 growthDF2 <- readRDS("denguePaper/data/emergence/clean/growthRates.RData")
 ```
 
-
-
-
 ```{r}
 #survival
 survPlot <- ggplot(data=survTray)+
@@ -377,80 +374,75 @@ ggplot(data=seasonInf, aes(x=factor(Body), y=Wing))+
 
 ```{r}
 VecCapacity <- readRDS("denguePaper/data/infections/clean/VecCapacity.RData")
+climateTray <- readRDS("denguePaper/data/microclimate/clean/climateTraySummary.RData")
+```
 
+```{r}
 siteTemp <- climateTray %>%
   group_by(Block, Class, Site_ID) %>%
   summarise(meanT = mean(meanT))
 
-VecCapacityClimate <- left_join(VecCapacity, siteTemp, by = c("Block", "Class", "Site_ID")) %>%
-  filter(Calculation == "FieldBased")
+VecCapacityClimate <- left_join(VecCapacity, siteTemp, by = c("Block", "Class", "Site_ID"))
 ```
 
-Calculate Difference Between each for Plot
-
+Plot across temperature with the mean value per block
 ```{r}
-VecCapacityDiff <- VecCapacity %>%
-  select(Block, Class, Site_ID, Calculation, VC) %>%
-  spread(Calculation, VC) %>%
-  mutate(Difference = FieldBased - GrandMean) %>%
-  gather(Calculation, VC, FieldBased:Difference)
-```
-
-
-## Season x Class
-
-```{r}
-ggplot(data=VecCapacity)+
-  geom_boxplot(aes(alpha=Calculation, x = as.factor(Class), y = VC, fill = Class), width=0.7)+
-  scale_fill_manual(values=c(colR, colS, colU), labels=c("Rural", "Suburban", "Urban"))+
-  scale_color_manual(values=c(colR, colS, colU), labels=c("Rural", "Suburban", "Urban"))+
-  scale_alpha_discrete(range=c(1, 0.1), name="Calculation", labels=c("Field Based", "Grand Mean"))+
-  ylab("Vectorial Capacity")+
-  xlab("Land Class") + 
-  theme_bw() +
-  guides(color = "none", 
-         fill = "none",
-         alpha = guide_legend(override.aes = list(fill = colS))) +
-  facet_wrap(~Block, dir = "h") + 
-  theme(panel.background = element_rect(fill = "transparent", colour = NA), 
-        plot.background = element_rect(fill = "transparent", colour = NA),
-        legend.key = element_blank(),
-        panel.grid.major.x = element_blank(),
-        legend.background = element_rect(fill = "transparent", colour = NA),
-        #strip.background = element_blank(),
-        axis.line=element_line(color=axisColor, size=0.5),
-        panel.grid = element_blank(),
-        axis.text = element_text(size=10),
-        axis.title.y = element_text(size=10),
-        strip.text = element_text(size=10))
-```
-
-
-## Temperature
-
-Create predicted model outputs to better include the effect of temperature and random effect of site.
-
-```{r}
-VCTempModel <- lm(VC~ meanT*Block, 
-                    data = VecCapacityClimate)
-
-VecCapacityClimate$VChat <- predict(VCTempModel, response = T)
+VecCapacityBlock <- VecCapacityClimate %>%
+  dplyr::select(Block, Calculation, VC, meanT) %>%
+  group_by(Block, Calculation) %>%
+  summarise(VC.mean = mean(VC), VC.se = sd(VC), meanT = mean (meanT), VC.median = median(VC)) %>%
+  ungroup() %>%
+  #offset to plot next to each other
+  mutate(offset = case_when(
+    Calculation == "FieldBased" ~ meanT - 0.5,
+    Calculation == "GrandMean" ~ meanT + 0.5
+  ))
 ```
 
 
 ```{r}
-ggplot(data = VecCapacityClimate, aes(x=meanT, y = VC, group = Block)) +
-  geom_point(aes(color = Class), 
+range.box <- function(x, y.mean, y.sd, id, Calculation) {
+  data.frame(
+    id = id,
+    x = rep(c(x - 0.5, x + 0.5),each = 2),
+    y = c(y.mean - y.sd, y.mean + y.sd, y.mean + y.sd, y.mean - y.sd),
+    Calculation = Calculation
+  )
+}
+```
+
+```{r}
+comparePolygons <- range.box(x = VecCapacityBlock$offset[1], 
+                  y.mean = VecCapacityBlock$VC.mean[1],
+                  y.sd = VecCapacityBlock$VC.se[1],
+                  id = 1,
+                  Calculation = VecCapacityBlock$Calculation[1])
+for (i in 2:nrow(VecCapacityBlock)){
+  tmp <- range.box(x = VecCapacityBlock$offset[i], 
+                  y.mean = VecCapacityBlock$VC.mean[i],
+                  y.sd = VecCapacityBlock$VC.se[i],
+                  id = i,
+                  Calculation = VecCapacityBlock$Calculation[i])
+  comparePolygons<- rbind(comparePolygons, tmp)
+}
+rm(tmp)
+```
+
+
+```{r}
+ggplot() +
+  geom_polygon(data=comparePolygons, aes(x = x, y = y, group = id, fill = Calculation), alpha = 0.3, color = "gray10") +
+  geom_errorbar(data = VecCapacityBlock, aes(x=offset, ymin = VC.median, ymax = VC.median), color = "gray10")+
+  #geom_point(data = VecCapacityBlock, aes(x=offset, y = VC.mean), shape = "-", size=15, alpha = 0.8) +
+  geom_point(data = VecCapacityClimate, aes(x=meanT, y = VC, color = Class, shape = Calculation), 
              size = 3) +
-  geom_smooth(method = "lm", 
-            se = F, 
-            formula = y ~ x,
-            col = "gray20", 
-            level = 0.95) +
+  
   ylab("Vectorial Capacity") +
   xlab("Mean Temperature (C)") +
   scale_color_manual(values=c(colR, colS, colU), 
-                     labels=c("Rural", "Suburban", "Urban"))
+                     labels=c("Rural", "Suburban", "Urban")) +
+  scale_fill_manual(values = c("black", "gray70"),
+                     labels = c("Field Based", "Grand Mean"))
 ```
 
 # Map of Study Site

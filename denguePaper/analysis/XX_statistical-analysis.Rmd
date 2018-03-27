@@ -496,15 +496,13 @@ VCpredsBoth <- cbind(VecCapacity, predict(VCModelBoth, response = T))
 Because there is no significant difference, I only report the other stats on the field-based calculation.
 
 ```{r}
-VCModel <- lm(VC+0.01 ~ Class * Block,
+VCModel <- lm(VC~ Class * Block,
                      data = VecCapacity[VecCapacity$Calculation=="FieldBased",]) 
 
 plot(VCModel)
 summary(VCModel)
 car::Anova(VCModel)
 tidy(VCModel)
-
-VCpreds <- cbind(VecCapacity[VecCapacity$Calculation=="FieldBased",], pred = predict(VCModel, response = T))
 ```
 
 ## Temperature
