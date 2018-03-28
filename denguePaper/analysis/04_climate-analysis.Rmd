@@ -17,96 +17,13 @@ knitr::opts_chunk$set(cache=TRUE)
 knitr::opts_chunk$set(message=FALSE)
 knitr::opts_chunk$set(warning=FALSE)
 
-library(ggplot2)
-library(dplyr)
-library(ggthemes)
 library(lme4)
 library(multcomp)
-library(cowplot)
+library(lsmeans)
+
+library(tidyverse)
 ```
 
-# Load Data
-
-```{r}
-climate <- readRDS("denguePaper/data/microclimate/clean/2016TrialsAdult.RData")
-```
-
-
-
-# Plots
-
-## Summary Metrics
-
-Calculate the mean minima, maximia, and mean by class by day from 2016-08-01 to 2016-11-07. This is to plot in figures over the whole time period.
-
-```{r}
-climateSummary <- climate %>%
-  dplyr::group_by(Tray_ID, Day, Site_ID, Class) %>%
-  dplyr::summarise(meanT=mean(Temp), minT=min(Temp), maxT=max(Temp), meanRH=mean(RH), maxRH=max(RH), minRH=min(RH)) %>% #values per tray
-  ungroup() %>%
-  group_by(Class, Day) %>% #get mean values per class
-  dplyr::summarise(meanT=mean(meanT), minT=mean(minT), maxT=mean(maxT), meanRH=mean(meanRH), maxRH=mean(maxRH), minRH=mean(minRH)) %>%
-  ungroup()
-```
-
-## Temperature Plot:
-
-```{r, eval = F}
-temperature <- ggplot(data=climateSummary, aes(x=Day, group=Class))+
-  geom_line(aes(y=meanT, col=Class)) + 
-  geom_line(aes(y=minT, col=Class), linetype="dotted") +
-  geom_line(aes(y=maxT, col=Class), linetype="dotted") +
-  theme_fivethirtyeight() +
-  scale_color_manual(values=c("dodgerblue", "gray20", "maroon")) +
-  theme(axis.title = element_text(), axis.title.x = element_blank()) +
-  ylab("Temperature (C)") + 
-  annotate("rect", xmin=as.Date("2016-08-01", format="%Y-%m-%d"), xmax=as.Date("2016-09-01", format="%Y-%m-%d"), ymin=-Inf, ymax=Inf, fill="gray20", alpha=0.1)+
-    annotate("rect", xmin=as.Date("2016-09-26", format="%Y-%m-%d"), xmax=as.Date("2016-11-07", format="%Y-%m-%d"), ymin=-Inf, ymax=Inf, fill="gray20", alpha=0.1)+
-  annotate("text", x = as.Date("2016-08-15", format="%Y-%m-%d"), y = 3, label = "Summer") +
-  annotate("text", x = as.Date("2016-10-18", format="%Y-%m-%d"), y = 3, label = "Fall") +
-  theme(panel.background = element_rect(fill = "transparent", colour = NA), 
-        plot.background = element_rect(fill = "transparent", colour = NA),
-        legend.key = element_blank(),
-        axis.line=element_line(color=ggthemes_data$fivethirtyeight["dkgray"], size=0.5),
-        panel.grid = element_blank())+
-  theme(legend.background = element_rect(fill = "transparent", colour = NA))
-
-```
-
-## Relative Humidity
-
-```{r, eval=F}
-rh <- ggplot(data=climateSummary, aes(x=Day, group=Class))+
-  geom_line(aes(y=meanRH, col=Class)) + 
-  geom_line(aes(y=minRH, col=Class), linetype="dotted") +
-  geom_line(aes(y=maxRH, col=Class), linetype="dotted") +
-  theme_fivethirtyeight() +
-  scale_color_manual(values=c("dodgerblue", "gray20", "maroon")) +
-  theme(axis.title = element_text(), axis.title.x = element_blank()) +
-  ylab("Relative Humidity (%)") + 
-  xlab("Date")+
-  annotate("rect", xmin=as.Date("2016-08-01", format="%Y-%m-%d"), xmax=as.Date("2016-09-01", format="%Y-%m-%d"), ymin=-Inf, ymax=Inf, fill="gray20", alpha=0.1)+
-    annotate("rect", xmin=as.Date("2016-09-26", format="%Y-%m-%d"), xmax=as.Date("2016-11-07", format="%Y-%m-%d"), ymin=-Inf, ymax=Inf, fill="gray20", alpha=0.1)+
-    annotate("text", x = as.Date("2016-08-15", format="%Y-%m-%d"), y = 22, label = "Summer") +
-  annotate("text", x = as.Date("2016-10-18", format="%Y-%m-%d"), y = 22, label = "Fall") +
-  theme(panel.background = element_rect(fill = "transparent", colour = NA), 
-        plot.background = element_rect(fill = "transparent", colour = NA),
-        legend.key = element_blank(),
-        axis.line=element_line(color=ggthemes_data$fivethirtyeight["dkgray"], size=0.5),
-        panel.grid = element_blank())+
-  theme(legend.background = element_rect(fill = "transparent", colour = NA))
-#dev.off()
-```
-
-## Create Plot
-
-```{r}
-pdf(file="denguePaper/results/figures/forMS/climate.pdf", width = 6, height=8, family="sans")
-plot_grid(temperature, rh, align="v", nrow=2)
-dev.off()
-```
-
-# Stats
 
 ## Load Climate By Tray
 
@@ -114,6 +31,9 @@ These values are created in the `01_climate-processing.Rmd` file. They calculate
 
 ```{r}
 climTray <- readRDS("denguePaper/data/microclimate/clean/climateTraySummary.RData")
+
+#add class x block variable
+climTray$classxBlock <- paste(climTray$Class, climTray$Block)
 ```
 
 
@@ -121,75 +41,56 @@ climTray <- readRDS("denguePaper/data/microclimate/clean/climateTraySummary.RDat
 
 ```{r}
 ##------------ Mean T
-climModMean <- lmer(meanT~Class*Block + (1|Site_ID), data=climTray)
-plot(climModMean)
-summary(climModMean)
-confint(climModMean)
-car::Anova(climModMean)
+climModMeanT <- lmer(meanT~Class*Block + (1|Site_ID), data=climTray)
+plot(climModMeanT)
+summary(climModMeanT)
+confint(climModMeanT)
+car::Anova(climModMeanT)
 
 #pairwise stats
-summary(glht(climModMean, linfct = mcp(Class = "Tukey"), test = adjusted("holm")))
+summary(glht(climModMeanT, linfct = mcp(Class = "Tukey"), test = adjusted("holm")))
 
-summary(glht(climModMean, linfct = mcp(Block = "Tukey"), test = adjusted("holm")))
+summary(glht(climModMeanT, linfct = mcp(Block = "Tukey"), test = adjusted("holm")))
 
 #pairwise stats-interaction
 intMod <- lmer(meanT~classxBlock+ (1|Site_ID), data=climTray)
 summary(glht(intMod, linfct = mcp(classxBlock = "Tukey"), test = adjusted("holm")))
 
-#get means in a reasonable way
-extractMean  <- function(model){
-  results <- data.frame(unique(climTray[,c('Class', 'Block')]), Mean = NA)
-  results$Mean[1] <- fixef(model)[1]
-  results$Mean[2] <- fixef(model)[1] + fixef(model)[2]
-  results$Mean[3] <- fixef(model)[1] + fixef(model)[3]
-  results$Mean[4] <- fixef(model)[1] + fixef(model)[4]
-  results$Mean[5] <- fixef(model)[1] + fixef(model)[2] + fixef(model)[4] + fixef(model)[5]
-  results$Mean[6] <- fixef(model)[1] + fixef(model)[3] + fixef(model)[4] + fixef(model)[6]
-  return(results)
-}
-
-extractMean(climModMean)
-
 ##------------ Min T
 
-climModMin <- lmer(minT~Class*Block + (1|Site_ID), data=climTray)
-plot(climModMin)
-summary(climModMin)
-confint(climModMin)
-AIC(climModMin)
-car::Anova(climModMin)
+climModMinT <- lmer(minT~Class*Block + (1|Site_ID), data=climTray)
+plot(climModMinT)
+summary(climModMinT)
+confint(climModMinT)
+AIC(climModMinT)
+car::Anova(climModMinT)
 
 #pairwise stats
-summary(glht(climModMin, linfct = mcp(Class = "Tukey"), test = adjusted("holm")))
+summary(glht(climModMinT, linfct = mcp(Class = "Tukey"), test = adjusted("holm")))
 
-summary(glht(climModMin, linfct = mcp(Block = "Tukey"), test = adjusted("holm")))
+summary(glht(climModMinT, linfct = mcp(Block = "Tukey"), test = adjusted("holm")))
 
 #pairwise stats-interaction
 intMod <- lmer(minT~classxBlock+(1|Site_ID), data=climTray)
 summary(glht(intMod, linfct = mcp(classxBlock = "Tukey"), test = adjusted("holm")))
 
-extractMean(climModMin)
-
 ##------------ Max T
-climModMax <- lmer(maxT~Class*Block + (1|Site_ID), data=climTray)
-plot(climModMax)
-summary(climModMax)
-confint(climModMax)
+climModMaxT <- lmer(maxT~Class*Block + (1|Site_ID), data=climTray)
+plot(climModMaxT)
+summary(climModMaxT)
+confint(climModMaxT)
 
-car::Anova(climModMax)
-
-#pairwise stats
-summary(glht(climModMax, linfct = mcp(Class = "Tukey"), test = adjusted("holm")))
+car::Anova(climModMaxT)
 
 #pairwise stats
-summary(glht(climModMax, linfct = mcp(Block = "Tukey"), test = adjusted("holm")))
+summary(glht(climModMaxT, linfct = mcp(Class = "Tukey"), test = adjusted("holm")))
+
+#pairwise stats
+summary(glht(climModMaxT, linfct = mcp(Block = "Tukey"), test = adjusted("holm")))
 
 #pairwise stats-interaction
 intMod <- lmer(maxT~classxBlock+(1|Site_ID), data=climTray)
 summary(glht(intMod, linfct = mcp(classxBlock = "Tukey"), test = adjusted("holm")))
-
-
-extractMean(climModMax)
 
 ##------------ DTR
 climModDTR <- lmer(meanDTR~Class*Block + (1|Site_ID), data=climTray)
@@ -209,12 +110,11 @@ summary(glht(climModDTR, linfct = mcp(Block = "Tukey"), test = adjusted("holm"))
 intMod <- lmer(meanDTR~classxBlock+ (1|Site_ID), data=climTray)
 summary(glht(intMod, linfct = mcp(classxBlock = "Tukey"), test = adjusted("holm")))
 
-extractMean(climModDTR)
-
 ```
 
 
-## Relative Humidity:
+## Relative Humidity
+
 ```{r}
 ## ------ mean RH
 
@@ -235,7 +135,6 @@ summary(glht(intMod, linfct = mcp(classxBlock = "Tukey"), test = adjusted("holm"
 
 anova(climModMeanRH, intMod)
 
-extractMean(climModMeanRH)
 
 ## ------ min RH
 climModMinRH <- lmer(minRH~Class*Block + (1|Site_ID), data=climTray)
@@ -253,8 +152,6 @@ summary(glht(climModMinRH, linfct = mcp(Block = "Tukey"), test = adjusted("holm"
 #pairwise stats-interaction
 intMod <- lmer(minRH~classxBlock+ (1|Site_ID), data=climTray)
 summary(glht(intMod, linfct = mcp(classxBlock = "Tukey"), test = adjusted("holm")))
-
-extractMean(climModMinRH)
 
 ## ------ max RH
 
@@ -279,8 +176,6 @@ intMod <- lmer(maxRH~classxBlock+ (1|Site_ID), data=climTray)
 summary(glht(intMod, linfct = mcp(classxBlock = "Tukey"), test = adjusted("holm")))
 
 
-extractMean(climModMaxRH)
-
 ## ------ DHR
 
 climModDHR <- lmer(meanDHR~Class*Block + (1|Site_ID), data=climTray)
@@ -300,5 +195,38 @@ summary(glht(climModDHR, linfct = mcp(Block = "Tukey"), test = adjusted("holm"))
 intMod <- lmer(meanDHR~classxBlock+ (1|Site_ID), data=climTray)
 summary(glht(intMod, linfct = mcp(classxBlock = "Tukey"), test = adjusted("holm")))
 
-extractMean(climModDHR)
 ```
+
+
+## Save Results
+
+```{r}
+# get means in sensical way
+extractMean <- function(model, variable){
+  meanObj <- summary(lsmeans(model, pairwise~Class*Block))$lsmeans
+  results <- meanObj %>%
+    mutate(text = paste0(round(lsmean,3), " (", round(lower.CL,3), ",", round(upper.CL, 3), ")")) %>%
+    mutate(variable = variable) %>%
+    mutate(treatment = paste0(Block, ".", Class)) %>%
+    dplyr::select(treatment, variable, text) %>%
+    spread(treatment, text)
+}
+```
+
+```{r}
+modelList <- list(model = list(climModMinT, climModMeanT, climModMaxT, climModDTR, 
+                               climModMinRH, climModMeanRH, climModMaxT, climModDHR),
+                  variable = list("Min. Temperature", "Mean Temperature", "Max. Temperature", "Daily Temperature Range",
+                                  "Min. Relative Humidity", "Mean Relative Humidity", "Max. Relativei Humidity", "Daily Humidity Range"))
+```
+
+```{r}
+results <- pmap_dfr(modelList, extractMean)
+```
+
+Write to csv to use in latex
+
+```{r}
+write.table(results, "denguePaper/results/tables/climateTable.tsv", sep = '\t', row.names = F)
+```
+
