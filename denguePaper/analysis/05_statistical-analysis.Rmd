@@ -26,20 +26,15 @@ knitr::opts_chunk$set(eval=T)
 ```
 
 ```{r packages}
-library(xtable)
-library(tidyr)
-library(ggplot2) 
 library(lme4) #mixed models
 library(broom) #easy model comparison
 library(MuMIn)
 library(car)
 library(MASS)
-library(gridExtra) #for facet grids later
-library(cowplot)
 library(caret)
-library(ggthemes)
-library(dplyr)
 library(multcomp)
+
+library(tidyverse)
 ```
 
 
@@ -144,6 +139,20 @@ VecCapacityClimate <- left_join(VecCapacity, siteTemp, by = c("Block", "Class", 
 
 
 # Infection Dynamics
+
+Calculate summary stats for table in MS
+
+```{r}
+infectionSummary <- seasons %>%
+  select(-Wing) %>%
+  gather(level, positive, Body:Saliva) %>%
+  filter(!(is.na(positive))) %>%
+  group_by(Block, Class, level) %>%
+  summarise(positives = sum(positive), sampled = n())
+
+write.csv(infectionSummary, "denguePaper/results/tables/infectionSummary.csv", row.names = F)
+```
+
 
 ## Class x Season
 
