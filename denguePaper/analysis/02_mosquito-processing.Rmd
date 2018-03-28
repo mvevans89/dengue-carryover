@@ -116,9 +116,14 @@ infLong <- seasonInfection %>%
   gather(type, infection, Body:Saliva) %>%
   dplyr::select(Block, Class, Site_ID, Individual, type, infection) %>%
   dplyr::group_by(Block, Class, type, Site_ID) %>%
-  summarise(mean.inf=mean(infection, na.rm=T), sampleSize=sum(!is.na(infection)), positive=sum(infection, na.rm=T)) %>%
+  summarise(mean.inf = mean(infection, na.rm=T), 
+            sampleSize = sum(!is.na(infection)), 
+            positive = sum(infection, na.rm=T)) %>%
   group_by(Block, Class, type) %>%
-  summarise(se.inf=sd(mean.inf, na.rm=T)/n(), mean.inf=mean(mean.inf), samples=sum(sampleSize), positives=sum(positive)) %>%
+  summarise(se.inf = sd(mean.inf, na.rm=T)/n(), 
+            mean.inf = mean(mean.inf), 
+            samples = sum(sampleSize), 
+            positives = sum(positive)) %>%
   ungroup() %>%
   mutate(stripLabel=case_when(
     type=="Body" ~ "Infected",
