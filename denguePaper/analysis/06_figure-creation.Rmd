@@ -44,6 +44,84 @@ axisColor <- "gray40"
 errorColor <- "gray20"
 ```
 
+# Microclimate
+
+```{r}
+climate <- readRDS("denguePaper/data/microclimate/clean/2016TrialsAdult.RData")
+```
+
+## Summary Metrics
+
+Calculate the mean minima, maximia, and mean by class by day from 2016-08-01 to 2016-11-07. This is to plot in figures over the whole time period.
+
+```{r}
+climateSummary <- climate %>%
+  dplyr::group_by(Tray_ID, Day, Site_ID, Class) %>%
+  dplyr::summarise(meanT=mean(Temp), minT=min(Temp), maxT=max(Temp), meanRH=mean(RH), maxRH=max(RH), minRH=min(RH)) %>% #values per tray
+  ungroup() %>%
+  group_by(Class, Day) %>% #get mean values per class
+  dplyr::summarise(meanT=mean(meanT), minT=mean(minT), maxT=mean(maxT), meanRH=mean(meanRH), maxRH=mean(maxRH), minRH=mean(minRH)) %>%
+  ungroup()
+```
+
+## Temperature Plot:
+
+```{r, eval = F}
+temperature <- ggplot(data=climateSummary, aes(x=Day, group=Class))+
+  geom_line(aes(y=meanT, col=Class)) + 
+  geom_line(aes(y=minT, col=Class), linetype="dotted") +
+  geom_line(aes(y=maxT, col=Class), linetype="dotted") +
+  theme_fivethirtyeight() +
+  scale_color_manual(values=c("dodgerblue", "gray20", "maroon")) +
+  theme(axis.title = element_text(), axis.title.x = element_blank()) +
+  ylab("Temperature (C)") + 
+  annotate("rect", xmin=as.Date("2016-08-01", format="%Y-%m-%d"), xmax=as.Date("2016-09-01", format="%Y-%m-%d"), ymin=-Inf, ymax=Inf, fill="gray20", alpha=0.1)+
+    annotate("rect", xmin=as.Date("2016-09-26", format="%Y-%m-%d"), xmax=as.Date("2016-11-07", format="%Y-%m-%d"), ymin=-Inf, ymax=Inf, fill="gray20", alpha=0.1)+
+  annotate("text", x = as.Date("2016-08-15", format="%Y-%m-%d"), y = 3, label = "Summer") +
+  annotate("text", x = as.Date("2016-10-18", format="%Y-%m-%d"), y = 3, label = "Fall") +
+  theme(panel.background = element_rect(fill = "transparent", colour = NA), 
+        plot.background = element_rect(fill = "transparent", colour = NA),
+        legend.key = element_blank(),
+        axis.line=element_line(color=ggthemes_data$fivethirtyeight["dkgray"], size=0.5),
+        panel.grid = element_blank())+
+  theme(legend.background = element_rect(fill = "transparent", colour = NA))
+
+```
+
+## Relative Humidity
+
+```{r, eval=F}
+rh <- ggplot(data=climateSummary, aes(x=Day, group=Class))+
+  geom_line(aes(y=meanRH, col=Class)) + 
+  geom_line(aes(y=minRH, col=Class), linetype="dotted") +
+  geom_line(aes(y=maxRH, col=Class), linetype="dotted") +
+  theme_fivethirtyeight() +
+  scale_color_manual(values=c("dodgerblue", "gray20", "maroon")) +
+  theme(axis.title = element_text(), axis.title.x = element_blank()) +
+  ylab("Relative Humidity (%)") + 
+  xlab("Date")+
+  annotate("rect", xmin=as.Date("2016-08-01", format="%Y-%m-%d"), xmax=as.Date("2016-09-01", format="%Y-%m-%d"), ymin=-Inf, ymax=Inf, fill="gray20", alpha=0.1)+
+    annotate("rect", xmin=as.Date("2016-09-26", format="%Y-%m-%d"), xmax=as.Date("2016-11-07", format="%Y-%m-%d"), ymin=-Inf, ymax=Inf, fill="gray20", alpha=0.1)+
+    annotate("text", x = as.Date("2016-08-15", format="%Y-%m-%d"), y = 22, label = "Summer") +
+  annotate("text", x = as.Date("2016-10-18", format="%Y-%m-%d"), y = 22, label = "Fall") +
+  theme(panel.background = element_rect(fill = "transparent", colour = NA), 
+        plot.background = element_rect(fill = "transparent", colour = NA),
+        legend.key = element_blank(),
+        axis.line=element_line(color=ggthemes_data$fivethirtyeight["dkgray"], size=0.5),
+        panel.grid = element_blank())+
+  theme(legend.background = element_rect(fill = "transparent", colour = NA))
+#dev.off()
+```
+
+## Create Plot
+
+```{r}
+pdf(file="denguePaper/results/figures/forMS/climate.pdf", width = 6, height=8, family="sans")
+plot_grid(temperature, rh, align="v", nrow=2)
+dev.off()
+```
+
+
 # Population Dynamics
 
 ```{r}
