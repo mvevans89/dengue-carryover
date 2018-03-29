@@ -40,7 +40,7 @@ colR <- "dodgerblue"
 colS <- "gray60"
 colU <- "maroon"
 
-axisColor <- "gray40"
+axisColor <- "gray20"
 errorColor <- "gray20"
 ```
 

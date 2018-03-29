@@ -142,7 +142,8 @@ plot(climModMinRH)
 summary(climModMinRH)
 confint(climModMinRH)
 AIC(climModMinRH)
-car::Anova(climModMinRH)
+
+anova(climModMinRH)
 
 #pairwise stats
 summary(glht(climModMinRH, linfct = mcp(Class = "Tukey"), test = adjusted("holm")))
@@ -153,13 +154,15 @@ summary(glht(climModMinRH, linfct = mcp(Block = "Tukey"), test = adjusted("holm"
 intMod <- lmer(minRH~classxBlock+ (1|Site_ID), data=climTray)
 summary(glht(intMod, linfct = mcp(classxBlock = "Tukey"), test = adjusted("holm")))
 
+lsmeans(climModMinRH, pairwise~Class|Block)
+
 ## ------ max RH
 
 climModMaxRH <- lmer(maxRH~Class*Block + (1|Site_ID), data=climTray)
 plot(climModMaxRH)
 summary(climModMaxRH)
 # confint(climModMaxRH)
-# 
+ 
 anova(climModMaxRH)
 car::Anova(climModMaxRH)
 
@@ -172,8 +175,7 @@ summary(glht(climModMaxRH, linfct = mcp(Class = "Tukey"), test = adjusted("holm"
 summary(glht(climModMaxRH, linfct = mcp(Block = "Tukey"), test = adjusted("holm")))
 
 #pairwise stats-interaction
-intMod <- lmer(maxRH~classxBlock+ (1|Site_ID), data=climTray)
-summary(glht(intMod, linfct = mcp(classxBlock = "Tukey"), test = adjusted("holm")))
+lsmeans(climModMaxRH, pairwise~Class|Block)
 
 
 ## ------ DHR
@@ -194,7 +196,7 @@ summary(glht(climModDHR, linfct = mcp(Block = "Tukey"), test = adjusted("holm"))
 #pairwise stats-interaction
 intMod <- lmer(meanDHR~classxBlock+ (1|Site_ID), data=climTray)
 summary(glht(intMod, linfct = mcp(classxBlock = "Tukey"), test = adjusted("holm")))
-
+lsmeans(climModDHR, pairwise~Class|Block)
 ```
 
 

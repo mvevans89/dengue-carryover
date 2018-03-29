@@ -150,7 +150,7 @@ infectionSummary <- seasons %>%
   group_by(Block, Class, level) %>%
   summarise(positives = sum(positive), sampled = n())
 
-write.csv(infectionSummary, "denguePaper/results/tables/infectionSummary.csv", row.names = F)
+#write.csv(infectionSummary, "denguePaper/results/tables/infectionSummary.csv", row.names = F)
 ```
 
 
@@ -163,10 +163,9 @@ mixModelseasonsBody21 <- lme4::glmer(Body~Class*Block + (1|Site_ID),
 summary(mixModelseasonsBody21)
 tidy(mixModelseasonsBody21)
 car::Anova(mixModelseasonsBody21) #Wald test
+anova(mixModelseasonsBody21)
 drop1(mixModelseasonsBody21, test="Chisq") #Likelihood ratio test
-summary(multcomp::glht(mixModelseasonsBody21, linfct = multcomp::mcp(Class = "Tukey"), test = multcomp::adjusted("holm")))
-summary(multcomp::glht(mixModelseasonsBody21, linfct = multcomp::mcp(Block = "Tukey"), test = multcomp::adjusted("holm")))
-#confint(mixModelseasonsBody21)
+lsmeans(mixModelseasonsBody21, list(pairwise~Class|Block, pairwise~Block|Class), omit = 3)
 
 
 mixModelseasonsHead21 <- lme4::glmer(Head~Class*Block  + (1|Site_ID), 
@@ -176,8 +175,8 @@ tidy(mixModelseasonsHead21)
 car::Anova(mixModelseasonsHead21) #Wald test
 #confint(mixModelseasonsHead21) #profiled confidence interval
 drop1(mixModelseasonsHead21, test="Chisq")
-summary(multcomp::glht(mixModelseasonsHead21, linfct = multcomp::mcp(Class = "Tukey"), test = multcomp::adjusted("holm")))
-summary(multcomp::glht(mixModelseasonsHead21, linfct = multcomp::mcp(Block = "Tukey"), test = multcomp::adjusted("holm")))
+
+lsmeans(mixModelseasonsHead21, list(pairwise~Class|Block, pairwise~Block|Class), omit = 3)
 
 mixModelseasonsSaliva21 <- lme4::glmer(Saliva~Class*Block  + (1|Site_ID), 
                           data=seasons,
@@ -187,7 +186,7 @@ car::Anova((mixModelseasonsSaliva21)) #Wald test
 #confint(mixModelseasonsSaliva21) #profiled confidence interval
 drop1(mixModelseasonsSaliva21, test="Chisq")
 #pairwise comparison
-summary(multcomp::glht(mixModelseasonsSaliva21, linfct = multcomp::mcp(Block = "Tukey"), test = multcomp::adjusted("holm")))
+lsmeans(mixModelseasonsaliva21, list(pairwise~Class|Block, pairwise~Block|Class), omit = 3)
 ```
 
 ## Efficiency
@@ -224,6 +223,7 @@ summary(multcomp::glht(mixModelseasonsSalivaEff, linfct = multcomp::mcp(Block = 
 
 ## Microclimate
 
+Not using microclimate analysis anymore
 ```{r create dataframe of site-aggregated infections}
 seasonSite <- seasons %>%
   dplyr::select(-Individual, - Wing) %>%
@@ -512,21 +512,7 @@ plot(VCModel)
 summary(VCModel)
 car::Anova(VCModel)
 tidy(VCModel)
+
+lsmeans(VCModel, pairwise ~ Class|Block)
 ```
-
-## Temperature
-
-As above, there was no effect of the grand mean on VC, so only calculating the field based.
-
-```{r}
-VCTempModel <- lm(VC ~ meanT, 
-                    data = VecCapacityClimate)
-
-plot(VCTempModel)
-summary(VCTempModel)
-qqnorm(resid(VCTempModel))
-anova(VCTempModel)
-tidy(VCTempModel)
-```
-
 
