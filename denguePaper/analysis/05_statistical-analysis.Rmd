@@ -33,6 +33,7 @@ library(car)
 library(MASS)
 library(caret)
 library(multcomp)
+library(lsmeans)
 
 library(tidyverse)
 ```
