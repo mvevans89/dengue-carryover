@@ -238,3 +238,91 @@ saveRDS(augEnvVar, "denguePaper/data/microclimate/clean/summerInfectionClimate.R
 saveRDS(octEnvVar, "denguePaper/data/microclimate/clean/fallInfectionClimate.RData")
 ```
 
+# Assessing Larval Microclimate
+
+Load and Clean
+```{r}
+larvalSummer <- read.csv("denguePaper/data/microclimate/raw/SummerLarval.csv")
+larvalSummer$Block <- factor("Summer", levels = c("Summer", "Fall"))
+#drop dates that aren't part of experiment
+larvalSummer$Date <- as.character(larvalSummer$Time)
+larvalSummer$Date <- strptime(larvalSummer$Date, format="%m/%d/%y %H:%M")
+larvalSummer <- larvalSummer[larvalSummer$Date>strptime("08-02-2016 00:00:00", format="%m-%d-%Y %H:%M:%S"),]
+larvalSummer <- larvalSummer[larvalSummer$Date<strptime("09-03-2016 00:00:00", format="%m-%d-%Y %H:%M:%S"),]
+
+
+larvalFall <- read.csv("denguePaper/data/microclimate/raw/FallLarval.csv")
+larvalFall$Block <- factor("Fall", levels = c("Summer", "Fall"))
+#drop dates that aren't part of experiment
+larvalFall$Date <- as.character(larvalFall$Time)
+larvalFall$Date <- strptime(larvalFall$Date, format="%m/%d/%y %H:%M")
+larvalFall <- larvalFall[larvalFall$Date>strptime("09-27-2016 00:00:00", format="%m-%d-%Y %H:%M:%S"),]
+larvalFall <- larvalFall[larvalFall$Date<strptime("11-08-2016 00:00:00", format="%m-%d-%Y %H:%M:%S"),]
+
+
+larvalAll <- rbind(larvalSummer, larvalFall)
+larvalAll$Date <- as.Date(larvalAll$Date)
+#clean tray ID
+larvalAll$Tray_ID <- substr(as.character(larvalAll$Tray_ID), 4,7)
+```
+
+Assess missing data for each logger by getting length of recordings per block
+
+```{r}
+loggerStats <- larvalAll %>%
+  group_by(Tray_ID, Block, Date) %>%
+  summarise(records = n(), minT = min(Temp), maxT = max(Temp))
+```
+Plotting is easiest to see missing and borken loggers
+
+```{r}
+ggplot(data = loggerStats[loggerStats$Block=="Summer",], aes(x = Date, y = records))+
+  geom_line()+
+  facet_wrap(~Tray_ID)
+```
+Broken in summer (3/36): c("R2L2", "S3L3", "U2L4")
+
+```{r}
+ggplot(data = loggerStats[loggerStats$Block=="Fall",], aes(x = Date, y = records))+
+  geom_line()+
+  facet_wrap(~Tray_ID)
+```
+Broken in fall (17/36): c("R1L3", "R1L4", "R2L1", "R2L4", "R3L4", "S1L3", "S2L4", "S3L1", "S3L3", "U1L1", "U1L2", "U1L3", "U2L1", "U2L3", "U2L4", "U3L1", "U3L3")
+
+Load adult data to compare:
+
+```{r}
+adultAll <- readRDS("denguePaper/data/microclimate/clean/2016TrialsAdult.RData")
+```
+
+Format to Match
+```{r}
+larvalDay <- larvalAll %>%
+  mutate(Tray_ID = gsub("L", "T", Tray_ID)) %>%
+  group_by(Tray_ID, Date) %>%
+  summarise(larvalTemp = mean(Temp)) %>%
+  rename(Day = Date) %>%
+  ungroup()
+```
+
+```{r}
+adultDay <- adultAll %>%
+  group_by(Tray_ID, Day) %>%
+  summarise(adultTemp = mean(Temp)) %>%
+  ungroup()
+```
+
+```{r}
+bothTemp <- na.omit(left_join(larvalDay, adultDay, by = c("Tray_ID", "Day")))
+```
+
+```{r}
+overallCor <- with(bothTemp, cor(larvalTemp, adultTemp)) #0.929
+```
+
+```{r}
+ggplot(data = bothTemp, aes(x=larvalTemp, y = adultTemp))+
+  geom_point(alpha=0.7)+
+  ggtitle(paste0("Correlation= ", round(overallCor,3)))
+```
+
