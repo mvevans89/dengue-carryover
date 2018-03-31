@@ -467,7 +467,7 @@ Plot across temperature with the mean value per block
 VecCapacityBlock <- VecCapacityClimate %>%
   dplyr::select(Block, Calculation, VC, meanT) %>%
   group_by(Block, Calculation) %>%
-  summarise(VC.mean = mean(VC), VC.se = sd(VC), meanT = mean (meanT), VC.median = median(VC)) %>%
+  summarise(VC.mean = mean(VC), VC.sd = sd(VC), meanT = mean (meanT), VC.median = median(VC)) %>%
   ungroup() %>%
   #offset to plot next to each other
   mutate(offset = case_when(
@@ -491,7 +491,7 @@ range.box <- function(x, y.mean, y.sd, id, Calculation) {
 ```{r}
 data2purr <- list(x = VecCapacityBlock$offset, 
                   y.mean =  VecCapacityBlock$VC.mean,
-                  y.sd = VecCapacityBlock$VC.se,
+                  y.sd = VecCapacityBlock$VC.sd,
                   id = 1:4,
                   Calculation = VecCapacityBlock$Calculation)
 comparePolygons <- pmap_dfr(data2purr, range.box)
@@ -501,18 +501,29 @@ rm(data2purr)
 
 ```{r}
 pdf(file="denguePaper/results/figures/forMS/VC.pdf", width = 4, height=4, family="sans")
-ggplot() +
-  geom_polygon(data=comparePolygons, aes(x = x, y = y, group = id), fill = rep(c("black", NA, "black", NA), each = 4), alpha = 0.2, color = "black") +
+
+ggplot(data = VecCapacityClimate) +
+  geom_polygon(data=comparePolygons, aes(x = x, y = y, group = id),
+               linetype = rep(c("dotted", "solid", "dotted", "solid"), each = 4),
+               fill = NA,
+               color = "black") +
   geom_errorbar(data = VecCapacityBlock, aes(x=offset, ymin = VC.median, ymax = VC.median), color = "black")+
   geom_point(data = VecCapacityClimate, aes(x=meanT, y = VC, fill = Class, shape = Calculation), 
              size = 3, color = "black") +
   theme_base() +
   ylab("Vectorial Capacity") +
   xlab("Mean Temperature (C)") +
-  scale_fill_manual(values=c(colR, colS, colU), 
-                     labels=c("Rural", "Suburban", "Urban")) +
+  scale_fill_manual(values = c(colR, colS, colU), 
+                    labels = c("Rural", "Suburban", "Urban"),
+                    guide = "legend") +
   scale_shape_manual(values = c(21 , 23)) +
-  guides(color = "none", shape = "none", fill = "none")
+  theme(legend.position = c(0.2,0.8),
+        legend.text = element_text(size=6),
+        legend.title = element_text(size=8),
+        legend.key.size = unit(1, "line")) +
+  guides(fill = guide_legend(override.aes = list(shape = 21)),
+         shape = "none")
+
 dev.off()
 ```
 
