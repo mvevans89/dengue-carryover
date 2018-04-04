@@ -135,7 +135,6 @@ VecCapacityClimate <- left_join(VecCapacity, siteTemp, by = c("Block", "Class", 
 # Load Everything to Here to Load all Data
 
 ```{r}
-
 ```
 
 
@@ -443,6 +442,7 @@ summary(wingMod)
 plot(wingMod)
 car::Anova(wingMod)
 
+lsmeans(wingMod, pairwise~Block|Class)
 
 interaction.plot(allWing$Class, allWing$Block, allWing$mm)
 ```

@@ -47,6 +47,9 @@ summary(climModMeanT)
 confint(climModMeanT)
 car::Anova(climModMeanT)
 
+
+summary(lsmeans(climModMeanT, ~Block))
+
 #pairwise stats
 summary(glht(climModMeanT, linfct = mcp(Class = "Tukey"), test = adjusted("holm")))
 
