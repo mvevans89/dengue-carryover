@@ -230,6 +230,57 @@ ggdraw()+
 dev.off()
 ```
 
+## Site-level means
+
+I'm on the fence about boxplots, so here are site level means to try instead.
+
+```{r}
+allDemos <- growthDF2 %>%
+  dplyr::select(Block, Class, Site_ID, Tray_ID, r) %>%
+  left_join(emergTray, by = c("Block", "Class", "Site_ID", "Tray_ID")) %>%
+  left_join(survTray, by =c("Block", "Class", "Site_ID", "Tray_ID")) %>%
+  gather(trait, value, r:numFSurv)
+
+allDemoSite <- allDemos %>%
+  select(-Tray_ID) %>%
+  group_by(Block, Class, Site_ID, trait) %>%
+  summarise_all(funs(mean = mean, se = sd(.)/n())) %>%
+  ungroup() 
+```
+
+Plot
+
+```{r}
+pdf(file="denguePaper/results/figures/forMS/demographicPoints.pdf", width = 3.25, height=6, family="sans")
+
+demographicPlot <- ggplot(data = allDemoSite, aes(x = as.factor(Class), y = mean)) +
+  geom_boxplot(aes(alpha = Block), color = NA) +
+  geom_pointrange(aes(color = Class, shape = Block, group = Block, ymin = mean-se, ymax = mean+se), position = position_jitterdodge(dodge.width = 0.75, jitter.width = 0.2), size = 1) +
+  facet_wrap(~trait, dir = "v", scales = "free_y", strip.position = "left",
+             labeller = as_labeller(c(devRate = "Development Rate\n(1/day)", numFSurv = "Egg-to-Adult\nSurvival (%)", r ="Per Capita\nGrowth Rate (r')"))) +
+  guides(shape = F, alpha = F, color = F) +
+  xlab("Land Class") +
+  scale_color_manual(values=c(colR, colS, colU), labels=c("Rural", "Suburban", "Urban"))+
+  theme_base() +
+  theme(
+        strip.background = element_blank(),
+        strip.text = element_text(size=11),
+        strip.placement = "outside",
+        axis.title.y = element_blank(),
+        axis.text = element_text(size = 10),
+        axis.title.x = element_text(size=11)
+  )
+
+ggdraw()+
+  draw_plot(demographicPlot, x=0.0, y=0.0, width=1, height=1)+
+  draw_plot_label(label=c("A", "B", "C"),
+                  x=c(0,0,0),
+                  y=c(1,0.71,0.40))
+
+dev.off()
+  
+```
+
 # Infection Dynamics
 
 ## Class x Block
@@ -335,7 +386,42 @@ ggdraw()+
 dev.off()
 ```
 
+### Facet
 
+This plot looks bad so I will try to facet it instead.
+
+```{r}
+pdf(file="denguePaper/results/figures/forMS/infectionFacet.pdf", width = 3.25, height=6, family="sans")
+
+infectionPlot <- ggplot(data = infLong, aes(x=Class, group=Block))+
+  geom_bar(stat="identity", aes(y=mean.inf, alpha=Block, fill=Class), color="gray20", position=position_dodge(width=0.9))+
+  scale_y_continuous(breaks=c(0,0.5,1), minor_breaks = c(0.25, 0.75), labels=c("0%", "50%", "100%"), limits=c(0,1))+
+  scale_fill_manual(values=c(colR, colS, colU))+
+  scale_alpha_discrete(range=c(1,0.1), name="Season")+
+  geom_errorbar(aes(ymin=mean.inf-se.inf, ymax=mean.inf+se.inf), width=0.2, color=errorColor, position = position_dodge(0.9))+
+  xlab("Land Class") +
+  ylab("Percent Positive")+
+  guides(fill = F, color = F,
+         alpha = F) +
+  theme_base() +
+  facet_wrap(~type, dir = "v") +
+  theme(
+        strip.background = element_blank(),
+        strip.text = element_blank(),
+        axis.text = element_text(size = 10),
+        axis.title = element_text(size = 11)
+)
+
+ggdraw()+
+  draw_plot(infectionPlot, x=0.0, y=0.0, width=1, height=1)+
+  draw_plot_label(label=c("A", "B", "C"),
+                  x=c(0,0,0),
+                  y=c(1,0.71,0.40))
+
+dev.off()
+
+
+```
 ## Temperature
 
 ```{r}
