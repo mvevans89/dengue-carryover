@@ -262,7 +262,7 @@ demographicPlot <- ggplot(data = allDemoSite, aes(x = as.factor(Class), y = mean
   xlab("Land Class") +
   scale_color_manual(values=c(colR, colS, colU), labels=c("Rural", "Suburban", "Urban")) +
   scale_fill_manual(values=c(colR, colS, colU), labels=c("Rural", "Suburban", "Urban")) +
-  scale_shape_manual(values = c(21, 24)) +
+  scale_shape_manual(values = c(21, 23)) +
   theme_base() +
   theme(
         strip.background = element_blank(),
