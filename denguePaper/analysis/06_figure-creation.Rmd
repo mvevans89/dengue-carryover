@@ -255,12 +255,14 @@ pdf(file="denguePaper/results/figures/forMS/demographicPoints.pdf", width = 3.25
 
 demographicPlot <- ggplot(data = allDemoSite, aes(x = as.factor(Class), y = mean)) +
   geom_boxplot(aes(alpha = Block), color = NA) +
-  geom_pointrange(aes(color = Class, shape = Block, group = Block, ymin = mean-se, ymax = mean+se), position = position_jitterdodge(dodge.width = 0.75, jitter.width = 0.2), size = 1) +
+  geom_pointrange(aes(fill = Class, shape = Block, group = Block, ymin = mean-se, ymax = mean+se), color = "black", position = position_jitterdodge(dodge.width = 0.75, jitter.width = 0.2), size = 1, stroke = 1, lwd = 0.5) +
   facet_wrap(~trait, dir = "v", scales = "free_y", strip.position = "left",
              labeller = as_labeller(c(devRate = "Development Rate\n(1/day)", numFSurv = "Egg-to-Adult\nSurvival (%)", r ="Per Capita\nGrowth Rate (r')"))) +
-  guides(shape = F, alpha = F, color = F) +
+  guides(shape = F, alpha = F, color = F, fill = F) +
   xlab("Land Class") +
-  scale_color_manual(values=c(colR, colS, colU), labels=c("Rural", "Suburban", "Urban"))+
+  scale_color_manual(values=c(colR, colS, colU), labels=c("Rural", "Suburban", "Urban")) +
+  scale_fill_manual(values=c(colR, colS, colU), labels=c("Rural", "Suburban", "Urban")) +
+  scale_shape_manual(values = c(21, 24)) +
   theme_base() +
   theme(
         strip.background = element_blank(),
@@ -268,7 +270,7 @@ demographicPlot <- ggplot(data = allDemoSite, aes(x = as.factor(Class), y = mean
         strip.placement = "outside",
         axis.title.y = element_blank(),
         axis.text = element_text(size = 10),
-        axis.title.x = element_text(size=11)
+        axis.title.x = element_text(size = 11)
   )
 
 ggdraw()+
@@ -288,107 +290,6 @@ dev.off()
 ```{r infection data format}
 infLong <- readRDS("denguePaper/data/infections/clean/infectionSummaryLong.RData")
 ```
-
-
-```{r}
-bodyPlot <- ggplot(data=infLong[infLong$type=="Body",], aes(x=Class, group=Block))+
-  geom_bar(stat="identity", aes(y=mean.inf, alpha=Block, fill=Class), color="gray20", position=position_dodge(width=0.9))+
-  scale_y_continuous(breaks=c(0,0.5,1), minor_breaks = c(0.25, 0.75), labels=c("0%", "50%", "100%"), limits=c(0,1))+
-  scale_fill_manual(values=c(colR, colS, colU))+
-  scale_alpha_discrete(range=c(1,0.1), name="Season")+
-  geom_errorbar(aes(ymin = mean.inf-se.inf, ymax=mean.inf+se.inf), width=0.2, color="gray20", position =position_dodge(0.9))+
-  guides(fill = F, color = F,
-         alpha = F) +
-  ylab("Percent Positive") +
-  theme_bw() +
-  theme(panel.background = element_rect(fill = "transparent", colour = NA), 
-        plot.background = element_rect(fill = "transparent", colour = NA),
-        legend.key = element_blank(),
-        panel.grid.major.x = element_blank(),
-        legend.background = element_rect(fill = "transparent", colour = NA),
-        axis.title = element_text(), 
-        axis.title.x = element_blank(),
-        axis.title.y=element_text(size = 10),
-        axis.line=element_line(color=axisColor, size=0.5),
-        panel.grid = element_blank(),
-        axis.text.y=element_text(size = 10),
-        axis.text.x=element_blank(),
-        legend.text = element_text(size = 10),
-        legend.title = element_text(size = 10))
-
-headPlot <- ggplot(data=infLong[infLong$type=="Head",], aes(x=Class, group=Block))+
-  geom_bar(stat="identity", aes(y=mean.inf, alpha=Block, fill=Class), color="gray20", position=position_dodge(width=0.9))+
-  scale_y_continuous(breaks=c(0,0.5,1), minor_breaks = c(0.25, 0.75), labels=c("0%", "50%", "100%"), limits=c(0,1))+
-  scale_fill_manual(values=c(colR, colS, colU))+
-  scale_alpha_discrete(range=c(1,0.1), name="Season")+
-  geom_errorbar(aes(ymin=mean.inf-se.inf, ymax=mean.inf+se.inf), width=0.2, color="gray20", position =position_dodge(0.9))+
-  ylab("Percent Positive") +
-  guides(fill = F, color = F,
-         alpha = F) +
-  theme_bw() +
-  theme(panel.background = element_rect(fill = "transparent", colour = NA), 
-        plot.background = element_rect(fill = "transparent", colour = NA),
-        legend.key = element_blank(),
-        panel.grid.major.x = element_blank(),
-        legend.background = element_rect(fill = "transparent", colour = NA),
-        axis.title = element_text(), 
-        axis.title.x = element_blank(),
-        axis.title.y=element_text(size = 10),
-        strip.background = element_blank(),
-        strip.text.x = element_blank(),
-        axis.line=element_line(color=axisColor, size=0.5),
-        panel.grid = element_blank(),
-        axis.text.y=element_text(size = 10),
-        axis.text.x=element_blank(),
-        legend.text = element_text(size = 10),
-        legend.title = element_text(size = 10))
-
-SalivaPlot <- ggplot(data=infLong[infLong$type=="Saliva",], aes(x=Class, group=Block))+
-  geom_bar(stat="identity", aes(y=mean.inf, alpha=Block, fill=Class), color="gray20", position=position_dodge(width=0.9))+
-  scale_y_continuous(breaks=c(0,0.5,1), minor_breaks = c(0.25, 0.75), labels=c("0%", "50%", "100%"), limits=c(0,1))+
-  scale_fill_manual(values=c(colR, colS, colU))+
-  scale_alpha_discrete(range=c(1,0.1), name="Season")+
-  geom_errorbar(aes(ymin=mean.inf-se.inf, ymax=mean.inf+se.inf), width=0.2, color=errorColor, position = position_dodge(0.9))+
-  xlab("Land Class") +
-  ylab("Percent Positive")+
-  guides(fill = F, color = F,
-         alpha = F) +
-  theme_bw() +
-  theme(panel.background = element_rect(fill = "transparent", colour = NA), 
-        plot.background = element_rect(fill = "transparent", colour = NA),
-        legend.key = element_blank(),
-        panel.grid.major.x = element_blank(),
-        legend.background = element_rect(fill = "transparent", colour = NA),
-        axis.title = element_text(), 
-        axis.title.x = element_text(size = 10),
-        axis.title.y=element_text(size = 10),
-        strip.background = element_blank(),
-        strip.text.x = element_blank(),
-        axis.line=element_line(color=axisColor, size=0.5),
-        panel.grid = element_blank(),
-        axis.text.y=element_text(size = 10),
-        axis.text.x=element_text(size = 10),
-        legend.text = element_text(size = 10),
-        legend.title = element_text(size = 10))
-```
-
-
-```{r}
-pdf(file="denguePaper/results/figures/forMS/infection.pdf", width = 3.25, height=6, family="sans")
-
-ggdraw()+
-  draw_plot(bodyPlot, x=0, y=0.69, width=0.98, height=0.31)+
-  draw_plot(headPlot, x=0, y=0.38, width=1, height=0.31)+
-  draw_plot(SalivaPlot, x=0, y=0, width=0.98, height=0.36)+
-  draw_plot_label(label=c("A", "B", "C"),
-                  x=c(0,0,0),
-                  y=c(1,0.69,0.38))
-dev.off()
-```
-
-### Facet
-
-This plot looks bad so I will try to facet it instead.
 
 ```{r}
 pdf(file="denguePaper/results/figures/forMS/infectionFacet.pdf", width = 3.25, height=6, family="sans")
@@ -602,7 +503,7 @@ ggplot(data = VecCapacityClimate) +
   scale_fill_manual(values = c(colR, colS, colU), 
                     labels = c("Rural", "Suburban", "Urban"),
                     guide = "legend") +
-  scale_shape_manual(values = c(21 , 23)) +
+  scale_shape_manual(values = c(21, 23)) +
   theme(legend.position = c(0.2,0.8),
         legend.text = element_text(size=6),
         legend.title = element_text(size=8),
