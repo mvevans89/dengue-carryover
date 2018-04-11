@@ -638,7 +638,30 @@ ggplot(data=efficiencyPlot, aes(x=Class, group=Block))+
   guides(fill=F)
 ```
 
+# Temperature and Variables
 
+## Demographic
+
+```{r}
+survTray <-  readRDS("denguePaper/data/emergence/clean/survivalTray.RData")
+emergTray <- readRDS("denguePaper/data/emergence/clean/emergenceTray.RData")
+growthDF2 <- readRDS("denguePaper/data/emergence/clean/growthRates.RData")
+```
+
+```{r}
+pdf(file="denguePaper/results/figures/extra/growthTemp.pdf", width = 7, height=4, family="sans")
+
+ggplot(data=growthDF2, aes(x = meanT, y = r, group = Site_ID)) +
+  geom_point(aes(color = Class)) +
+  geom_smooth(method = "lm", aes(group = Class, color = Class), se = F) +
+  facet_wrap(~Block, scales = "free_x") +
+  theme_base()
+
+dev.off()
+```
+
+
+## Infection
 
 
 

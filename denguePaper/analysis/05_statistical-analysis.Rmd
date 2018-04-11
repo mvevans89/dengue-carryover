@@ -223,7 +223,6 @@ summary(multcomp::glht(mixModelseasonsSalivaEff, linfct = multcomp::mcp(Block = 
 
 ## Microclimate
 
-Not using microclimate analysis anymore
 ```{r create dataframe of site-aggregated infections}
 seasonSite <- seasons %>%
   dplyr::select(-Individual, - Wing) %>%
@@ -236,89 +235,70 @@ seasonInfSite <- merge(seasonSite, rbind(augEnvVar,octEnvVar), by=c("Block", "Si
 ```
 
 ```{r body x climate stats}
-#model selection
-# m0 <- glm(Body_mean ~ 1,
-#           data = seasonInfSite,
-#          family = gaussian(link="log"))
-# m1 <- glm(Body_mean ~ Temp_mean_mean, 
-#           data=seasonInfSite, 
-#           family=gaussian(link="log"))
-# 
-# 
-# 
-# modelSums <- do.call(rbind, lapply(list(m0, m1), broom::glance))
-# modelSums
-# 
-# Weights(AICc(m0, m1))
-# tidy(m1)
+bodySummer <- glm(Body_mean ~ Temp_mean_mean, 
+          data=seasonInfSite[seasonInfSite$Block == "Summer", ], 
+          family=gaussian(link="logit"))
+
+plot(bodySummer)
+car::Anova(bodySummer)
+confint(bodySummer)
+tidy(bodySummer)
+drop1(bodySummer, test="F")
 
 
-finalBody <- glm(Body_mean ~ Temp_mean_mean, 
-          data=seasonInfSite, 
-          family=gaussian(link="log"))
-plot(finalBody)
+bodyFall <- glm(Body_mean ~ Temp_mean_mean, 
+          data=seasonInfSite[seasonInfSite$Block == "Fall", ], 
+          family=gaussian(link="logit"))
 
-car::Anova(finalBody)
-confint(finalBody)
-tidy(finalBody)
-drop1(finalBody, test="F")
-
+plot(bodyFall)
+car::Anova(bodyFall)
+confint(bodyFall)
+tidy(bodyFall)
+drop1(bodyFall, test="F")
 ```
 
 ```{r head x climate stats}
-#model selection
-# m0 <- glm(Head_mean ~ 1, 
-#           data=seasonInfSite, 
-#           family=gaussian(link="log"))
-# m1 <- glm(Head_mean ~ Temp_mean_mean, 
-#           data=seasonInfSite, 
-#           family=gaussian(link="log"))
-# 
-# modelSums <- do.call(rbind, lapply(list(m0, m1), broom::glance)) 
-# 
-# Weights(AICc(m0, m1))
-# tidy(m1)
+headSummer <- glm(Head_mean ~ Temp_mean_mean, 
+          data=seasonInfSite[seasonInfSite$Block == "Summer", ], 
+          family=gaussian(link="logit"))
+
+plot(headSummer)
+car::Anova(headSummer)
+confint(headSummer)
+tidy(headSummer)
+drop1(headSummer, test="F")
 
 
-finalHead <- glm(Head_mean ~ Temp_mean_mean, 
-          data=seasonInfSite, 
-          family=gaussian(link="log"))
+headFall <- glm(Head_mean ~ Temp_mean_mean, 
+          data=seasonInfSite[seasonInfSite$Block == "Fall", ], 
+          family=gaussian(link="logit"))
 
-plot(finalHead)
-
-car::Anova(finalHead)
-confint(finalHead)
-drop1(finalHead, test="F")
-tidy(finalHead)
+plot(headFall)
+car::Anova(headFall)
+confint(headFall)
+tidy(headFall)
+drop1(headFall, test="F")
 ```
 
 ```{r saliva x climate stats}
-#model selection
-# m0 <- glm(Saliva_mean ~ 1, 
-#           data=seasonInfSite,
-#           family=gaussian)
-# m1 <- glm(Saliva_mean ~ Temp_mean_mean, 
-#           data=seasonInfSite,
-#           family=gaussian)
-# 
-# modelSums <- do.call(rbind, lapply(list(m0, m1), broom::glance)) 
-# 
-# Weights(AICc(m0,m1))
+salivaSummer <- lm(Saliva_mean ~ Temp_mean_mean, 
+          data=seasonInfSite[seasonInfSite$Block == "Summer", ])
+
+plot(salivaSummer)
+car::Anova(salivaSummer)
+confint(salivaSummer)
+tidy(salivaSummer)
+drop1(salivaSummer, test="F")
 
 
-finalSal <- glm(Saliva_mean ~ Temp_mean_mean, 
-                data=seasonInfSite,
-                family=gaussian)
+salivaFall <- lm(Saliva_mean ~ Temp_mean_mean, 
+          data=na.omit(seasonInfSite[seasonInfSite$Block == "Fall", ]))
 
-plot(finalSal)
-
-plot(cooks.distance(finalSal))
-
-car::Anova(finalSal)
-confint(finalSal)
-drop1(finalSal, test="F")
-tidy(finalSal)
-
+plot(salivaFall)
+car::Anova(salivaFall)
+confint(salivaFall)
+tidy(salivaFall)
+drop1(salivaFall, test="F")
 ```
 
 ## Body Size
@@ -387,15 +367,21 @@ interaction.plot(survTray$Class, survTray$Block, survTray$survival)
 ### Microclimate
 
 ```{r}
-survModClim <- glmer(cbind(success, failure)~meanT*Block+(1|Site_ID),
-                    data=survBinomial,
+survModClimSummer <- glmer(cbind(success, failure)~meanT+(1|Site_ID),
+                    data=survBinomial[survBinomial$Block=="Summer",],
                     family=binomial("logit"))
 
-summary(survModClim)
-modResults <- tidy(survModClim)
-modResults
-plot(survModClim)
-qqnorm(resid(survModClim))
+summary(survModClimSummer)
+plot(survModClimSummer)
+qqnorm(resid(survModClimSummer))
+
+survModClimFall <- glmer(cbind(success, failure)~meanT+(1|Site_ID),
+                    data=survBinomial[survBinomial$Block=="Fall",],
+                    family=binomial("logit"))
+
+summary(survModClimFall)
+plot(survModClimFall)
+qqnorm(resid(survModClimFall))
 ```
 
 ## Emergence
@@ -421,12 +407,19 @@ summary(multcomp::glht(mixEmergeTray, linfct = multcomp::mcp(Block = "Tukey"), t
 ### Microclimate
 
 ```{r}
-devClimMod <- lmerTest::lmer(devRate~meanT + (1|Site_ID),
-                    data=emergClim[emergClim$devRate!=0,])
+devClimModSummer <- lmerTest::lmer(devRate~meanT + (1|Site_ID),
+                    data=emergClim[emergClim$devRate!=0 & emergClim$Block=="Summer",])
 
-plot(devClimMod)
-qqnorm(resid(devClimMod))
-summary(devClimMod)
+plot(devClimModSummer)
+qqnorm(resid(devClimModSummer))
+summary(devClimModSummer)
+
+devClimModFall <- lmerTest::lmer(devRate~meanT + (1|Site_ID),
+                    data=emergClim[emergClim$devRate!=0 & emergClim$Block=="Fall",])
+
+plot(devClimModFall)
+qqnorm(resid(devClimModFall))
+summary(devClimModFall)
 ```
 
 # Indirect Effects
@@ -451,13 +444,21 @@ interaction.plot(allWing$Class, allWing$Block, allWing$mm)
 
 Statistics:
 ```{r}
-wingModTemp <- lmerTest::lmer(mm~Temp+(1|Site_ID),
-                    data=allWing)
-plot(wingModTemp)
-summary(wingModTemp)
+wingModTempSummer <- lmerTest::lmer(mm~Temp+(1|Site_ID),
+                    data=allWing[allWing$Block=="Summer", ])
+plot(wingModTempSummer)
+summary(wingModTempSummer)
 #confint(wingModTemp) #no effect of temperature
-qqnorm(resid(wingModTemp))
-car::Anova(wingModTemp)
+qqnorm(resid(wingModTempSummer))
+car::Anova(wingModTempSummer)
+
+wingModTempFall <- lmerTest::lmer(mm~Temp+(1|Site_ID),
+                    data=allWing[allWing$Block=="Fall", ])
+plot(wingModTempFall)
+summary(wingModTempFall)
+#confint(wingModTemp) #no effect of temperature
+qqnorm(resid(wingModTempFall))
+car::Anova(wingModTempFall)
 ```
 
 ## Growth Rate
@@ -479,11 +480,22 @@ car::Anova(growthModSeason) #Wald test
 ### Microclimate
 
 ```{r}
-growthTempMod <- lmerTest::lmer(r~meanT + (1|Site_ID),
-                      data=growthDF2)
-summary(growthTempMod)
+growthTempModSummer <- lmerTest::lmer(r~meanT + (1|Site_ID),
+                      data=growthDF2[growthDF2$Block=="Summer",])
+summary(growthTempModSummer)
 anova(growthTempMod)
 plot(growthTempMod)
+
+growthTempModFall<- lmerTest::lmer(r~meanT + (1|Site_ID),
+                      data=growthDF2[growthDF2$Block=="Fall",])
+summary(growthTempModFall)
+anova(growthTempModFall)
+
+growthTempMod <- lmerTest::lmer(r~meanT*Block + (1|Site_ID),
+                      data=growthDF2)
+plot(growthTempMod)
+anova(growthTempMod)
+summary(growthTempMod)
 ```
 
 # Vectorial Capacity
@@ -517,3 +529,18 @@ tidy(VCModel)
 lsmeans(VCModel, pairwise ~ Class|Block)
 ```
 
+## Microclimate
+
+```{r}
+VCModSummer <- lm(VC~ meanT,
+                     data = VecCapacityClimate[VecCapacityClimate$Block=="Summer",]) 
+summary(VCModSummer)
+anova(VCModSummer)
+plot(VCModSummer)
+
+VCModFall <- lm(VC~ meanT,
+                     data = VecCapacityClimate[VecCapacityClimate$Block=="Fall",]) 
+summary(VCModFall)
+anova(VCModFall)
+plot(VCModFall)
+```
