@@ -309,8 +309,9 @@ plot(headResidTemp)
 
 Temperature witin a season:
 ```{r saliva x climate stats}
-salivaSummer <- lm(Saliva_mean ~ Temp_mean_mean, 
-          data=seasonInfSite[seasonInfSite$Block == "Summer", ])
+salivaSummer <- glm(Saliva_mean+0.01 ~ Temp_mean_mean, 
+          data=seasonInfSite[seasonInfSite$Block == "Summer", ],
+          family=gaussian(link="logit"))
 
 plot(salivaSummer)
 car::Anova(salivaSummer)
@@ -319,8 +320,9 @@ tidy(salivaSummer)
 drop1(salivaSummer, test="F")
 
 
-salivaFall <- lm(Saliva_mean ~ Temp_mean_mean, 
-          data=na.omit(seasonInfSite[seasonInfSite$Block == "Fall", ]))
+salivaFall <- glm(Saliva_mean+0.01 ~ Temp_mean_mean, 
+          data=na.omit(seasonInfSite[seasonInfSite$Block == "Fall", ]),
+          family=gaussian(link="logit"))
 
 plot(salivaFall)
 car::Anova(salivaFall)
@@ -639,3 +641,56 @@ anova(vcResidTemp)
 plot(vcResidTemp)
 car::Anova(vcResidTemp)
 ```
+
+# Supplementary Tables
+
+## Temperature within a season
+
+```{r}
+seasonModelsSummer <- list(survModClimSummer,  devClimModSummer, wingModTempSummer, growthTempModSummer, bodySummer, headSummer, salivaSummer, VCModSummer)
+names(seasonModelsSummer) <- c("Survival", "Development", "Wing Length", "Growth", "Body Inf", "Head Inf", "Sal Inf", "VC")
+
+summerFixefs <- plyr::ldply(list(survModClimSummer,  devClimModSummer, wingModTempSummer, growthTempModSummer), fixef)[,2]
+summerCoefs <- plyr::ldply(list(bodySummer, headSummer, salivaSummer, VCModSummer), coef)[,2]
+
+summerStats <- plyr::ldply(seasonModelsSummer, Anova, .id = "model")[-9,]
+summerStats$Season <-"Summer"
+summerStats$coef <- c(summerFixefs, summerCoefs)
+```
+
+```{r}
+#for ANOVA type II
+seasonModelsFall <- list(survModClimFall,  devClimModFall, wingModTempFall, growthTempModFall, bodyFall, headFall, salivaFall, VCModFall)
+names(seasonModelsFall) <- c("Survival", "Development", "Wing Length", "Growth", "Body Inf", "Head Inf", "Sal Inf", "VC")
+
+#for coefficients
+fallFixefs <- plyr::ldply(list(survModClimFall,  devClimModFall, wingModTempFall, growthTempModFall), fixef)[,2]
+fallCoefs <- plyr::ldply(list(bodyFall, headFall, salivaFall, VCModFall), coef)[,2]
+
+fallStats <- plyr::ldply(seasonModelsFall, Anova, .id = "model")[-9,]
+fallStats$Season <- "Fall"
+fallStats$coef <- c(fallFixefs, fallCoefs)
+```
+
+Combine and save
+
+```{r}
+seasonalTempStats <- rbind(summerStats,fallStats)[,c(9,1:8, 10)]
+
+write.csv(seasonalTempStats, "denguePaper/results/tables/temperature-withinSeason.csv", row.names = F)
+```
+
+## Fitting Temperature to Residuals
+
+```{r}
+#put models into a list to tidy up
+residModels <- list(survResidTemp, emergResidTemp, wingResidTemp, growthResidTemp, bodyResidTemp, headResidTemp, salivaResidTemp, vcResidTemp)
+names(residModels) <- c("Survival", "Development", "Wing Length", "Growth", "Body Inf", "Head Inf", "Sal Inf", "VC")
+
+residualAnova <- plyr::ldply(residModels, anova, .id = "model")[-9,-c(3,6)] 
+```
+
+```{r}
+write.csv(residualAnova, "denguePaper/results/tables/temperature-residuals.csv", row.names = F)
+```
+
