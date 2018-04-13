@@ -158,7 +158,7 @@ infectionSummary <- seasons %>%
 
 ```{r final seasonal infection stats}
 mixModelseasonsBody21 <- lme4::glmer(Body~Class*Block + (1|Site_ID), 
-                          data=seasons,
+                          data=seasonInf,
                           family=binomial(link="logit"))
 summary(mixModelseasonsBody21)
 tidy(mixModelseasonsBody21)
@@ -234,6 +234,8 @@ seasonSite <- seasons %>%
 seasonInfSite <- merge(seasonSite, rbind(augEnvVar,octEnvVar), by=c("Block", "Site_ID"))
 ```
 
+Body by Temp within a season
+
 ```{r body x climate stats}
 bodySummer <- glm(Body_mean ~ Temp_mean_mean, 
           data=seasonInfSite[seasonInfSite$Block == "Summer", ], 
@@ -256,6 +258,20 @@ confint(bodyFall)
 tidy(bodyFall)
 drop1(bodyFall, test="F")
 ```
+
+Fit Temperature to residuals
+
+```{r}
+seasonInf$bodyResid <- NA
+seasonInf$bodyResid[!is.na(seasonInf$Body)] <- resid(mixModelseasonsBody21)
+bodyResidTemp <- lmer(bodyResid~Temp_mean_mean + (1|Site_ID), 
+                          data=seasonInf)
+anova(bodyResidTemp)
+summary(bodyResidTemp)
+tidy(bodyResidTemp)
+```
+
+Head by Temp in each season
 
 ```{r head x climate stats}
 headSummer <- glm(Head_mean ~ Temp_mean_mean, 
@@ -280,6 +296,18 @@ tidy(headFall)
 drop1(headFall, test="F")
 ```
 
+Fitting to Residuals:
+
+```{r}
+seasonInf$headResid <- NA
+seasonInf$headResid[!is.na(seasonInf$Head)] <- resid(mixModelseasonsHead21)
+headResidTemp <- lmer(headResid~Temp_mean_mean + (1|Site_ID), 
+                          data=seasonInf)
+anova(headResidTemp)
+plot(headResidTemp)
+```
+
+Temperature witin a season:
 ```{r saliva x climate stats}
 salivaSummer <- lm(Saliva_mean ~ Temp_mean_mean, 
           data=seasonInfSite[seasonInfSite$Block == "Summer", ])
@@ -299,6 +327,17 @@ car::Anova(salivaFall)
 confint(salivaFall)
 tidy(salivaFall)
 drop1(salivaFall, test="F")
+```
+
+Fitting to residuals:
+
+```{r}
+seasonInf$salivaResid <- NA
+seasonInf$salivaResid[!is.na(seasonInf$Saliva)] <- resid(mixModelseasonsSaliva21)
+salivaResidTemp <- lmer(salivaResid~Temp_mean_mean + (1|Site_ID), 
+                          data=seasonInf)
+anova(salivaResidTemp)
+plot(salivaResidTemp)
 ```
 
 ## Body Size
@@ -366,6 +405,8 @@ interaction.plot(survTray$Class, survTray$Block, survTray$survival)
 
 ### Microclimate
 
+Temperature within a season:
+
 ```{r}
 survModClimSummer <- glmer(cbind(success, failure)~meanT+(1|Site_ID),
                     data=survBinomial[survBinomial$Block=="Summer",],
@@ -382,6 +423,18 @@ survModClimFall <- glmer(cbind(success, failure)~meanT+(1|Site_ID),
 summary(survModClimFall)
 plot(survModClimFall)
 qqnorm(resid(survModClimFall))
+```
+
+Fitting to residuals:
+
+```{r}
+survBinomial$survResid <- NA
+survBinomial$survResid <- resid(SurvModSeason)
+survResidTemp <- lmer(survResid~meanT + (1|Site_ID), 
+                          data=survBinomial)
+anova(survResidTemp)
+plot(survResidTemp)
+car::Anova(survResidTemp)
 ```
 
 ## Emergence
@@ -406,6 +459,7 @@ summary(multcomp::glht(mixEmergeTray, linfct = multcomp::mcp(Block = "Tukey"), t
 
 ### Microclimate
 
+Within a season:
 ```{r}
 devClimModSummer <- lmerTest::lmer(devRate~meanT + (1|Site_ID),
                     data=emergClim[emergClim$devRate!=0 & emergClim$Block=="Summer",])
@@ -420,6 +474,18 @@ devClimModFall <- lmerTest::lmer(devRate~meanT + (1|Site_ID),
 plot(devClimModFall)
 qqnorm(resid(devClimModFall))
 summary(devClimModFall)
+```
+
+Fitting residuals:
+
+```{r}
+emergClim$emergResid <- NA
+emergClim$emergResid[emergClim$devRate!=0] <- resid(mixEmergeTray)
+emergResidTemp <- lmer(emergResid~meanT + (1|Site_ID), 
+                          data=emergClim[emergClim$devRate!=0,])
+anova(emergResidTemp)
+plot(emergResidTemp)
+car::Anova(emergResidTemp)
 ```
 
 # Indirect Effects
@@ -461,6 +527,18 @@ qqnorm(resid(wingModTempFall))
 car::Anova(wingModTempFall)
 ```
 
+Fitting Residuals:
+
+```{r}
+allWing$wingResid <- NA
+allWing$wingResid<- resid(wingMod)
+wingResidTemp <- lmer(wingResid~Temp + (1|Site_ID), 
+                          data=allWing)
+anova(wingResidTemp )
+plot(wingResidTemp )
+car::Anova(wingResidTemp)
+```
+
 ## Growth Rate
 
 ### Class x Season
@@ -479,6 +557,7 @@ car::Anova(growthModSeason) #Wald test
 
 ### Microclimate
 
+Within a season:
 ```{r}
 growthTempModSummer <- lmerTest::lmer(r~meanT + (1|Site_ID),
                       data=growthDF2[growthDF2$Block=="Summer",])
@@ -490,12 +569,15 @@ growthTempModFall<- lmerTest::lmer(r~meanT + (1|Site_ID),
                       data=growthDF2[growthDF2$Block=="Fall",])
 summary(growthTempModFall)
 anova(growthTempModFall)
+```
 
-growthTempMod <- lmerTest::lmer(r~meanT*Block + (1|Site_ID),
-                      data=growthDF2)
-plot(growthTempMod)
-anova(growthTempMod)
-summary(growthTempMod)
+Fitting temperature to residuals:
+```{r}
+growthDF2$r_resid <- NA
+growthDF2$r_resid <- resid(growthModSeason)
+growthResidTemp<- lmer(r_resid~ meanT + (1|Site_ID), 
+                          data=growthDF2)
+anova(growthResidTemp)
 ```
 
 # Vectorial Capacity
@@ -519,7 +601,7 @@ Because there is no significant difference, I only report the other stats on the
 
 ```{r}
 VCModel <- lm(VC~ Class * Block,
-                     data = VecCapacity[VecCapacity$Calculation=="FieldBased",]) 
+                     data = VecCapacityClimate) 
 
 plot(VCModel)
 summary(VCModel)
@@ -531,6 +613,7 @@ lsmeans(VCModel, pairwise ~ Class|Block)
 
 ## Microclimate
 
+Within a season:
 ```{r}
 VCModSummer <- lm(VC~ meanT,
                      data = VecCapacityClimate[VecCapacityClimate$Block=="Summer",]) 
@@ -543,4 +626,16 @@ VCModFall <- lm(VC~ meanT,
 summary(VCModFall)
 anova(VCModFall)
 plot(VCModFall)
+```
+
+Fitting residuals:
+
+```{r}
+VecCapacityClimate$vc_resid <- NA
+VecCapacityClimate$vc_resid <- resid(VCModel)
+vcResidTemp <- lm(vc_resid~ meanT, 
+                          data=VecCapacityClimate)
+anova(vcResidTemp)
+plot(vcResidTemp)
+car::Anova(vcResidTemp)
 ```
