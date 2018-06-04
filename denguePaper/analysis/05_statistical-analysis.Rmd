@@ -7,11 +7,11 @@ output:
   html_document: default
 ---
 
-This document contains the code for the analysis of mosquito population and infection data in 'Carry-over effects of larval microclimate on the transmission potential of a mosquito-borne pathogen' (Evans et al.).
+This document contains the code for the analysis of mosquito population and infection data in 'Carry-over effects of urban larval environments on the transmission potential of dengue virus' (Evans et al. 2018).
 
 Paper Citation:
 
-Evans MV, Shiau JC, Solano N, Brindley MA, Drake JM, Murdock, CC. Carry-over effects of larval microclimate on the transmission potential of a mosquito-borne pathogen.  
+Evans MV, Shiau JC, Solano N, Brindley MA, Drake JM, Murdock, CC. 2018.  Carry-over effects of urban larval environments on the transmission potential of dengue virus.  *BMC Parasites and Vectors*.
 
 # Set-Up
 
@@ -612,6 +612,19 @@ tidy(VCModel)
 
 lsmeans(VCModel, pairwise ~ Class|Block)
 ```
+
+Using `anova` for comparison:
+```{r}
+#is it balanced? yes
+table(VecCapacityClimate$Block, VecCapacityClimate$Class)
+
+VC.aov <- aov(VC~ Class * Block,
+                     data = VecCapacityClimate)
+summary(VC.aov, type = 3)
+anova(VCModel)
+#they are the same
+```
+
 
 ## Microclimate
 
