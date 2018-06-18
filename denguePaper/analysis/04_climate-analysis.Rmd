@@ -137,6 +137,8 @@ intMod <- lmer(meanRH~classxBlock+ (1|Site_ID), data=climTray)
 summary(glht(intMod, linfct = mcp(classxBlock = "Tukey"), test = adjusted("holm")))
 
 anova(climModMeanRH, intMod)
+#confidence intervals
+lsmeans(climModMeanRH, "Block", type ="response")
 
 
 ## ------ min RH
@@ -220,9 +222,9 @@ extractMean <- function(model, variable){
 
 ```{r}
 modelList <- list(model = list(climModMinT, climModMeanT, climModMaxT, climModDTR, 
-                               climModMinRH, climModMeanRH, climModMaxT, climModDHR),
+                               climModMinRH, climModMeanRH, climModMaxRH, climModDHR),
                   variable = list("Min. Temperature", "Mean Temperature", "Max. Temperature", "Daily Temperature Range",
-                                  "Min. Relative Humidity", "Mean Relative Humidity", "Max. Relativei Humidity", "Daily Humidity Range"))
+                                  "Min. Relative Humidity", "Mean Relative Humidity", "Max. Relative Humidity", "Daily Humidity Range"))
 ```
 
 ```{r}

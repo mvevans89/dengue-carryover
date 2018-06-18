@@ -7,11 +7,11 @@ output:
   html_document: default
 ---
 
-This document contains the code for the analysis of mosquito population and infection data in 'Carry-over effects of urban larval environments on the transmission potential of dengue virus' (Evans et al. 2018).
+This document contains the code for the analysis of mosquito population and infection data in 'Carry-over effects of urban larval environments on the transmission potential of dengue-2 virus' (Evans et al. 2018).
 
 Paper Citation:
 
-Evans MV, Shiau JC, Solano N, Brindley MA, Drake JM, Murdock, CC. 2018.  Carry-over effects of urban larval environments on the transmission potential of dengue virus.  *BMC Parasites and Vectors*.
+Evans MV, Shiau JC, Solano N, Brindley MA, Drake JM, Murdock, CC. 2018.  Carry-over effects of urban larval environments on the transmission potential of dengue-2 virus.  *BMC Parasites and Vectors*.
 
 # Set-Up
 
@@ -403,6 +403,9 @@ car::Anova(SurvModSeason)
 summary(multcomp::glht(SurvModSeason, linfct = multcomp::mcp(Block = "Tukey"), test = adjusted("holm")))
 
 interaction.plot(survTray$Class, survTray$Block, survTray$survival)
+
+#confidence intervals
+lsmeans(SurvModSeason, "Block", type ="response")
 ```
 
 ### Microclimate
@@ -611,6 +614,9 @@ car::Anova(VCModel)
 tidy(VCModel)
 
 lsmeans(VCModel, pairwise ~ Class|Block)
+
+#confidence intervals
+lsmeans(VCModel, "Block", type ="response")
 ```
 
 Using `anova` for comparison:

@@ -80,7 +80,7 @@ growthDF <- growthDF %>%
 
 ```
 
-Calculate growth rate (using 46 as starting number of females based on mean emergence per seasonal replicate):
+Calculate growth rate :
 
 ```{r}
 growthDF$Fwx <- -121.240 + (78.02 * growthDF$meanWing)
@@ -93,7 +93,7 @@ growthDF2 <- growthDF %>%
   dplyr::summarise(xAxFwx = sum(xAxFwx), AxFwx=sum(AxFwx))
 
 growthDF2 <- growthDF2 %>%
-  mutate(r=(log((1/46)*AxFwx))/(14+(xAxFwx/AxFwx))) %>%
+  mutate(r=(log((1/50)*AxFwx))/(14+(xAxFwx/AxFwx))) %>%
   ungroup() 
 ```
 
