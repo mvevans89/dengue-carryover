@@ -150,7 +150,7 @@ Plot
 ```{r}
 #pdf(file="denguePaper/results/figures/forMS/demographicPoints.pdf", width = 3.25, height=6, family="sans")
 
-tiff(file="denguePaper/results/figures/forMS/demographicPoints2.tiff", width = 975, height = 1800, family="sans", res = 300)
+tiff(file="denguePaper/results/figures/forMS/demographicPoints.tiff", width = 975, height = 1800, family="sans", res = 300)
 
 demographicPlot <- ggplot(data = allDemoSite, aes(x = as.factor(Class), y = mean)) +
   geom_boxplot(aes(alpha = Block), color = NA) +
@@ -177,7 +177,7 @@ demographicPlot <- ggplot(data = allDemoSite, aes(x = as.factor(Class), y = mean
 
 ggdraw()+
   draw_plot(demographicPlot, x=0.0, y=0.0, width=1, height=1)+
-  draw_plot_label(label=c("A", "B", "C"),
+  draw_plot_label(label=c("a", "b", "c"),
                   x=c(0,0,0),
                   y=c(1,0.71,0.40))
 
@@ -194,7 +194,7 @@ infLong <- readRDS("denguePaper/data/infections/clean/infectionSummaryLong.RData
 ```
 
 ```{r}
-pdf(file="denguePaper/results/figures/forMS/infectionFacet.pdf", width = 3.25, height=6, family="sans")
+pdf(file="denguePaper/results/figures/forMS/infectionFacet2.pdf", width = 3.25, height=6, family="sans")
 
 infectionPlot <- ggplot(data = infLong, aes(x=Class, group=Block))+
   geom_bar(stat="identity", aes(y=mean.inf, alpha=Block, fill=Class), color="gray20", position=position_dodge(width=0.9))+
@@ -217,7 +217,7 @@ infectionPlot <- ggplot(data = infLong, aes(x=Class, group=Block))+
 
 ggdraw()+
   draw_plot(infectionPlot, x=0.0, y=0.0, width=1, height=1)+
-  draw_plot_label(label=c("A", "B", "C"),
+  draw_plot_label(label=c("a", "b", "c"),
                   x=c(0,0,0),
                   y=c(1,0.71,0.40))
 
